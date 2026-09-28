@@ -694,6 +694,86 @@ reset role;
 select pg_temp.expect_eq((select count(*) from public.agent_audit_log where action like 'ab.%' and target = 'campaign:' || current_setting('test.ab')
     and actor = 'user:10000000-0000-4000-8000-00000000000d'), 3, 'ab: every winner change is audited');
 
+-- Phase 10: warmup pool -------------------------------------------------------------
+update public.organizations set sending_paused = false where id = current_setting('test.org_a')::uuid;
+insert into public.sending_accounts (org_id, email, provider, smtp_host, smtp_port, imap_host, imap_port, username, daily_cap) values
+  (current_setting('test.org_a')::uuid, 'w1@warm.example', 'smtp', 'h', 465, 'h', 993, 'u', 3),
+  (current_setting('test.org_a')::uuid, 'w2@warm.example', 'smtp', 'h', 465, 'h', 993, 'u', 30);
+select set_config('test.w1', (select id::text from public.sending_accounts where email = 'w1@warm.example'), true);
+select set_config('test.w2', (select id::text from public.sending_accounts where email = 'w2@warm.example'), true);
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- owner
+update public.sending_accounts set warmup_enabled = true, warmup_daily_target = 30, warmup_reply_rate = 40 where email in ('w1@warm.example', 'w2@warm.example');
+select pg_temp.expect_eq((select count(*) from public.sending_accounts where email like 'w_@warm.example' and warmup_enabled and warmup_started_at is not null
+  and warmup_daily_target = 30), 2, 'warmup: owner turns warmup on; the ramp starts');
+select pg_temp.expect_error($q$update public.sending_accounts set warmup_daily_target = 51 where email = 'w1@warm.example'$q$, '23514', 'warmup: target capped at 50');
+select pg_temp.expect_error($q$update public.sending_accounts set warmup_paused_reason = null where email = 'w1@warm.example'$q$, '42501', 'warmup: pause reason is server-controlled');
+select pg_temp.expect_error(format($q$insert into public.warmup_messages (org_id, from_account_id, to_account_id, message_id, subject, body_text) values (%L, %L, %L, '<x@w>', 's', 'b')$q$,
+  current_setting('test.org_a'), current_setting('test.w1'), current_setting('test.w2')), '42501', 'warmup: clients cannot queue warmup mail');
+select pg_temp.expect_error(format('select public.reserve_warmup_slot(%L)', gen_random_uuid()), '42501', 'warmup: slot functions are server-only');
+select pg_temp.login('10000000-0000-4000-8000-00000000000c'); -- viewer
+update public.sending_accounts set warmup_enabled = false where email = 'w1@warm.example';
+select pg_temp.expect_eq((select count(*) from public.sending_accounts where email = 'w1@warm.example' and warmup_enabled), 1, 'warmup: viewer cannot toggle warmup');
+reset role;
+
+insert into public.warmup_messages (org_id, from_account_id, to_account_id, message_id, subject, body_text)
+select current_setting('test.org_a')::uuid, current_setting('test.w1')::uuid, current_setting('test.w2')::uuid, '<warm-' || i || '@warm.example>', 'Checking in', 'Hi'
+  from generate_series(1, 5) i;
+create function pg_temp.wm(p_i int) returns uuid language sql as $$ select id from public.warmup_messages where message_id = '<warm-' || p_i || '@warm.example>' $$;
+
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(1)) ->> 'ok')::boolean::int, 1, 'warmup slot: reserved');
+select pg_temp.expect_eq((select sent_today from public.sending_accounts where id = current_setting('test.w1')::uuid), 1, 'warmup slot: counts toward the daily cap');
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(2)) ->> 'reason' = 'pacing')::int, 1, 'warmup slot: shares the pacing gap');
+update public.sending_accounts set next_available_at = null where id = current_setting('test.w1')::uuid;
+update public.organizations set sending_paused = true where id = current_setting('test.org_a')::uuid;
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(2), 0, 0) ->> 'reason' = 'kill_switch')::int, 1, 'warmup slot: kill switch stops warmup too');
+update public.organizations set sending_paused = false where id = current_setting('test.org_a')::uuid;
+update public.sending_accounts set warmup_paused_reason = 'spam' where id = current_setting('test.w1')::uuid;
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(2), 0, 0) ->> 'reason' = 'warmup_off')::int, 1, 'warmup slot: auto-paused inbox sends nothing new');
+update public.warmup_messages set is_reply = true where id = pg_temp.wm(2);
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(2), 0, 0) ->> 'ok')::boolean::int, 1, 'warmup slot: replies still go out');
+update public.sending_accounts set warmup_paused_reason = null, next_available_at = null where id = current_setting('test.w1')::uuid;
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(3), 0, 0) ->> 'ok')::boolean::int, 1, 'warmup slot: third of three');
+update public.sending_accounts set next_available_at = null where id = current_setting('test.w1')::uuid;
+select pg_temp.expect_eq((public.reserve_warmup_slot(pg_temp.wm(4), 0, 0) ->> 'reason' = 'inbox_daily_cap')::int, 1, 'warmup slot: daily cap enforced');
+
+select public.finish_warmup_send(pg_temp.wm(1), 'sent');
+select public.finish_warmup_send(pg_temp.wm(3), 'failed', 'network');
+select pg_temp.expect_eq((select (status = 'sent' and sent_at is not null)::int from public.warmup_messages where id = pg_temp.wm(1))
+  + (select count(*) from public.warmup_events where type = 'sent' and account_id = current_setting('test.w1')::uuid), 2, 'warmup: sent recorded once');
+select pg_temp.expect_eq((select sent_today from public.sending_accounts where id = current_setting('test.w1')::uuid), 2, 'warmup: failed send gives its slot back');
+select public.finish_warmup_send(pg_temp.wm(1), 'failed');
+select pg_temp.expect_eq((select (status = 'sent')::int from public.warmup_messages where id = pg_temp.wm(1)), 1, 'warmup: finish is idempotent');
+
+select pg_temp.expect_eq(((public.record_warmup_received(current_setting('test.w2')::uuid, '<warm-1@warm.example>', true)) ->> 'first')::boolean::int, 1, 'received: first sighting');
+select pg_temp.expect_eq(((public.record_warmup_received(current_setting('test.w2')::uuid, '<warm-1@warm.example>', false)) ->> 'first')::boolean::int, 0, 'received: idempotent after the move to INBOX');
+select pg_temp.expect_eq((public.record_warmup_received(current_setting('test.w1')::uuid, '<warm-1@warm.example>', false) is null)::int, 1, 'received: only for the addressed inbox');
+select pg_temp.expect_eq((select count(*) from public.warmup_events where account_id = current_setting('test.w2')::uuid and type in ('received', 'rescued_from_spam')), 2,
+  'received: received + rescued_from_spam events');
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000c'); -- viewer reads stats
+select pg_temp.expect_eq((select sent * 100 + received * 10 + spam from public.warmup_stats(current_setting('test.org_a')::uuid) where account_id = current_setting('test.w1')::uuid),
+  111, 'stats: w1 sent 1, received 1, in spam 1');
+select pg_temp.expect_eq((select count(*) from public.warmup_messages), 5, 'warmup: members read warmup mail');
+select pg_temp.expect_eq((select sum(spam)::bigint from public.warmup_daily(current_setting('test.org_a')::uuid, 'UTC', 14)), 1, 'daily: spam placement per day');
+select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
+select pg_temp.expect_eq((select count(*) from public.warmup_stats(current_setting('test.org_a')::uuid)), 0, 'stats: other org sees nothing');
+select pg_temp.expect_eq((select count(*) from public.warmup_messages), 0, 'warmup: other org cannot read warmup mail');
+reset role;
+
+-- Re-enabling after an auto-pause clears it and restarts the ramp.
+update public.sending_accounts set warmup_paused_reason = '25% spam', warmup_started_at = now() - interval '10 days' where id = current_setting('test.w1')::uuid;
+update public.sending_accounts set warmup_enabled = true where id = current_setting('test.w1')::uuid;
+select pg_temp.expect_eq((select (warmup_paused_reason is null and warmup_started_at > now() - interval '1 minute')::int from public.sending_accounts where id = current_setting('test.w1')::uuid), 1,
+  'toggle: re-enabling after an auto-pause restarts the ramp');
+update public.sending_accounts set warmup_started_at = now() - interval '10 days' where id = current_setting('test.w1')::uuid;
+update public.sending_accounts set warmup_enabled = false where id = current_setting('test.w1')::uuid;
+update public.sending_accounts set warmup_enabled = true where id = current_setting('test.w1')::uuid;
+select pg_temp.expect_eq((select (warmup_started_at < now() - interval '9 days')::int from public.sending_accounts where id = current_setting('test.w1')::uuid), 1,
+  'toggle: a short off/on keeps the ramp');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

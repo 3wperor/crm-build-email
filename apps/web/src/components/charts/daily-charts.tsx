@@ -4,10 +4,10 @@ import { useEffect, useId, useRef, useState } from "react";
 
 export type DailyPoint = { day: string; sent: number; replied: number; bounced: number; unsubscribed: number };
 
-const PAD = { top: 12, right: 16, bottom: 26, left: 40 };
+export const PAD = { top: 12, right: 16, bottom: 26, left: 40 };
 
 /** Renders at the container's real pixel width, so 11px text stays 11px (no viewBox scaling). */
-function useWidth(fallback = 560) {
+export function useWidth(fallback = 560) {
   const ref = useRef<HTMLElement>(null);
   const [width, setWidth] = useState(fallback);
   useEffect(() => {
@@ -20,7 +20,7 @@ function useWidth(fallback = 560) {
   return [ref, width] as const;
 }
 
-function niceTicks(max: number, count = 4): number[] {
+export function niceTicks(max: number, count = 4): number[] {
   if (max <= 0) return [0, 1];
   const raw = max / count;
   const mag = 10 ** Math.floor(Math.log10(raw));
@@ -31,13 +31,13 @@ function niceTicks(max: number, count = 4): number[] {
   return ticks;
 }
 
-function fmtDay(day: string, long = false): string {
+export function fmtDay(day: string, long = false): string {
   const d = new Date(`${day}T12:00:00Z`);
   return d.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", ...(long ? { weekday: "short" } : {}) });
 }
 
 /** Axis frame shared by both charts: hairline gridlines, y tick labels, a few x labels. */
-function Frame({ days, ticks, y, h, x, w, right }: { days: DailyPoint[]; ticks: number[]; y: (v: number) => number; h: number; x: (i: number) => number; w: number; right: number }) {
+export function Frame({ days, ticks, y, h, x, w, right }: { days: { day: string }[]; ticks: number[]; y: (v: number) => number; h: number; x: (i: number) => number; w: number; right: number }) {
   const xLabels = days.length <= 7 ? days.map((_, i) => i) : [0, Math.floor((days.length - 1) / 2), days.length - 1];
   return (
     <g aria-hidden="true">
@@ -58,7 +58,7 @@ function Frame({ days, ticks, y, h, x, w, right }: { days: DailyPoint[]; ticks: 
   );
 }
 
-function Tooltip({ left, children }: { left: number; children: React.ReactNode }) {
+export function Tooltip({ left, children }: { left: number; children: React.ReactNode }) {
   // left is a fraction of the chart width; keep the box inside the card.
   const clamped = Math.min(Math.max(left, 0.12), 0.88);
   return (

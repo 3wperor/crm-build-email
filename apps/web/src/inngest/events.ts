@@ -26,3 +26,12 @@ export const imapSyncRequested = eventType("imap/sync.requested", {
 export const abEvaluateRequested = eventType("ab/evaluate.requested", {
   schema: z.object({ reason: z.string().optional() }),
 });
+
+/** Run the warmup planner now instead of waiting for the cron. */
+export const warmupTickRequested = eventType("warmup/tick.requested", {
+  schema: z.object({ reason: z.string().optional() }),
+});
+
+export const warmupSendRequested = eventType("warmup/send.requested", {
+  schema: z.object({ orgId: z.string().uuid(), id: z.string().uuid(), accountId: z.string().uuid(), scheduledAt: z.string() }),
+});

@@ -292,6 +292,36 @@ node --experimental-strip-types packages/mail/src/testing/run-fake-mail.mjs
 - **Audit:** both go through `set_variant_winner`, which writes to the audit log. `is_winner` can't be changed directly.
 - **Auto-promote** (a per-campaign setting): the `ab-evaluate` Inngest cron runs every 30 minutes, or on the `ab/evaluate.requested` event. It promotes significant winners in active campaigns, acting as `system:ab-auto-promote`, and never overrides an existing winner.
 
+### Warmup pool (beta)
+
+Warmup runs **only between your workspace's own inboxes**, and needs at least two. There is no shared pool across customers.
+
+**Ramp:**
+- Each inbox starts at 2 new warmup emails a day and adds *increase per day* (default 2) up to a target (default 20, maximum 50).
+- Weekends get half the volume.
+- The day's quota is spread over 08:00–18:00 in the inbox's timezone. The `warmup-tick` cron runs every 10 minutes and queues at most 3 per inbox per tick, each to the peer emailed least today.
+- The ramp restarts when warmup was off for more than 3 days or is restarted after an auto-pause.
+
+**Sharing with cold mail:**
+- Warmup and cold mail share pacing (3–7 min gaps) and the inbox's **daily cap** through `reserve_warmup_slot`: at full ramp, a cap of 30 with a target of 20 leaves 10 for campaigns.
+- The **kill switch** stops warmup too.
+
+**Content:** a built-in bank of neutral business snippets (subjects, greetings, bodies, sign-offs; `packages/core/src/warmup.ts`). No AI and no third-party API. Every warmup email carries `X-YCAReach-Warmup: 1`.
+
+**Engagement:** when the receiving inbox syncs (IMAP, INBOX + Spam), a warmup email we queued is:
+- opened (`\Seen`), and starred about 15% of the time;
+- **moved out of Spam into INBOX**, with the spam landing recorded;
+- replied to at the inbox's reply rate (default 30%, max 60%, up to 4 messages per thread). Replies go out in-thread after a short delay and count toward the replier's cap but not its quota.
+
+The header alone proves nothing: only Message-IDs we queued for that inbox count as warmup. Anything else goes through normal reply detection, so a forged header can't hide a real reply. Warmup mail never appears in Replies, the pipeline or Analytics.
+
+**Health:**
+- Each inbox is scored by inbox placement at its peers over the last 7 days.
+- It **auto-pauses** when more than 20% of its warmup mail lands in spam (with at least 10 received) or when 2 warmup emails bounce. The pause is audited as `warmup.auto_pause`.
+- Pausing cancels its queued mail. **Restart warmup** clears the pause and restarts the ramp.
+
+**Testing locally:** the fake mail server accepts any `@example.test` user with the fake password and delivers mail between them. `POST /spam/<address>` routes that recipient's incoming mail to Spam. `WARMUP_JITTER_SECONDS` and `WARMUP_REPLY_DELAY_*` shorten the delays.
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
@@ -303,6 +333,6 @@ node --experimental-strip-types packages/mail/src/testing/run-fake-mail.mjs
 7. ✅ Reply sync: IMAP polling (+ spam folder), matching, bounce parsing, classification (rules + optional AI), auto-pipeline
 8. ✅ Pipeline kanban, lead detail, thread view
 9. ✅ A/B variants and analytics (+ open/click tracking)
-10. Warmup pool (beta)
+10. ✅ Warmup pool (beta)
 11. MCP server, guardrails, audit log tooling
 12. HubSpot adapter

@@ -15,9 +15,9 @@ Read it with `README.md`, which covers architecture, setup and deploy.
 | 6 Test email | ✅ | 21f3e14 |
 | 7 Reply sync (IMAP + Junk, matching, DSN bounces, classification rules + optional Claude, auto-pipeline) | ✅ | ce8b337 |
 | 8 Pipeline kanban, stage editor, lead detail | ✅ | aa60c97 |
-| 9 A/B stats + analytics (+ open/click tracking) | ✅ | (this commit) |
-| 10 Warmup pool (beta) | ⏳ next | |
-| 11 MCP server + guardrails + agent audit | ⏳ | |
+| 9 A/B stats + analytics (+ open/click tracking) | ✅ | 8900bab |
+| 10 Warmup pool (beta) | ✅ | (this commit) |
+| 11 MCP server + guardrails + agent audit | ⏳ next | |
 | 12 HubSpot adapter (`CrmAdapter` interface) | ⏳ | |
 
 ## Decisions the user made (don't re-ask)
@@ -37,6 +37,7 @@ Read it with `README.md`, which covers architecture, setup and deploy.
   - Risky leads skipped unless the campaign opts in.
   - Plain text plus a generated minimal HTML version.
   - The kill switch also blocks test emails.
+- **Warmup:** the pool is the workspace's own inboxes only; text comes from a built-in phrase bank; warmup counts toward each inbox's daily cap.
 - **Replies:**
   - Out-of-office doesn't stop the sequence; the next step moves to the return date, or +3 days.
   - Negative replies go to Closed Lost.
@@ -62,7 +63,7 @@ Local fakes and escape hatches:
 
 With Docker available, the normal flow applies: `pnpm db:start` (Supabase), `pnpm dev`, `pnpm inngest:dev`.
 
-Suite totals at the last run: 177 core tests, 47 mail tests, 131 database assertions, 98 browser steps across 8 end-to-end suites.
+Suite totals at the last run: 189 core tests, 49 mail tests, 159 database assertions, 106 browser steps across 9 end-to-end suites.
 
 ## Not yet verified against real services
 
@@ -78,13 +79,15 @@ Suite totals at the last run: 177 core tests, 47 mail tests, 131 database assert
 - **A/B:** `evaluateAbTest` (reply rate, Bonferroni correction, at least 100 sends per variant). Winners change only through `set_variant_winner`, which is audited, and the `ab-evaluate` cron handles auto-promotion.
 - **Charts:** inline SVG in `components/charts/daily-charts.tsx`. The palette was validated with the dataviz skill's validator; tokens are `--viz-1..3` in `globals.css`.
 
-## Phases 10–12 notes
+## Phase 10 (done)
 
-- **Warmup:**
-  - Inboxes marked `warmup_enabled` email each other, and the `warmup_events` table already exists.
-  - Ramp from 5–10 a day upward.
-  - Tag messages with `X-YCAReach-Warmup` (reply sync already ignores it) and auto-reply to simulate threads.
-  - Pause on bounce or reply spikes, and label the feature beta.
+- **Code:** `packages/core/src/warmup.ts` (ramp, spreading, peers, reply decision, text bank, health) and `apps/web/src/lib/warmup/*`, plus the Inngest functions `warmup-tick` and `warmup-send`.
+- **Database:** migration 0011 adds `warmup_messages`, `reserve_warmup_slot`, `finish_warmup_send`, `record_warmup_received`, `warmup_stats` and `warmup_daily`.
+- **Reply sync:** `processMessage` engages with warmup mail only when the Message-ID matches mail we queued for that inbox. Mailbox writes go through `MailAdapter.engage`.
+- **Fake mail server:** now multi-user, delivers locally and supports `UID STORE` and `UID MOVE`.
+
+## Phases 11–12 notes
+
 - **MCP:**
   - `apps/mcp` exists as a placeholder, and `api_keys` stores SHA-256 hashes of keys.
   - Tools must reuse the core/lib functions: `sendTestEmail`, `createVerificationRun`, `enroll_leads`, `set_sending_paused(p_actor='agent:<key>')`.

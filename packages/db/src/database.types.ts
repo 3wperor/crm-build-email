@@ -1090,6 +1090,11 @@ export type Database = {
           next_available_at: string | null
           imap_cursors: Json
           imap_last_error: string | null
+          warmup_started_at: string | null
+          warmup_stopped_at: string | null
+          warmup_ramp_step: number
+          warmup_reply_rate: number
+          warmup_paused_reason: string | null
         }
         Insert: {
           id?: string
@@ -1125,6 +1130,11 @@ export type Database = {
           next_available_at?: string | null
           imap_cursors?: Json
           imap_last_error?: string | null
+          warmup_started_at?: string | null
+          warmup_stopped_at?: string | null
+          warmup_ramp_step?: number
+          warmup_reply_rate?: number
+          warmup_paused_reason?: string | null
         }
         Update: {
           id?: string
@@ -1160,6 +1170,11 @@ export type Database = {
           next_available_at?: string | null
           imap_cursors?: Json
           imap_last_error?: string | null
+          warmup_started_at?: string | null
+          warmup_stopped_at?: string | null
+          warmup_ramp_step?: number
+          warmup_reply_rate?: number
+          warmup_paused_reason?: string | null
         }
         Relationships: [
           {
@@ -1617,6 +1632,110 @@ export type Database = {
           },
         ]
       }
+      warmup_messages: {
+        Row: {
+          id: string
+          org_id: string
+          from_account_id: string
+          to_account_id: string
+          thread_root_id: string | null
+          thread_length: number
+          is_reply: boolean
+          message_id: string
+          in_reply_to: string | null
+          references: string[]
+          subject: string
+          body_text: string
+          status: string
+          scheduled_at: string
+          claimed_at: string | null
+          sent_at: string | null
+          bounced: boolean
+          error: string | null
+          received_at: string | null
+          landed_in: string | null
+          replied: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          from_account_id: string
+          to_account_id: string
+          thread_root_id?: string | null
+          thread_length?: number
+          is_reply?: boolean
+          message_id: string
+          in_reply_to?: string | null
+          references?: string[]
+          subject: string
+          body_text: string
+          status?: string
+          scheduled_at?: string
+          claimed_at?: string | null
+          sent_at?: string | null
+          bounced?: boolean
+          error?: string | null
+          received_at?: string | null
+          landed_in?: string | null
+          replied?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          from_account_id?: string
+          to_account_id?: string
+          thread_root_id?: string | null
+          thread_length?: number
+          is_reply?: boolean
+          message_id?: string
+          in_reply_to?: string | null
+          references?: string[]
+          subject?: string
+          body_text?: string
+          status?: string
+          scheduled_at?: string
+          claimed_at?: string | null
+          sent_at?: string | null
+          bounced?: boolean
+          error?: string | null
+          received_at?: string | null
+          landed_in?: string | null
+          replied?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "warmup_messages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warmup_messages_org_id_from_account_id_fkey"
+            columns: ["org_id", "from_account_id"]
+            isOneToOne: false
+            referencedRelation: "sending_accounts"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "warmup_messages_org_id_to_account_id_fkey"
+            columns: ["org_id", "to_account_id"]
+            isOneToOne: false
+            referencedRelation: "sending_accounts"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "warmup_messages_thread_root_id_fkey"
+            columns: ["thread_root_id"]
+            isOneToOne: false
+            referencedRelation: "warmup_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1716,6 +1835,14 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_warmup_send: {
+        Args: {
+          p_message_id: string
+          p_outcome: string
+          p_error?: string
+        }
+        Returns: undefined
+      }
       import_leads_chunk: {
         Args: {
           p_org_id: string
@@ -1735,6 +1862,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      record_warmup_received: {
+        Args: {
+          p_account_id: string
+          p_message_id: string
+          p_in_spam: boolean
+        }
+        Returns: Json
+      }
       release_send_slot: {
         Args: {
           p_org_id: string
@@ -1753,6 +1888,14 @@ export type Database = {
         Args: {
           p_org_id: string
           p_send_id: string
+          p_min_gap_s?: number
+          p_max_gap_s?: number
+        }
+        Returns: Json
+      }
+      reserve_warmup_slot: {
+        Args: {
+          p_message_id: string
           p_min_gap_s?: number
           p_max_gap_s?: number
         }
@@ -1792,6 +1935,35 @@ export type Database = {
           p_reason: string
         }
         Returns: number
+      }
+      warmup_daily: {
+        Args: {
+          p_org_id: string
+          p_tz?: string
+          p_days?: number
+        }
+        Returns: {
+          day: string
+          inbox: number
+          spam: number
+          sent: number
+        }[]
+      }
+      warmup_stats: {
+        Args: {
+          p_org_id: string
+          p_days?: number
+        }
+        Returns: {
+          account_id: string
+          sent: number
+          received: number
+          spam: number
+          bounced: number
+          replies_sent: number
+          created_today: number
+          sent_today: number
+        }[]
       }
     }
     Enums: {

@@ -68,6 +68,9 @@ export type FetchResult = {
   initialized: string[];
 };
 
+/** Mailbox actions that make warmup mail look engaged-with (the only place we write to an inbox). */
+export type EngageAction = { mailbox: string; uid: number; markSeen?: boolean; flag?: boolean; moveToInbox?: boolean };
+
 export interface MailAdapter {
   readonly provider: Provider;
   verifySmtp(): Promise<CheckResult>;
@@ -79,6 +82,8 @@ export interface MailAdapter {
    * UIDVALIDITY change starts from "now" instead of importing old mail.
    */
   fetchNewMessages(cursors: Record<string, MailboxCursor>, opts?: { includeJunk?: boolean; limitPerMailbox?: number }): Promise<FetchResult>;
+  /** Marks seen / flags / moves out of spam. Flags are set before moving so they travel with the message. */
+  engage(actions: EngageAction[]): Promise<{ applied: number; moved: number }>;
 }
 
 type SmtpErr = { code?: string; responseCode?: number; response?: string; message?: string; rejected?: string[] };
@@ -261,6 +266,38 @@ export class SmtpImapAdapter implements MailAdapter {
       client.close();
     }
     return { cursors: next, messages, initialized };
+  }
+
+  async engage(actions: EngageAction[]): Promise<{ applied: number; moved: number }> {
+    if (actions.length === 0) return { applied: 0, moved: 0 };
+    const byBox = new Map<string, EngageAction[]>();
+    for (const a of actions) byBox.set(a.mailbox, [...(byBox.get(a.mailbox) ?? []), a]);
+    let applied = 0;
+    let moved = 0;
+    const client = await this.imapClient();
+    try {
+      for (const [path, list] of byBox) {
+        const lock = await client.getMailboxLock(path);
+        try {
+          const seen = list.filter((a) => a.markSeen).map((a) => a.uid);
+          const flagged = list.filter((a) => a.flag).map((a) => a.uid);
+          if (seen.length) await client.messageFlagsAdd(seen.join(","), ["\\Seen"], { uid: true });
+          if (flagged.length) await client.messageFlagsAdd(flagged.join(","), ["\\Flagged"], { uid: true });
+          const move = list.filter((a) => a.moveToInbox && path.toUpperCase() !== "INBOX").map((a) => a.uid);
+          if (move.length) {
+            await client.messageMove(move.join(","), "INBOX", { uid: true });
+            moved += move.length;
+          }
+          applied += list.length;
+        } finally {
+          lock.release();
+        }
+      }
+      await client.logout();
+    } finally {
+      client.close();
+    }
+    return { applied, moved };
   }
 
   verifyImap(): Promise<CheckResult> {

@@ -3,26 +3,50 @@
  * Plain TypeScript (no enums / parameter properties) so Node can run it with
  * --experimental-strip-types. Not for production use.
  *
+ * Users: FAKE_USER plus any address on `localDomain` (password FAKE_PASS),
+ *        each with its own INBOX + Spam.
  * SMTP: EHLO, AUTH PLAIN/LOGIN, MAIL/RCPT/DATA (captures messages; RCPT to
- *       "bounce*" is rejected with 550).
+ *       "bounce*" is rejected with 550). Mail to a local user is also
+ *       delivered to their INBOX, or to Spam if the recipient is in `spamRoute`.
  * IMAP: LOGIN, LIST (INBOX + Spam flagged \Junk), SELECT/EXAMINE with
- *       UIDVALIDITY/UIDNEXT, UID FETCH <range> (BODY[]), LOGOUT.
+ *       UIDVALIDITY/UIDNEXT, UID FETCH <range> (BODY[] / FLAGS),
+ *       UID STORE +FLAGS, UID MOVE, LOGOUT.
  */
 import { createServer, type AddressInfo, type Server, type Socket } from "node:net";
 
 export type Captured = { from: string; to: string[]; data: string };
-type Stored = { uid: number; raw: string };
+type Stored = { uid: number; raw: string; flags: Set<string> };
 type Mailbox = { uidValidity: number; uidNext: number; messages: Stored[]; flags: string };
 
 export type FakeMail = {
   smtpPort: number;
   imapPort: number;
   captured: Captured[];
+  /** FAKE_USER's mailboxes. */
   mailboxes: Map<string, Mailbox>;
-  append(mailbox: string, raw: string): number;
+  /** Mailboxes of any user (created on first use). */
+  mailboxesOf(user: string): Map<string, Mailbox>;
+  /** Recipients whose incoming mail lands in Spam. */
+  spamRoute: Set<string>;
+  append(mailbox: string, raw: string, user?: string): number;
   resetUidValidity(mailbox: string): void;
   close(): Promise<void>;
 };
+
+type Users = { mailboxesOf(user: string): Map<string, Mailbox>; isLocal(user: string): boolean; spamRoute: Set<string> };
+
+function newMailboxes(): Map<string, Mailbox> {
+  return new Map<string, Mailbox>([
+    ["INBOX", { uidValidity: 1, uidNext: 1, messages: [], flags: "\\HasNoChildren" }],
+    ["Spam", { uidValidity: 7, uidNext: 1, messages: [], flags: "\\HasNoChildren \\Junk" }],
+  ]);
+}
+
+function store(mb: Mailbox, raw: string, flags: string[] = []): number {
+  const uid = mb.uidNext++;
+  mb.messages.push({ uid, raw: raw.replace(/\r?\n/g, "\r\n"), flags: new Set(flags) });
+  return uid;
+}
 
 export const FAKE_USER = "me@example.test";
 export const FAKE_PASS = "correct-horse";
@@ -41,7 +65,7 @@ function lines(sock: Socket, onLine: (line: string) => void) {
   sock.on("error", () => {});
 }
 
-function smtpServer(captured: Captured[], user: string, pass: string): Server {
+function smtpServer(captured: Captured[], users: Users, pass: string): Server {
   return createServer((sock) => {
     let loginStep = 0;
     let loginUser = "";
@@ -55,6 +79,10 @@ function smtpServer(captured: Captured[], user: string, pass: string): Server {
         if (line === ".") {
           inData = false;
           captured.push({ from, to, data });
+          for (const rcpt of to) {
+            const r = rcpt.toLowerCase();
+            if (users.isLocal(r)) store(users.mailboxesOf(r).get(users.spamRoute.has(r) ? "Spam" : "INBOX")!, data);
+          }
           sock.write("250 2.0.0 OK queued\r\n");
         } else data += (line.startsWith("..") ? line.slice(1) : line) + "\r\n";
         return;
@@ -67,7 +95,7 @@ function smtpServer(captured: Captured[], user: string, pass: string): Server {
       }
       if (loginStep === 2) {
         loginStep = 0;
-        const ok = loginUser === user && Buffer.from(line, "base64").toString() === pass;
+        const ok = users.isLocal(loginUser.toLowerCase()) && Buffer.from(line, "base64").toString() === pass;
         sock.write(ok ? "235 2.7.0 ok\r\n" : "535 5.7.8 Authentication credentials invalid\r\n");
         return;
       }
@@ -83,7 +111,7 @@ function smtpServer(captured: Captured[], user: string, pass: string): Server {
             break;
           }
           const [, u, p] = Buffer.from(rest[1] ?? "", "base64").toString().split("\0");
-          sock.write(u === user && p === pass ? "235 2.7.0 ok\r\n" : "535 5.7.8 Authentication credentials invalid\r\n");
+          sock.write(users.isLocal((u ?? "").toLowerCase()) && p === pass ? "235 2.7.0 ok\r\n" : "535 5.7.8 Authentication credentials invalid\r\n");
           break;
         }
         case "MAIL":
@@ -130,47 +158,88 @@ function unquote(s: string | undefined): string {
   return (s ?? "").replace(/^"(.*)"$/, "$1");
 }
 
-function imapServer(mailboxes: Map<string, Mailbox>, user: string, pass: string): Server {
+function imapServer(users: Users, pass: string): Server {
   return createServer((sock) => {
+    let mailboxes: Map<string, Mailbox> | null = null;
     let selected: Mailbox | null = null;
-    sock.write("* OK [CAPABILITY IMAP4rev1] fake ready\r\n");
+    const CAPS = "IMAP4rev1 MOVE UIDPLUS";
+    sock.write(`* OK [CAPABILITY ${CAPS}] fake ready\r\n`);
+    const flagList = (m: Stored) => [...m.flags].join(" ");
     lines(sock, (line) => {
       const m = /^(\S+)\s+(?:(UID)\s+)?(\S+)\s*(.*)$/i.exec(line);
       if (!m) return;
       const [, tag, uidPrefix, cmdRaw, args] = m;
       const cmd = cmdRaw!.toUpperCase();
-      if (cmd === "CAPABILITY") return void sock.write(`* CAPABILITY IMAP4rev1\r\n${tag} OK done\r\n`);
+      if (cmd === "CAPABILITY") return void sock.write(`* CAPABILITY ${CAPS}\r\n${tag} OK done\r\n`);
       if (cmd === "LOGIN") {
-        const ok = line.includes(user) && line.includes(pass);
-        return void sock.write(ok ? `${tag} OK [CAPABILITY IMAP4rev1] logged in\r\n` : `${tag} NO [AUTHENTICATIONFAILED] Invalid credentials\r\n`);
+        const [u, p] = (args!.match(/"(?:[^"\\]|\\.)*"|\S+/g) ?? []).map((x) => unquote(x));
+        const ok = !!u && users.isLocal(u.toLowerCase()) && p === pass;
+        if (ok) mailboxes = users.mailboxesOf(u!.toLowerCase());
+        return void sock.write(ok ? `${tag} OK [CAPABILITY ${CAPS}] logged in\r\n` : `${tag} NO [AUTHENTICATIONFAILED] Invalid credentials\r\n`);
       }
+      if (!mailboxes && cmd !== "LOGOUT") return void sock.write(`${tag} NO not authenticated\r\n`);
+      const boxes = mailboxes!;
+      const byName = (raw: string | undefined) => {
+        const name = unquote(raw);
+        return boxes.get(name.toUpperCase() === "INBOX" ? "INBOX" : name);
+      };
       if (cmd === "LIST") {
         // `LIST "" ""` only asks for the hierarchy delimiter (RFC 3501 §6.3.8).
         if (/^""\s+""$/.test(args!.trim())) return void sock.write(`* LIST (\\Noselect) "/" ""\r\n${tag} OK done\r\n`);
         let out = "";
-        for (const [name, mb] of mailboxes) out += `* LIST (${mb.flags}) "/" "${name}"\r\n`;
+        for (const [name, mb] of boxes) out += `* LIST (${mb.flags}) "/" "${name}"\r\n`;
         return void sock.write(`${out}${tag} OK done\r\n`);
       }
       if (cmd === "SELECT" || cmd === "EXAMINE") {
-        const name = unquote(args!.split(" ")[0]);
-        const mb = mailboxes.get(name.toUpperCase() === "INBOX" ? "INBOX" : name);
+        const mb = byName(args!.split(" ")[0]);
         if (!mb) return void sock.write(`${tag} NO no such mailbox\r\n`);
         selected = mb;
         return void sock.write(
-          `* FLAGS (\\Seen)\r\n* ${mb.messages.length} EXISTS\r\n* OK [UIDVALIDITY ${mb.uidValidity}] ok\r\n* OK [UIDNEXT ${mb.uidNext}] ok\r\n${tag} OK [${cmd === "EXAMINE" ? "READ-ONLY" : "READ-WRITE"}] done\r\n`,
+          `* FLAGS (\\Seen \\Flagged \\Deleted)\r\n* ${mb.messages.length} EXISTS\r\n* OK [UIDVALIDITY ${mb.uidValidity}] ok\r\n* OK [UIDNEXT ${mb.uidNext}] ok\r\n${tag} OK [${cmd === "EXAMINE" ? "READ-ONLY" : "READ-WRITE"}] done\r\n`,
         );
       }
       if (cmd === "FETCH" && uidPrefix && selected) {
         const spec = args!.split(" ")[0]!;
-        const maxUid = selected.messages.at(-1)?.uid ?? 0;
-        const inSet = uidSet(spec, maxUid);
+        const inSet = uidSet(spec, selected.messages.at(-1)?.uid ?? 0);
+        const wantBody = /BODY/i.test(args!);
         selected.messages.forEach((msg, i) => {
           if (!inSet(msg.uid)) return;
+          if (!wantBody) return void sock.write(`* ${i + 1} FETCH (UID ${msg.uid} FLAGS (${flagList(msg)}))\r\n`);
           const body = Buffer.from(msg.raw, "latin1");
           sock.write(`* ${i + 1} FETCH (UID ${msg.uid} BODY[] {${body.length}}\r\n`);
           sock.write(body);
           sock.write(")\r\n");
         });
+        return void sock.write(`${tag} OK done\r\n`);
+      }
+      if (cmd === "STORE" && uidPrefix && selected) {
+        const sm = /^(\S+)\s+([+-]?)FLAGS(\.SILENT)?\s+\(([^)]*)\)/i.exec(args!);
+        if (!sm) return void sock.write(`${tag} BAD store\r\n`);
+        const inSet = uidSet(sm[1]!, selected.messages.at(-1)?.uid ?? 0);
+        const flags = sm[4]!.split(/\s+/).filter(Boolean);
+        selected.messages.forEach((msg, i) => {
+          if (!inSet(msg.uid)) return;
+          if (sm[2] === "+") flags.forEach((f) => msg.flags.add(f));
+          else if (sm[2] === "-") flags.forEach((f) => msg.flags.delete(f));
+          else msg.flags = new Set(flags);
+          if (!sm[3]) sock.write(`* ${i + 1} FETCH (UID ${msg.uid} FLAGS (${flagList(msg)}))\r\n`);
+        });
+        return void sock.write(`${tag} OK done\r\n`);
+      }
+      if (cmd === "MOVE" && uidPrefix && selected) {
+        const [spec, destRaw] = args!.split(/\s+(.+)/);
+        const dest = byName(destRaw);
+        if (!dest) return void sock.write(`${tag} NO [TRYCREATE] no such mailbox\r\n`);
+        const inSet = uidSet(spec!, selected.messages.at(-1)?.uid ?? 0);
+        const src = selected;
+        const moving = src.messages.filter((msg) => inSet(msg.uid));
+        const newUids = moving.map((msg) => store(dest, msg.raw, [...msg.flags]));
+        if (moving.length) sock.write(`* OK [COPYUID ${dest.uidValidity} ${moving.map((x) => x.uid).join(",")} ${newUids.join(",")}] moved\r\n`);
+        for (const msg of moving) {
+          const seq = src.messages.indexOf(msg) + 1;
+          src.messages.splice(seq - 1, 1);
+          sock.write(`* ${seq} EXPUNGE\r\n`);
+        }
         return void sock.write(`${tag} OK done\r\n`);
       }
       if (cmd === "LOGOUT") return void sock.end(`* BYE bye\r\n${tag} OK done\r\n`);
@@ -183,28 +252,39 @@ function imapServer(mailboxes: Map<string, Mailbox>, user: string, pass: string)
 const listen = (s: Server, port: number) =>
   new Promise<number>((resolve) => s.listen(port, "127.0.0.1", () => resolve((s.address() as AddressInfo).port)));
 
-export async function startFakeMail(opts: { smtpPort?: number; imapPort?: number; user?: string; pass?: string } = {}): Promise<FakeMail> {
-  const user = opts.user ?? FAKE_USER;
+export async function startFakeMail(
+  opts: { smtpPort?: number; imapPort?: number; user?: string; pass?: string; localDomain?: string } = {},
+): Promise<FakeMail> {
+  const user = (opts.user ?? FAKE_USER).toLowerCase();
   const pass = opts.pass ?? FAKE_PASS;
+  const domain = (opts.localDomain ?? user.split("@")[1] ?? "example.test").toLowerCase();
   const captured: Captured[] = [];
-  const mailboxes = new Map<string, Mailbox>([
-    ["INBOX", { uidValidity: 1, uidNext: 1, messages: [], flags: "\\HasNoChildren" }],
-    ["Spam", { uidValidity: 7, uidNext: 1, messages: [], flags: "\\HasNoChildren \\Junk" }],
-  ]);
-  const smtp = smtpServer(captured, user, pass);
-  const imap = imapServer(mailboxes, user, pass);
+  const all = new Map<string, Map<string, Mailbox>>();
+  const spamRoute = new Set<string>();
+  const users: Users = {
+    isLocal: (u) => u === user || u.endsWith(`@${domain}`),
+    mailboxesOf(u) {
+      const key = u.toLowerCase();
+      if (!all.has(key)) all.set(key, newMailboxes());
+      return all.get(key)!;
+    },
+    spamRoute,
+  };
+  const mailboxes = users.mailboxesOf(user);
+  const smtp = smtpServer(captured, users, pass);
+  const imap = imapServer(users, pass);
   const [smtpPort, imapPort] = await Promise.all([listen(smtp, opts.smtpPort ?? 0), listen(imap, opts.imapPort ?? 0)]);
   return {
     smtpPort,
     imapPort,
     captured,
     mailboxes,
-    append(mailbox, raw) {
-      const mb = mailboxes.get(mailbox);
+    mailboxesOf: (u) => users.mailboxesOf(u),
+    spamRoute,
+    append(mailbox, raw, u = user) {
+      const mb = users.mailboxesOf(u).get(mailbox);
       if (!mb) throw new Error(`no mailbox ${mailbox}`);
-      const uid = mb.uidNext++;
-      mb.messages.push({ uid, raw: raw.replace(/\r?\n/g, "\r\n") });
-      return uid;
+      return store(mb, raw);
     },
     resetUidValidity(mailbox) {
       const mb = mailboxes.get(mailbox)!;

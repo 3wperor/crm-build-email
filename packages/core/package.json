@@ -12,7 +12,8 @@
     "./templates": "./src/templates.ts",
     "./campaigns": "./src/campaigns.ts",
     "./replies": "./src/replies.ts",
-    "./analytics": "./src/analytics.ts"
+    "./analytics": "./src/analytics.ts",
+    "./warmup": "./src/warmup.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

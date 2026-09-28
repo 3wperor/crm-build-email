@@ -12,15 +12,22 @@ import {
   type MatchCandidate,
   type ReplyClass,
 } from "@crm/core";
-import type { FetchedMessage, MailboxCursor } from "@crm/mail";
+import type { EngageAction, FetchedMessage, MailboxCursor } from "@crm/mail";
 import { createMailAdapter } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ACCOUNT_CONNECTION_COLUMNS, loadAccountPassword, mailAdapterOptions, toMailConfig } from "@/lib/sending-accounts";
 import { aiClassifierAvailable, classifyReplyWithAi } from "./ai-classifier";
+import { handleWarmupMessage } from "@/lib/warmup/engage";
+import type { PlannedWarmup } from "@/lib/warmup/planner";
+import { inngest } from "@/inngest/client";
+import { warmupSendRequested } from "@/inngest/events";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-export type MessageOutcome = "reply" | "bounce" | "ignored_own" | "ignored_duplicate" | "ignored_unmatched" | "ignored_internal";
+export type MessageOutcome = "reply" | "bounce" | "warmup" | "ignored_own" | "ignored_duplicate" | "ignored_unmatched" | "ignored_internal";
+
+/** Side effects collected while processing a batch (applied once per sync). */
+export type SyncEffects = { engage: EngageAction[]; warmupReplies: PlannedWarmup[] };
 
 const MAX_BODY = 50_000;
 
@@ -60,7 +67,7 @@ export async function processMessage(
   admin: Admin,
   account: { id: string; org_id: string; email: string },
   msg: FetchedMessage,
-  opts: { aiEnabled: boolean },
+  opts: { aiEnabled: boolean; effects?: SyncEffects },
 ): Promise<MessageOutcome> {
   const raw = msg.source.toString("utf8");
   const parsed = await simpleParser(msg.source, { skipImageLinks: true, skipTextToHtml: true });
@@ -70,8 +77,18 @@ export async function processMessage(
   const receivedAt = parsed.date ?? new Date();
   const subject = parsed.subject ?? "";
 
-  // Our own mail (test emails, warmup, sent copies) never counts as a reply.
-  if (headers["x-ycareach-test"] || headers["x-ycareach-warmup"]) return "ignored_internal";
+  // Warmup mail we queued: engage with it instead of treating it as a reply. The
+  // header alone proves nothing, so unmatched mail falls through to normal processing.
+  if (headers["x-ycareach-warmup"] && parsed.messageId) {
+    const w = await handleWarmupMessage(admin, account, msg, parsed.messageId);
+    if (w) {
+      opts.effects?.engage.push(w.engage);
+      if (w.reply) opts.effects?.warmupReplies.push(w.reply);
+      return "warmup";
+    }
+  }
+  // Our own test emails never count as replies.
+  if (headers["x-ycareach-test"]) return "ignored_internal";
   if (!from || from.address === account.email) return "ignored_own";
 
   // --- Bounces (DSN) -------------------------------------------------------------
@@ -211,11 +228,25 @@ export async function syncAccount(orgId: string, accountId: string): Promise<Syn
   }
 
   const outcomes: SyncSummary["outcomes"] = {};
+  const effects: SyncEffects = { engage: [], warmupReplies: [] };
   for (const msg of result.messages) {
     const o = await processMessage(admin, { id: account.id, org_id: orgId, email: account.email }, msg, {
       aiEnabled: account.organizations.ai_classification_enabled,
+      effects,
     });
     outcomes[o] = (outcomes[o] ?? 0) + 1;
+  }
+
+  // Warmup engagement is best effort: a failure here must not block reply detection.
+  if (effects.engage.length) {
+    try {
+      await adapter.engage(effects.engage);
+    } catch (e) {
+      console.error("warmup engagement failed", e);
+    }
+  }
+  if (effects.warmupReplies.length) {
+    await inngest.send(effects.warmupReplies.map((r) => warmupSendRequested.create(r)));
   }
 
   // Cursors advance only after every message in the batch was processed.

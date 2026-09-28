@@ -150,6 +150,37 @@ describe("SmtpImapAdapter.fetchNewMessages", () => {
   });
 });
 
+describe("SmtpImapAdapter.engage + local delivery", () => {
+  it("delivers between local users, and rescues spam: seen + flagged + moved to INBOX", async () => {
+    fake.spamRoute.add("peer@example.test");
+    const ownBefore = fake.mailboxes.get("INBOX")!.messages.length;
+    const sender = new SmtpImapAdapter(config(PASS), localOpts);
+    const r = await sender.send({ fromName: null, to: "peer@example.test", subject: "warm", text: "hi", html: "<p>hi</p>", messageId: "<w-1@example.test>" });
+    expect(r.ok).toBe(true);
+    const peerBoxes = fake.mailboxesOf("peer@example.test");
+    expect(peerBoxes.get("Spam")!.messages).toHaveLength(1);
+
+    const peer = new SmtpImapAdapter({ ...config(PASS), email: "peer@example.test", username: "peer@example.test" }, localOpts);
+    const start = await peer.fetchNewMessages({}, { includeJunk: true });
+    expect(start.initialized.sort()).toEqual(["INBOX", "Spam"]);
+    const res = await peer.engage([{ mailbox: "Spam", uid: 1, markSeen: true, flag: true, moveToInbox: true }]);
+    expect(res).toEqual({ applied: 1, moved: 1 });
+    expect(peerBoxes.get("Spam")!.messages).toHaveLength(0);
+    const moved = peerBoxes.get("INBOX")!.messages;
+    expect(moved).toHaveLength(1);
+    expect([...moved[0]!.flags].sort()).toEqual(["\\Flagged", "\\Seen"]);
+    // The sender's own mailbox is untouched.
+    expect(fake.mailboxes.get("INBOX")!.messages).toHaveLength(ownBefore);
+  });
+
+  it("only marks seen in INBOX (no move)", async () => {
+    const uid = fake.append("INBOX", "From: a@b.co\nSubject: x\nMessage-ID: <x@b.co>\n\nx\n");
+    const res = await new SmtpImapAdapter(config(PASS), localOpts).engage([{ mailbox: "INBOX", uid, markSeen: true, moveToInbox: true }]);
+    expect(res).toEqual({ applied: 1, moved: 0 });
+    expect([...fake.mailboxes.get("INBOX")!.messages.find((m) => m.uid === uid)!.flags]).toEqual(["\\Seen"]);
+  });
+});
+
 describe("createMailAdapter", () => {
   it("does not implement outlook yet", () => {
     expect(() => createMailAdapter({ ...config(PASS), provider: "outlook" })).toThrow(ProviderNotImplementedError);

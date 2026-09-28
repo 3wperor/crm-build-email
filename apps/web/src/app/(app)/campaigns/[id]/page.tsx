@@ -253,7 +253,7 @@ async function LeadsTab({
   const supabase = await createClient();
   const { data: rows } = await supabase
     .from("campaign_leads")
-    .select("id, status, current_step_order, next_send_at, stopped_reason, leads!inner(email, first_name, last_name), sending_accounts(email)")
+    .select("id, status, current_step_order, next_send_at, stopped_reason, leads!inner(id, email, first_name, last_name), sending_accounts(email)")
     .eq("campaign_id", campaignId)
     .order("enrolled_at", { ascending: false })
     .limit(100);
@@ -286,7 +286,9 @@ async function LeadsTab({
                 {rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className="font-medium">{r.leads.email}</div>
+                      <Link href={`/leads/${r.leads.id}`} className="font-medium hover:underline">
+                        {r.leads.email}
+                      </Link>
                       <div className="text-muted-foreground text-xs">{[r.leads.first_name, r.leads.last_name].filter(Boolean).join(" ")}</div>
                     </TableCell>
                     <TableCell>

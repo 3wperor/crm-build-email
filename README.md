@@ -4,7 +4,7 @@ YCAReach is a cold-email outreach CRM. It covers the full loop: upload leads →
 
 It's built for solo use first. Every table is org-scoped with Postgres RLS so it can become multi-tenant SaaS without a rewrite.
 
-> **Status: Phases 1–7 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler, test email, reply sync). See [Roadmap](#roadmap).
+> **Status: Phases 1–8 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler, test email, reply sync, pipeline & lead detail). See [Roadmap](#roadmap).
 
 ## Stack
 
@@ -240,6 +240,29 @@ Every 3 minutes, `imap-sync-tick` fans out one `imap-sync-account` job per activ
 ```bash
 node --experimental-strip-types packages/mail/src/testing/run-fake-mail.mjs
 ```
+
+### Pipeline and lead detail
+
+**Kanban** (`/pipeline`):
+- Built on `@dnd-kit/core`. Mouse and touch drags start after a 6px move. On the keyboard, Space picks a card up, ←/→ jump between columns, and Space drops it.
+- Screen readers hear names ("Grace Hopper is over Interested"), not internal IDs.
+- Every card also has an accessible **Move to…** menu.
+- Moves are optimistic and roll back on error.
+- The board refreshes through Supabase Realtime when replies or cards change; RLS applies to what each browser receives.
+- Viewers get a read-only board.
+
+**Stages** (`/pipeline/stages`, admins only):
+- Rename, set the type (open / won / lost), add, and reorder. Reordering goes through `reorder_pipeline_stages`, which rewrites positions atomically.
+- Choose the **entry stage**, where replies land (`set_entry_stage`: exactly one, and it must be open).
+- Negative replies go to the first *lost* stage.
+- Guards: a stage that still has cards can't be deleted (foreign key), and neither can the entry stage.
+
+**Lead page** (`/leads/[id]`):
+- The full conversation: every email sent and every reply, across campaigns.
+- Editable fields and custom fields; keys are normalized to `snake_case` and usable as `{{field}}` in emails.
+- Notes: authors, owners and admins can delete them.
+- Pipeline card: stage, booking link, add or remove manually.
+- Campaign enrollments, list memberships, suppression status and verification details.
 
 ## Roadmap
 

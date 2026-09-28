@@ -563,6 +563,48 @@ select pg_temp.expect_error(format('select public.apply_reply_outcome(%L, %L)', 
   '42501', 'reply: apply_reply_outcome not client-callable');
 reset role;
 
+-- Phase 8: pipeline management + notes ------------------------------------------
+select set_config('test.stages', (select string_agg(id::text, ',' order by position desc) from public.pipeline_stages where org_id = current_setting('test.org_a')::uuid), true);
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- owner
+select public.reorder_pipeline_stages(current_setting('test.org_a')::uuid, string_to_array(current_setting('test.stages'), ',')::uuid[]);
+select pg_temp.expect_eq((select (name = 'Closed Lost')::int from public.pipeline_stages where org_id = current_setting('test.org_a')::uuid and position = 1), 1,
+  'pipeline: owner reorders stages atomically');
+select pg_temp.expect_error(format('select public.reorder_pipeline_stages(%L, %L::uuid[])', current_setting('test.org_a'), '{}'), 'P0001',
+  'pipeline: reorder must include every stage');
+select public.set_entry_stage(current_setting('test.org_a')::uuid, (select id from public.pipeline_stages where org_id = current_setting('test.org_a')::uuid and name = 'Interested'));
+select pg_temp.expect_eq((select count(*) from public.pipeline_stages where org_id = current_setting('test.org_a')::uuid and is_entry and name = 'Interested'), 1,
+  'pipeline: entry stage moved, still exactly one');
+select pg_temp.expect_error(format('select public.set_entry_stage(%L, %L)', current_setting('test.org_a'),
+  (select id from public.pipeline_stages where org_id = current_setting('test.org_a')::uuid and name = 'Closed Won')), 'P0001', 'pipeline: won/lost stage cannot be the entry');
+select pg_temp.expect_error(format('delete from public.pipeline_stages where org_id = %L and is_entry', current_setting('test.org_a')), '23514',
+  'pipeline: entry stage cannot be deleted');
+select pg_temp.expect_error(format($q$delete from public.pipeline_stages where org_id = %L and name = 'Closed Lost'$q$, current_setting('test.org_a')), '23503',
+  'pipeline: stage with cards cannot be deleted');
+insert into public.lead_notes (org_id, lead_id, user_id, body)
+select org_id, id, '10000000-0000-4000-8000-00000000000a', 'Called, wants a demo' from public.leads where email = 'r-pos@reply.example';
+select pg_temp.expect_eq((select count(*) from public.lead_notes), 1, 'notes: owner adds a note');
+select pg_temp.expect_error(format($q$insert into public.lead_notes (org_id, lead_id, user_id, body) select org_id, id, %L, 'x' from public.leads where email = 'r-pos@reply.example'$q$,
+  '10000000-0000-4000-8000-00000000000d'), '42501', 'notes: cannot write a note as someone else');
+reset role;
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000d'); -- sender
+select pg_temp.expect_error(format('select public.reorder_pipeline_stages(%L, %L::uuid[])', current_setting('test.org_a'), '{' || current_setting('test.stages') || '}'), '42501',
+  'pipeline: sender cannot reorder stages');
+update public.opportunities set stage_id = (select id from public.pipeline_stages where org_id = current_setting('test.org_a')::uuid and name = 'Meeting Booked'), moved_at = now()
+ where lead_id = (select id from public.leads where email = 'r-pos@reply.example');
+select pg_temp.expect_eq((select count(*) from public.opportunities o join public.pipeline_stages ps on ps.id = o.stage_id where ps.name = 'Meeting Booked'), 1,
+  'pipeline: sender moves a card');
+select pg_temp.expect_error(format($q$insert into public.opportunities (org_id, lead_id, stage_id, source) select org_id, id, (select id from public.pipeline_stages where org_id = %L limit 1), 'manual' from public.leads where email = 'r-pos@reply.example'$q$,
+  current_setting('test.org_a')), '23505', 'pipeline: one card per lead');
+reset role;
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
+select pg_temp.expect_eq((select count(*) from public.lead_notes), 0, 'notes: other org cannot read');
+reset role;
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

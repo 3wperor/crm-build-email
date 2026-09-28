@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { VERIFICATION_REASON_LABELS, type VerificationReason } from "@crm/core/verification";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,7 +145,11 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
                   <input type="checkbox" aria-label={`Select ${r.email}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
                 </TableCell>
               )}
-              <TableCell className="font-medium">{r.email}</TableCell>
+              <TableCell className="font-medium">
+                <Link href={`/leads/${r.id}`} className="hover:underline">
+                  {r.email}
+                </Link>
+              </TableCell>
               <TableCell>{[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}</TableCell>
               <TableCell className="max-w-48 truncate">{r.company ?? "—"}</TableCell>
               <TableCell className="max-w-48 truncate">{r.title ?? "—"}</TableCell>

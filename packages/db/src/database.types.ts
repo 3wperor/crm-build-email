@@ -619,6 +619,48 @@ export type Database = {
           },
         ]
       }
+      lead_notes: {
+        Row: {
+          id: string
+          org_id: string
+          lead_id: string
+          user_id: string | null
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          lead_id: string
+          user_id?: string | null
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          lead_id?: string
+          user_id?: string | null
+          body?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_notes_org_id_lead_id_fkey"
+            columns: ["org_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "lead_notes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           id: string
@@ -1647,6 +1689,13 @@ export type Database = {
         }
         Returns: undefined
       }
+      reorder_pipeline_stages: {
+        Args: {
+          p_org_id: string
+          p_stage_ids: string[]
+        }
+        Returns: undefined
+      }
       reserve_send_slot: {
         Args: {
           p_org_id: string
@@ -1655,6 +1704,13 @@ export type Database = {
           p_max_gap_s?: number
         }
         Returns: Json
+      }
+      set_entry_stage: {
+        Args: {
+          p_org_id: string
+          p_stage_id: string
+        }
+        Returns: undefined
       }
       set_sending_paused: {
         Args: {

@@ -1,0 +1,17 @@
+{
+  "name": "@crm/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server (Phase 11). Placeholder so the workspace layout is fixed from day one.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crm/core": "workspace:*",
+    "@crm/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

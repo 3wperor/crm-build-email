@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Sign in</CardTitle>
-        <CardDescription>Outreach CRM</CardDescription>
+        <CardDescription>YCAReach</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {error && <p className="text-destructive text-sm">{error}</p>}

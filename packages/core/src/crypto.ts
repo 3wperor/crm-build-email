@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
  * App-level AES-256-GCM for secrets at rest (sending-account app passwords).
@@ -99,4 +99,27 @@ export function decryptSecret(ciphertext: string, aad: string, keyring: Keyring)
 /** True when a ciphertext should be re-encrypted with the current key. */
 export function needsReencryption(ciphertext: string, keyring: Keyring): boolean {
   return !ciphertext.startsWith(`v${keyring.currentVersion}:`);
+}
+
+// ---------------------------------------------------------------------------
+// Signed tokens (unsubscribe links). Not secret, just unforgeable.
+// ---------------------------------------------------------------------------
+
+
+export function signToken(payload: string, secret: string): string {
+  if (!secret || secret.length < 16) throw new CredentialCryptoError("Signing secret must be at least 16 characters");
+  const body = Buffer.from(payload, "utf8").toString("base64url");
+  const mac = createHmac("sha256", secret).update(body).digest("base64url").slice(0, 32);
+  return `${body}.${mac}`;
+}
+
+/** Returns the payload, or null if the token is malformed or forged. */
+export function verifyToken(token: string, secret: string): string | null {
+  const [body, mac] = token.split(".");
+  if (!body || !mac) return null;
+  const expected = createHmac("sha256", secret).update(body).digest("base64url").slice(0, 32);
+  const a = Buffer.from(mac);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  return Buffer.from(body, "base64url").toString("utf8");
 }

@@ -7,7 +7,10 @@
     ".": "./src/index.ts",
     "./crypto": "./src/crypto.ts",
     "./imports": "./src/imports.ts",
-    "./verification": "./src/verification.ts"
+    "./verification": "./src/verification.ts",
+    "./scheduler": "./src/scheduler.ts",
+    "./templates": "./src/templates.ts",
+    "./campaigns": "./src/campaigns.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

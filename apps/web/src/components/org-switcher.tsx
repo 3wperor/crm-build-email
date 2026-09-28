@@ -3,7 +3,7 @@ import type { OrgContext } from "@/lib/org";
 
 export function OrgSwitcher({ ctx }: { ctx: OrgContext }) {
   if (ctx.orgs.length <= 1) {
-    return <div className="truncate px-2 text-sm font-semibold">{ctx.org.name}</div>;
+    return <div className="text-muted-foreground truncate px-2 text-xs font-medium">{ctx.org.name}</div>;
   }
   return (
     <form action={switchOrganization} className="flex gap-1">

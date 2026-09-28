@@ -1,6 +1,6 @@
 # Supabase local development config. Full reference:
 # https://supabase.com/docs/guides/local-development/cli/config
-project_id = "outreach-crm"
+project_id = "ycareach"
 
 [api]
 enabled = true

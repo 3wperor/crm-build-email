@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "Outreach CRM", template: "%s · Outreach CRM" },
-  description: "Cold email outreach CRM",
+  title: { default: "YCAReach", template: "%s · YCAReach" },
+  description: "YCAReach — cold email outreach CRM",
   robots: { index: false, follow: false },
 };
 

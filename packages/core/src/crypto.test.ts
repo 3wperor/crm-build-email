@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { CredentialCryptoError, decryptSecret, encryptSecret, keyringFromEnv, needsReencryption } from "./crypto";
+import { CredentialCryptoError, decryptSecret, encryptSecret, keyringFromEnv, needsReencryption, signToken, verifyToken } from "./crypto";
 
 const k1 = randomBytes(32).toString("base64");
 const k2 = randomBytes(32).toString("base64");
@@ -81,5 +81,17 @@ describe("keyringFromEnv", () => {
 
   it("validates the version", () => {
     expect(() => keyringFromEnv({ CREDENTIALS_ENCRYPTION_KEY: k1, CREDENTIALS_ENCRYPTION_KEY_VERSION: "0" })).toThrow();
+  });
+});
+
+
+describe("signToken / verifyToken", () => {
+  const secret = "0123456789abcdef-secret";
+  it("round-trips and rejects forgeries", () => {
+    const t = signToken("send:abc", secret);
+    expect(verifyToken(t, secret)).toBe("send:abc");
+    expect(verifyToken(t, "another-secret-value!!")).toBeNull();
+    expect(verifyToken(t.replace(/^./, "x"), secret)).toBeNull();
+    expect(verifyToken("garbage", secret)).toBeNull();
   });
 });

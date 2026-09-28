@@ -1,10 +1,10 @@
-# Outreach CRM
+# YCAReach
 
-A cold-email outreach CRM. It covers the full loop: upload leads → verify → run multi-step sequences from your own Google / SMTP inboxes → detect replies → stop on reply → work replied leads in a pipeline. An AI agent can drive the whole thing through an MCP server.
+YCAReach is a cold-email outreach CRM. It covers the full loop: upload leads → verify → run multi-step sequences from your own Google / SMTP inboxes → detect replies → stop on reply → work replied leads in a pipeline. An AI agent can drive the whole thing through an MCP server.
 
 It's built for solo use first. Every table is org-scoped with Postgres RLS so it can become multi-tenant SaaS without a rewrite.
 
-> **Status: Phases 1–4 complete** (scaffold, sending accounts, leads & import, verification). See [Roadmap](#roadmap).
+> **Status: Phases 1–5 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler). See [Roadmap](#roadmap).
 
 ## Stack
 
@@ -12,7 +12,7 @@ It's built for solo use first. Every table is org-scoped with Postgres RLS so it
 |---|---|
 | Web app | Next.js 15 (App Router), TypeScript, Tailwind v4, shadcn/ui, deployed on Vercel |
 | Data / auth | Supabase: Postgres, Auth, RLS, Storage, Realtime |
-| Background jobs | Inngest (lead import, email verification; scheduler and IMAP sync next) |
+| Background jobs | Inngest: lead import, verification, scheduler (cron), per-inbox senders; IMAP sync next |
 | Mail | SMTP / IMAP with app passwords (`nodemailer`, `imapflow`, `mailparser`, from Phase 2) |
 | Credential encryption | App-level AES-256-GCM, key from env, versioned for rotation |
 | Agent control plane | MCP server (`apps/mcp`, Phase 11) |
@@ -161,13 +161,46 @@ Verification runs in the Inngest job `verify-leads`. It starts from the leads pa
 - **Invalid means never emailed:** a lead that turns out `invalid` has its active enrollments stopped and scheduled sends cancelled straight away. The send path re-checks at send time (Phase 5).
 - Changing a lead's email resets it to `unverified`.
 
+### Sequences and sending
+
+```
+cron (every minute) ─► scheduler-tick ─► planCampaign()     for each active campaign in unpaused orgs
+                                          │  due enrollments → guard → caps → inbox → A/B variant → render
+                                          ▼
+                                      sends(status=scheduled) ──event──► send-email  (1 at a time per inbox)
+                                                                          │ re-check every guard
+                                                                          │ reserve_send_slot()  caps + pacing, atomic
+                                                                          │ SMTP (own Message-ID, threading, List-Unsubscribe)
+                                                                          ▼
+                                                                  complete_send() → next step scheduled
+```
+
+- **Pure core.** Timezones, windows and DST, delays, variant split, inbox choice and the send guard are pure functions in `@crm/core/scheduler`, covered by unit tests.
+- **Send guard.** `checkSend` runs twice: at plan time, and again immediately before SMTP. What happens depends on the check:
+
+  | Check fails | Action |
+  |---|---|
+  | Kill switch on, or campaign not active | **hold**: re-planned on resume |
+  | Suppressed, invalid, risky (unless the campaign opts in), or lead replied / bounced / unsubscribed | **stop** |
+  | Verification still pending, or outside the send window | **defer** |
+- **Caps and pacing.** Enforced atomically in `reserve_send_slot()` under row locks: the inbox's daily cap in its own timezone, the campaign's per-inbox cap, and the campaign's daily cap. Pacing is a random 3–7 minutes between sends per inbox (`SEND_GAP_*` env overrides it for local testing). A pacing wait is a durable Inngest `sleepUntil`.
+- **Threading.** Step 1 picks the inbox with the most room left today. Follow-ups always use the same inbox and send `In-Reply-To`/`References`. A follow-up with an empty subject goes out as `Re: <step 1 subject>`.
+- **A/B split.** Deterministic per lead and step (hash of lead and step), weighted, and a promoted winner takes all traffic.
+- **Failures:**
+  - 5xx recipient rejection → hard bounce: suppressed, and every sequence for that lead stops.
+  - Auth failure → the inbox is marked disconnected, and step 1 moves to another inbox.
+  - Transient error → retried up to 3 times with backoff.
+  - A crash after the SMTP handoff is **never** re-sent.
+- **Compliance.** Every email carries `List-Unsubscribe` + `List-Unsubscribe-Post` (RFC 8058 one-click), an HMAC-signed unsubscribe link (`/u/<token>`, with a confirm button so link scanners can't unsubscribe people), and the org's physical address. A campaign can't start without that address.
+- **Hooks for later phases.** `stop_lead_sequences()` is ready for reply detection in Phase 7. `approval_mode` is stored per campaign for the agent in Phase 11.
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
 2. ✅ Sending accounts: add / test / encrypt, connection health
 3. ✅ Leads: CSV upload, mapping, dedupe, suppression check
 4. ✅ Verification: syntax, MX / DNS, disposable and role checks; statuses; auto-verify on import
-5. Sequences + scheduler (Inngest)
+5. ✅ Sequences + scheduler: steps, delays, A/B, windows, timezones, caps, pacing, threading, unsubscribe, bounce handling
 6. Test email
 7. Reply sync: IMAP polling, matching, classification, auto-pipeline
 8. Pipeline kanban, lead detail, thread view

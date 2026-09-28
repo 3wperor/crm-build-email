@@ -3,3 +3,6 @@ export * from "./approval";
 export * from "./email";
 export * from "./sending-accounts";
 export * from "./verification";
+export * from "./scheduler";
+export * from "./templates";
+export * from "./campaigns";

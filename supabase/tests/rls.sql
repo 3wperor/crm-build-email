@@ -387,6 +387,109 @@ select pg_temp.expect_eq((select count(*) from public.leads where email = 'v2@ac
   'verify: manual verification override allowed');
 reset role;
 
+-- Phase 5: enrollment, send slots, completion, stop --------------------------
+insert into public.campaigns (org_id, name, daily_limit, daily_limit_per_inbox, timezone)
+values (current_setting('test.org_a')::uuid, 'Sched campaign', 3, 2, 'UTC');
+select set_config('test.camp', (select id::text from public.campaigns where name = 'Sched campaign'), true);
+insert into public.sequences (org_id, campaign_id) values (current_setting('test.org_a')::uuid, current_setting('test.camp')::uuid);
+insert into public.sequence_steps (org_id, sequence_id, step_order, delay_days)
+select org_id, id, 1, 0 from public.sequences where campaign_id = current_setting('test.camp')::uuid;
+insert into public.sequence_steps (org_id, sequence_id, step_order, delay_days)
+select org_id, id, 2, 2 from public.sequences where campaign_id = current_setting('test.camp')::uuid;
+
+insert into public.leads (org_id, email, verification_status, status) values
+  (current_setting('test.org_a')::uuid, 'ok1@sched.example', 'valid', 'new'),
+  (current_setting('test.org_a')::uuid, 'ok2@sched.example', 'unverified', 'new'),
+  (current_setting('test.org_a')::uuid, 'risky@sched.example', 'risky', 'new'),
+  (current_setting('test.org_a')::uuid, 'invalid@sched.example', 'invalid', 'new'),
+  (current_setting('test.org_a')::uuid, 'replied@sched.example', 'valid', 'replied'),
+  (current_setting('test.org_a')::uuid, 'supp@sched.example', 'valid', 'new'),
+  (current_setting('test.org_a')::uuid, 'busy@sched.example', 'valid', 'new');
+insert into public.suppression_list (org_id, email, reason) values (current_setting('test.org_a')::uuid, 'supp@sched.example', 'manual');
+-- busy@ is live in another campaign
+insert into public.campaign_leads (org_id, campaign_id, lead_id, status)
+select l.org_id, c.id, l.id, 'active' from public.leads l, public.campaigns c where l.email = 'busy@sched.example' and c.name = 'A campaign';
+insert into public.lead_lists (org_id, name) values (current_setting('test.org_a')::uuid, 'Sched list');
+insert into public.lead_list_members (org_id, list_id, lead_id)
+select l.org_id, ll.id, l.id from public.leads l, public.lead_lists ll where l.email like '%@sched.example' and ll.name = 'Sched list';
+
+-- Viewer cannot enroll; sender can (RLS applies inside the function).
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000c');
+select pg_temp.expect_error(
+  format('select public.enroll_leads(%L, p_list_id => (select id from public.lead_lists where name = ''Sched list''))', current_setting('test.camp')),
+  '42501', 'enroll: viewer cannot enroll');
+select pg_temp.login('10000000-0000-4000-8000-00000000000d');
+select set_config('test.enroll', public.enroll_leads(current_setting('test.camp')::uuid,
+  p_list_id => (select id from public.lead_lists where name = 'Sched list'))::text, true);
+reset role;
+select pg_temp.expect_eq((current_setting('test.enroll')::jsonb ->> 'enrolled')::int, 2, 'enroll: only ok1 + ok2 eligible');
+select pg_temp.expect_eq((current_setting('test.enroll')::jsonb ->> 'skipped')::int, 5,
+  'enroll: risky, invalid, replied, suppressed, busy-elsewhere skipped');
+update public.campaigns set include_risky = true where id = current_setting('test.camp')::uuid;
+select pg_temp.expect_eq((public.enroll_leads(current_setting('test.camp')::uuid,
+  p_lead_ids => array(select id from public.leads where email = 'risky@sched.example')) ->> 'enrolled')::int, 1,
+  'enroll: risky allowed when campaign opts in');
+select pg_temp.expect_eq((public.enroll_leads(current_setting('test.camp')::uuid,
+  p_list_id => (select id from public.lead_lists where name = 'Sched list')) ->> 'enrolled')::int, 0, 'enroll: idempotent');
+
+-- Send slots: inbox daily_cap 2, campaign per-inbox 2, campaign daily 3
+insert into public.sending_accounts (org_id, email, provider, smtp_host, smtp_port, imap_host, imap_port, username, daily_cap)
+values (current_setting('test.org_a')::uuid, 'sender@sched.example', 'smtp', 'h', 465, 'h', 993, 'u', 2);
+select set_config('test.acct', (select id::text from public.sending_accounts where email = 'sender@sched.example'), true);
+insert into public.sends (id, org_id, campaign_id, campaign_lead_id, lead_id, step_id, sending_account_id, status, message_id, subject)
+select gen_random_uuid(), cl.org_id, cl.campaign_id, cl.id, cl.lead_id,
+       (select st.id from public.sequence_steps st join public.sequences sq on sq.id = st.sequence_id where sq.campaign_id = cl.campaign_id and st.step_order = 1),
+       current_setting('test.acct')::uuid, 'scheduled', '<' || l.email || '@msg>', 'Hello ' || l.email
+  from public.campaign_leads cl join public.leads l on l.id = cl.lead_id
+ where cl.campaign_id = current_setting('test.camp')::uuid;
+
+select pg_temp.expect_eq((select count(*) from public.sends where campaign_id = current_setting('test.camp')::uuid), 3, 'slots: 3 scheduled sends');
+select set_config('test.s1', (select s.id::text from public.sends s join public.leads l on l.id = s.lead_id where l.email = 'ok1@sched.example'), true);
+select set_config('test.s2', (select s.id::text from public.sends s join public.leads l on l.id = s.lead_id where l.email = 'ok2@sched.example'), true);
+select set_config('test.s3', (select s.id::text from public.sends s join public.leads l on l.id = s.lead_id where l.email = 'risky@sched.example'), true);
+
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s1')::uuid)) ->> 'ok')::boolean::int, 1, 'slots: first reservation ok');
+select pg_temp.expect_eq((select (status = 'sending' and claimed_at is not null)::int from public.sends where id = current_setting('test.s1')::uuid), 1, 'slots: send marked sending');
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s1')::uuid)) ->> 'reason' = 'not_scheduled')::int, 1, 'slots: cannot reserve twice');
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s2')::uuid)) ->> 'reason' = 'pacing')::int, 1, 'slots: pacing gap enforced');
+select pg_temp.expect_eq((select (next_available_at between now() + interval '179 seconds' and now() + interval '421 seconds')::int from public.sending_accounts where id = current_setting('test.acct')::uuid), 1, 'slots: gap is 3-7 minutes');
+update public.sending_accounts set next_available_at = null where id = current_setting('test.acct')::uuid;
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s2')::uuid, 0, 0)) ->> 'ok')::boolean::int, 1, 'slots: second reservation ok');
+update public.sending_accounts set next_available_at = null where id = current_setting('test.acct')::uuid;
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s3')::uuid, 0, 0)) ->> 'reason' = 'inbox_daily_cap')::int, 1, 'slots: inbox daily cap enforced');
+update public.sending_accounts set daily_cap = 10 where id = current_setting('test.acct')::uuid;
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s3')::uuid, 0, 0)) ->> 'reason' = 'campaign_inbox_cap')::int, 1, 'slots: campaign per-inbox cap enforced');
+
+select public.release_send_slot(current_setting('test.org_a')::uuid, current_setting('test.s2')::uuid);
+select pg_temp.expect_eq((select sent_today from public.sending_accounts where id = current_setting('test.acct')::uuid), 1, 'slots: release gives the slot back');
+
+-- complete_send advances the enrollment and threading
+select public.complete_send(current_setting('test.org_a')::uuid, current_setting('test.s1')::uuid, now() + interval '2 days');
+select pg_temp.expect_eq((select (cl.status = 'active' and cl.current_step_order = 1 and cl.thread_message_id = '<ok1@sched.example@msg>'
+    and cl.thread_subject = 'Hello ok1@sched.example' and cl.next_send_at > now() + interval '1 day')::int
+  from public.campaign_leads cl join public.leads l on l.id = cl.lead_id
+  where l.email = 'ok1@sched.example' and cl.campaign_id = current_setting('test.camp')::uuid), 1, 'complete: enrollment advanced with thread ids');
+select pg_temp.expect_eq((select (status = 'in_sequence')::int from public.leads where email = 'ok1@sched.example'), 1, 'complete: lead marked in_sequence');
+select public.complete_send(current_setting('test.org_a')::uuid, current_setting('test.s1')::uuid, null);
+select pg_temp.expect_eq((select (cl.status = 'active')::int from public.campaign_leads cl join public.leads l on l.id = cl.lead_id
+  where l.email = 'ok1@sched.example' and cl.campaign_id = current_setting('test.camp')::uuid), 1, 'complete: idempotent (second call no-op)');
+
+-- stop_lead_sequences (reply hook)
+update public.sends set status = 'scheduled', claimed_at = null where id = current_setting('test.s3')::uuid;
+select pg_temp.expect_eq(public.stop_lead_sequences(current_setting('test.org_a')::uuid,
+  (select id from public.leads where email = 'risky@sched.example'), 'replied', 'reply:test'), 1, 'stop: enrollment stopped');
+select pg_temp.expect_eq((select (status = 'cancelled')::int from public.sends where id = current_setting('test.s3')::uuid), 1, 'stop: scheduled send cancelled');
+
+-- Clients cannot call the slot functions or flip campaign status directly
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select pg_temp.expect_error(format('select public.reserve_send_slot(%L, %L)', current_setting('test.org_a'), current_setting('test.s2')), '42501', 'slots: not client-callable');
+select pg_temp.expect_error(format('update public.campaigns set status = ''active'' where id = %L', current_setting('test.camp')), '42501', 'campaign status not client-writable');
+update public.campaigns set daily_limit = 10 where id = current_setting('test.camp')::uuid;
+select pg_temp.expect_eq((select daily_limit from public.campaigns where id = current_setting('test.camp')::uuid), 10, 'campaign settings client-writable');
+reset role;
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

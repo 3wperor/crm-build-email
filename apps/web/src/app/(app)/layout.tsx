@@ -13,7 +13,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen">
       <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-3 md:flex">
-        <div className="mb-4 pt-1">
+        <div className="mb-4 grid gap-2 pt-1">
+          <div className="px-2 text-base font-bold tracking-tight">
+            YCA<span className="text-primary/60">Reach</span>
+          </div>
           <OrgSwitcher ctx={ctx} />
         </div>
         <Nav />

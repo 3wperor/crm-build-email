@@ -5,11 +5,17 @@ import { createMailAdapter, ProviderNotImplementedError, SmtpImapAdapter, testCo
 const USER = "me@example.test";
 const PASS = "correct-horse";
 
-/** Minimal SMTP server: EHLO + AUTH PLAIN/LOGIN, no TLS. */
+export const captured: { from: string; to: string[]; data: string }[] = [];
+
+/** Minimal SMTP server: EHLO, AUTH PLAIN/LOGIN, MAIL/RCPT/DATA (captures messages). No TLS. */
 function fakeSmtp(): Server {
   return createServer((sock: Socket) => {
     let loginStep: 0 | 1 | 2 = 0;
     let loginUser = "";
+    let inData = false;
+    let data = "";
+    let from = "";
+    let to: string[] = [];
     sock.write("220 fake.test ESMTP\r\n");
     let buf = "";
     sock.on("data", (chunk) => {
@@ -18,6 +24,16 @@ function fakeSmtp(): Server {
       while ((idx = buf.indexOf("\r\n")) !== -1) {
         const line = buf.slice(0, idx);
         buf = buf.slice(idx + 2);
+        if (inData) {
+          if (line === ".") {
+            inData = false;
+            captured.push({ from, to, data });
+            sock.write("250 2.0.0 OK queued\r\n");
+          } else {
+            data += (line.startsWith("..") ? line.slice(1) : line) + "\r\n";
+          }
+          continue;
+        }
         if (loginStep === 1) {
           loginUser = Buffer.from(line, "base64").toString();
           loginStep = 2;
@@ -45,6 +61,26 @@ function fakeSmtp(): Server {
             sock.write(u === USER && p === PASS ? "235 2.7.0 ok\r\n" : "535 5.7.8 Authentication credentials invalid\r\n");
             break;
           }
+          case "MAIL":
+            from = /<([^>]*)>/.exec(line)?.[1] ?? "";
+            to = [];
+            data = "";
+            sock.write("250 2.1.0 OK\r\n");
+            break;
+          case "RCPT": {
+            const rcpt = /<([^>]*)>/.exec(line)?.[1] ?? "";
+            if (rcpt.startsWith("bounce")) {
+              sock.write("550 5.1.1 The email account that you tried to reach does not exist\r\n");
+            } else {
+              to.push(rcpt);
+              sock.write("250 2.1.5 OK\r\n");
+            }
+            break;
+          }
+          case "DATA":
+            inData = true;
+            sock.write("354 Go ahead\r\n");
+            break;
           case "QUIT":
             sock.end("221 bye\r\n");
             break;
@@ -155,6 +191,51 @@ describe("SmtpImapAdapter against fake servers", () => {
     const result = await testConnection(new SmtpImapAdapter(closed, localOpts));
     expect(result.smtp).toMatchObject({ ok: false, error: "SMTP connection refused" });
     expect(result.imap).toMatchObject({ ok: false, error: "IMAP connection refused" });
+  });
+});
+
+describe("SmtpImapAdapter.send", () => {
+  const msg = {
+    fromName: "Jane Smith",
+    to: "ada@example.org",
+    subject: "Quick question",
+    text: "Hi Ada\n\nUnsubscribe: https://x/u/t",
+    html: "<p>Hi Ada</p>",
+    messageId: "<abc123@example.test>",
+    inReplyTo: "<prev@example.test>",
+    references: ["<first@example.test>", "<prev@example.test>"],
+    headers: { "List-Unsubscribe": "<https://x/u/t>", "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+  };
+
+  it("delivers with our Message-ID, threading and unsubscribe headers", async () => {
+    captured.length = 0;
+    const r = await new SmtpImapAdapter(config(PASS), localOpts).send(msg);
+    expect(r).toMatchObject({ ok: true, messageId: "<abc123@example.test>" });
+    expect(captured).toHaveLength(1);
+    const data = captured[0]!.data;
+    expect(captured[0]!.to).toEqual(["ada@example.org"]);
+    expect(data).toMatch(/^Message-ID: <abc123@example.test>/m);
+    expect(data).toMatch(/^In-Reply-To: <prev@example.test>/m);
+    expect(data).toMatch(/^References: <first@example.test> <prev@example.test>/m);
+    expect(data).toMatch(/^List-Unsubscribe: <https:\/\/x\/u\/t>/m);
+    expect(data).toMatch(/^List-Unsubscribe-Post: List-Unsubscribe=One-Click/m);
+    expect(data).toMatch(/^From: Jane Smith <me@example.test>/m);
+    expect(data).toContain("multipart/alternative");
+  });
+
+  it("classifies a 550 recipient rejection as a hard bounce", async () => {
+    const r = await new SmtpImapAdapter(config(PASS), localOpts).send({ ...msg, to: "bounce@example.org" });
+    expect(r).toMatchObject({ ok: false, hardBounce: true, accountProblem: false, retryable: false });
+  });
+
+  it("classifies auth failure as an account problem (no retry, no bounce)", async () => {
+    const r = await new SmtpImapAdapter(config("wrong"), localOpts).send(msg);
+    expect(r).toMatchObject({ ok: false, hardBounce: false, accountProblem: true, retryable: false });
+  });
+
+  it("classifies connection failure as retryable", async () => {
+    const r = await new SmtpImapAdapter({ ...config(PASS), smtpPort: 1 }, localOpts).send(msg);
+    expect(r).toMatchObject({ ok: false, hardBounce: false, accountProblem: false, retryable: true });
   });
 });
 

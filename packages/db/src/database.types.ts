@@ -134,6 +134,10 @@ export type Database = {
           last_sent_at: string | null
           enrolled_at: string
           updated_at: string
+          thread_message_id: string | null
+          last_message_id: string | null
+          thread_subject: string | null
+          attempt_count: number
         }
         Insert: {
           id?: string
@@ -148,6 +152,10 @@ export type Database = {
           last_sent_at?: string | null
           enrolled_at?: string
           updated_at?: string
+          thread_message_id?: string | null
+          last_message_id?: string | null
+          thread_subject?: string | null
+          attempt_count?: number
         }
         Update: {
           id?: string
@@ -162,6 +170,10 @@ export type Database = {
           last_sent_at?: string | null
           enrolled_at?: string
           updated_at?: string
+          thread_message_id?: string | null
+          last_message_id?: string | null
+          thread_subject?: string | null
+          attempt_count?: number
         }
         Relationships: [
           {
@@ -243,6 +255,8 @@ export type Database = {
           started_at: string | null
           created_at: string
           updated_at: string
+          include_risky: boolean
+          last_error: string | null
         }
         Insert: {
           id?: string
@@ -263,6 +277,8 @@ export type Database = {
           started_at?: string | null
           created_at?: string
           updated_at?: string
+          include_risky?: boolean
+          last_error?: string | null
         }
         Update: {
           id?: string
@@ -283,6 +299,8 @@ export type Database = {
           started_at?: string | null
           created_at?: string
           updated_at?: string
+          include_risky?: boolean
+          last_error?: string | null
         }
         Relationships: [
           {
@@ -1012,6 +1030,7 @@ export type Database = {
           imap_last_synced_at: string | null
           created_at: string
           updated_at: string
+          next_available_at: string | null
         }
         Insert: {
           id?: string
@@ -1044,6 +1063,7 @@ export type Database = {
           imap_last_synced_at?: string | null
           created_at?: string
           updated_at?: string
+          next_available_at?: string | null
         }
         Update: {
           id?: string
@@ -1076,6 +1096,7 @@ export type Database = {
           imap_last_synced_at?: string | null
           created_at?: string
           updated_at?: string
+          next_available_at?: string | null
         }
         Relationships: [
           {
@@ -1116,6 +1137,8 @@ export type Database = {
           attempt_count: number
           created_at: string
           updated_at: string
+          references: string[]
+          claimed_at: string | null
         }
         Insert: {
           id?: string
@@ -1138,6 +1161,8 @@ export type Database = {
           attempt_count?: number
           created_at?: string
           updated_at?: string
+          references?: string[]
+          claimed_at?: string | null
         }
         Update: {
           id?: string
@@ -1160,6 +1185,8 @@ export type Database = {
           attempt_count?: number
           created_at?: string
           updated_at?: string
+          references?: string[]
+          claimed_at?: string | null
         }
         Relationships: [
           {
@@ -1479,11 +1506,29 @@ export type Database = {
         }
         Returns: number
       }
+      complete_send: {
+        Args: {
+          p_org_id: string
+          p_send_id: string
+          p_next_send_at?: unknown
+          p_error?: string
+        }
+        Returns: undefined
+      }
       create_organization: {
         Args: {
           p_name: string
         }
         Returns: string
+      }
+      enroll_leads: {
+        Args: {
+          p_campaign_id: string
+          p_lead_ids?: string[]
+          p_list_id?: string
+          p_all_eligible?: boolean
+        }
+        Returns: Json
       }
       import_leads_chunk: {
         Args: {
@@ -1495,6 +1540,22 @@ export type Database = {
         }
         Returns: Json
       }
+      release_send_slot: {
+        Args: {
+          p_org_id: string
+          p_send_id: string
+        }
+        Returns: undefined
+      }
+      reserve_send_slot: {
+        Args: {
+          p_org_id: string
+          p_send_id: string
+          p_min_gap_s?: number
+          p_max_gap_s?: number
+        }
+        Returns: Json
+      }
       set_sending_paused: {
         Args: {
           p_org_id: string
@@ -1503,6 +1564,15 @@ export type Database = {
           p_actor?: string
         }
         Returns: undefined
+      }
+      stop_lead_sequences: {
+        Args: {
+          p_org_id: string
+          p_lead_id: string
+          p_status: string
+          p_reason: string
+        }
+        Returns: number
       }
     }
     Enums: {

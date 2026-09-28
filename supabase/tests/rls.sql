@@ -498,6 +498,71 @@ select pg_temp.expect_error(
   '42501', 'test_sends not client-writable');
 reset role;
 
+-- Phase 7: reply outcomes ------------------------------------------------------
+insert into public.leads (org_id, email, status) values
+  (current_setting('test.org_a')::uuid, 'r-pos@reply.example', 'in_sequence'),
+  (current_setting('test.org_a')::uuid, 'r-neg@reply.example', 'in_sequence'),
+  (current_setting('test.org_a')::uuid, 'r-uns@reply.example', 'in_sequence'),
+  (current_setting('test.org_a')::uuid, 'r-ooo@reply.example', 'in_sequence');
+insert into public.campaign_leads (org_id, campaign_id, lead_id, status, next_send_at)
+select l.org_id, current_setting('test.camp')::uuid, l.id, 'active', now() + interval '1 day' from public.leads l where l.email like 'r-%@reply.example';
+insert into public.sends (org_id, campaign_id, campaign_lead_id, lead_id, status, message_id, sending_account_id)
+select cl.org_id, cl.campaign_id, cl.id, cl.lead_id, 'scheduled', '<' || l.email || '>', current_setting('test.acct')::uuid
+  from public.campaign_leads cl join public.leads l on l.id = cl.lead_id where l.email like 'r-%@reply.example';
+insert into public.replies (org_id, lead_id, send_id, message_id, from_email, received_at, classification)
+select s.org_id, s.lead_id, s.id, '<re-' || l.email || '>', l.email, now(),
+       case split_part(split_part(l.email, '@', 1), '-', 2) when 'pos' then 'positive' when 'neg' then 'negative' when 'uns' then 'unsubscribe' else 'out_of_office' end
+  from public.sends s join public.leads l on l.id = s.lead_id where l.email like 'r-%@reply.example';
+
+create function pg_temp.reply_id(p_email text) returns uuid language sql as $$
+  select r.id from public.replies r join public.leads l on l.id = r.lead_id where l.email = p_email;
+$$;
+create function pg_temp.enroll_status(p_email text) returns text language sql as $$
+  select cl.status from public.campaign_leads cl join public.leads l on l.id = cl.lead_id where l.email = p_email;
+$$;
+create function pg_temp.stage_of(p_email text) returns text language sql as $$
+  select ps.name from public.opportunities o join public.pipeline_stages ps on ps.id = o.stage_id join public.leads l on l.id = o.lead_id where l.email = p_email;
+$$;
+
+select pg_temp.expect_eq((public.apply_reply_outcome(current_setting('test.org_a')::uuid, pg_temp.reply_id('r-pos@reply.example')) = 'replied')::int, 1, 'reply: positive → replied');
+select pg_temp.expect_eq((pg_temp.enroll_status('r-pos@reply.example') = 'replied'
+  and (select status from public.leads where email = 'r-pos@reply.example') = 'replied'
+  and (select s.status from public.sends s join public.leads l on l.id = s.lead_id where l.email = 'r-pos@reply.example') = 'cancelled')::int, 1,
+  'reply: sequence stopped, lead replied, scheduled send cancelled');
+select pg_temp.expect_eq((pg_temp.stage_of('r-pos@reply.example') = 'Replied')::int, 1, 'reply: positive enters pipeline at Replied');
+
+select public.apply_reply_outcome(current_setting('test.org_a')::uuid, pg_temp.reply_id('r-neg@reply.example'));
+select pg_temp.expect_eq((pg_temp.stage_of('r-neg@reply.example') = 'Closed Lost' and pg_temp.enroll_status('r-neg@reply.example') = 'replied')::int, 1,
+  'reply: negative → stopped + Closed Lost');
+
+select public.apply_reply_outcome(current_setting('test.org_a')::uuid, pg_temp.reply_id('r-uns@reply.example'));
+select pg_temp.expect_eq(((select reason from public.suppression_list where email = 'r-uns@reply.example') = 'unsubscribe'
+  and pg_temp.enroll_status('r-uns@reply.example') = 'unsubscribed' and pg_temp.stage_of('r-uns@reply.example') is null)::int, 1,
+  'reply: unsubscribe → suppressed, stopped, no pipeline card');
+
+select public.apply_reply_outcome(current_setting('test.org_a')::uuid, pg_temp.reply_id('r-ooo@reply.example'), now() + interval '10 days');
+select pg_temp.expect_eq((pg_temp.enroll_status('r-ooo@reply.example') = 'active'
+  and (select cl.next_send_at > now() + interval '9 days' from public.campaign_leads cl join public.leads l on l.id = cl.lead_id where l.email = 'r-ooo@reply.example')
+  and (select s.status from public.sends s join public.leads l on l.id = s.lead_id where l.email = 'r-ooo@reply.example') = 'cancelled'
+  and pg_temp.stage_of('r-ooo@reply.example') is null)::int, 1,
+  'reply: out-of-office keeps sequence, pushed to return date, scheduled send pulled back');
+
+-- Manual reclassification positive → negative moves the card out of the entry stage.
+update public.replies set classification = 'negative' where id = pg_temp.reply_id('r-pos@reply.example');
+select public.apply_reply_outcome(current_setting('test.org_a')::uuid, pg_temp.reply_id('r-pos@reply.example'));
+select pg_temp.expect_eq((pg_temp.stage_of('r-pos@reply.example') = 'Closed Lost')::int, 1, 'reply: reclassified negative moves card to Closed Lost');
+-- and OOO → positive (e.g. they wrote back for real later) stops the sequence
+update public.replies set classification = 'positive' where id = pg_temp.reply_id('r-ooo@reply.example');
+select public.apply_reply_outcome(current_setting('test.org_a')::uuid, pg_temp.reply_id('r-ooo@reply.example'));
+select pg_temp.expect_eq((pg_temp.enroll_status('r-ooo@reply.example') = 'replied' and pg_temp.stage_of('r-ooo@reply.example') = 'Replied')::int, 1,
+  'reply: reclassified OOO → positive stops and enters pipeline');
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select pg_temp.expect_error(format('select public.apply_reply_outcome(%L, %L)', current_setting('test.org_a'), pg_temp.reply_id('r-neg@reply.example')),
+  '42501', 'reply: apply_reply_outcome not client-callable');
+reset role;
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

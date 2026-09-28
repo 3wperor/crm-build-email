@@ -10,7 +10,8 @@
     "./verification": "./src/verification.ts",
     "./scheduler": "./src/scheduler.ts",
     "./templates": "./src/templates.ts",
-    "./campaigns": "./src/campaigns.ts"
+    "./campaigns": "./src/campaigns.ts",
+    "./replies": "./src/replies.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -17,3 +17,7 @@ export const schedulerTickRequested = eventType("scheduler/tick.requested", {
 export const emailSendRequested = eventType("email/send.requested", {
   schema: z.object({ orgId: z.string().uuid(), sendId: z.string().uuid(), accountId: z.string().uuid() }),
 });
+
+export const imapSyncRequested = eventType("imap/sync.requested", {
+  schema: z.object({ orgId: z.string().uuid(), accountId: z.string().uuid() }),
+});

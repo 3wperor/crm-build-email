@@ -15,9 +15,11 @@
     "@crm/core": "workspace:*",
     "disposable-email-domains-js": "1.26.0",
     "imapflow": "2.1.1",
+    "mailparser": "3.9.31",
     "nodemailer": "10.0.12"
   },
   "devDependencies": {
+    "@types/mailparser": "3.4.6",
     "@types/node": "22.20.4",
     "typescript": "5.9.3",
     "vitest": "5.0.2"

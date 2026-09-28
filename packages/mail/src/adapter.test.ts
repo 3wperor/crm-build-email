@@ -1,151 +1,19 @@
-import { createServer, type AddressInfo, type Server, type Socket } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { FAKE_PASS, FAKE_USER, startFakeMail, type FakeMail } from "./testing/fake-mail";
 import { createMailAdapter, ProviderNotImplementedError, SmtpImapAdapter, testConnection, type MailAccountConfig } from "./adapter";
 
-const USER = "me@example.test";
-const PASS = "correct-horse";
-
-export const captured: { from: string; to: string[]; data: string }[] = [];
-
-/** Minimal SMTP server: EHLO, AUTH PLAIN/LOGIN, MAIL/RCPT/DATA (captures messages). No TLS. */
-function fakeSmtp(): Server {
-  return createServer((sock: Socket) => {
-    let loginStep: 0 | 1 | 2 = 0;
-    let loginUser = "";
-    let inData = false;
-    let data = "";
-    let from = "";
-    let to: string[] = [];
-    sock.write("220 fake.test ESMTP\r\n");
-    let buf = "";
-    sock.on("data", (chunk) => {
-      buf += chunk.toString();
-      let idx;
-      while ((idx = buf.indexOf("\r\n")) !== -1) {
-        const line = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        if (inData) {
-          if (line === ".") {
-            inData = false;
-            captured.push({ from, to, data });
-            sock.write("250 2.0.0 OK queued\r\n");
-          } else {
-            data += (line.startsWith("..") ? line.slice(1) : line) + "\r\n";
-          }
-          continue;
-        }
-        if (loginStep === 1) {
-          loginUser = Buffer.from(line, "base64").toString();
-          loginStep = 2;
-          sock.write("334 UGFzc3dvcmQ6\r\n");
-          continue;
-        }
-        if (loginStep === 2) {
-          loginStep = 0;
-          const ok = loginUser === USER && Buffer.from(line, "base64").toString() === PASS;
-          sock.write(ok ? "235 2.7.0 ok\r\n" : "535 5.7.8 Authentication credentials invalid\r\n");
-          continue;
-        }
-        const [verb, ...rest] = line.split(" ");
-        switch (verb?.toUpperCase()) {
-          case "EHLO":
-            sock.write("250-fake.test\r\n250 AUTH PLAIN LOGIN\r\n");
-            break;
-          case "AUTH": {
-            if (rest[0]?.toUpperCase() === "LOGIN") {
-              loginStep = 1;
-              sock.write("334 VXNlcm5hbWU6\r\n");
-              break;
-            }
-            const [, u, p] = Buffer.from(rest[1] ?? "", "base64").toString().split("\0");
-            sock.write(u === USER && p === PASS ? "235 2.7.0 ok\r\n" : "535 5.7.8 Authentication credentials invalid\r\n");
-            break;
-          }
-          case "MAIL":
-            from = /<([^>]*)>/.exec(line)?.[1] ?? "";
-            to = [];
-            data = "";
-            sock.write("250 2.1.0 OK\r\n");
-            break;
-          case "RCPT": {
-            const rcpt = /<([^>]*)>/.exec(line)?.[1] ?? "";
-            if (rcpt.startsWith("bounce")) {
-              sock.write("550 5.1.1 The email account that you tried to reach does not exist\r\n");
-            } else {
-              to.push(rcpt);
-              sock.write("250 2.1.5 OK\r\n");
-            }
-            break;
-          }
-          case "DATA":
-            inData = true;
-            sock.write("354 Go ahead\r\n");
-            break;
-          case "QUIT":
-            sock.end("221 bye\r\n");
-            break;
-          default:
-            sock.write("250 ok\r\n");
-        }
-      }
-    });
-    sock.on("error", () => {});
-  });
-}
-
-/** Minimal IMAP server: LOGIN, EXAMINE/SELECT INBOX, LOGOUT; everything else OK. */
-function fakeImap(): Server {
-  return createServer((sock: Socket) => {
-    sock.write("* OK [CAPABILITY IMAP4rev1] fake ready\r\n");
-    let buf = "";
-    sock.on("data", (chunk) => {
-      buf += chunk.toString();
-      let idx;
-      while ((idx = buf.indexOf("\r\n")) !== -1) {
-        const line = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        const [tag, cmdRaw] = line.split(" ");
-        const cmd = cmdRaw?.toUpperCase();
-        if (cmd === "CAPABILITY") {
-          sock.write(`* CAPABILITY IMAP4rev1\r\n${tag} OK done\r\n`);
-        } else if (cmd === "LOGIN") {
-          const ok = line.includes(USER) && line.includes(PASS);
-          sock.write(ok ? `${tag} OK [CAPABILITY IMAP4rev1] logged in\r\n` : `${tag} NO [AUTHENTICATIONFAILED] Invalid credentials\r\n`);
-        } else if (cmd === "SELECT" || cmd === "EXAMINE") {
-          sock.write(`* FLAGS (\\Seen)\r\n* 0 EXISTS\r\n* OK [UIDVALIDITY 1] ok\r\n* OK [UIDNEXT 1] ok\r\n${tag} OK [READ-ONLY] done\r\n`);
-        } else if (cmd === "LIST") {
-          sock.write(`* LIST () "/" INBOX\r\n${tag} OK done\r\n`);
-        } else if (cmd === "NAMESPACE") {
-          sock.write(`* NAMESPACE (("" "/")) NIL NIL\r\n${tag} OK done\r\n`);
-        } else if (cmd === "LOGOUT") {
-          sock.end(`* BYE bye\r\n${tag} OK done\r\n`);
-        } else if (tag) {
-          sock.write(`${tag} OK done\r\n`);
-        }
-      }
-    });
-    sock.on("error", () => {});
-  });
-}
-
-const listen = (s: Server) => new Promise<number>((r) => s.listen(0, "127.0.0.1", () => r((s.address() as AddressInfo).port)));
-
-let smtp: Server;
-let imap: Server;
+const USER = FAKE_USER;
+const PASS = FAKE_PASS;
+let fake: FakeMail;
 let smtpPort: number;
 let imapPort: number;
 
 beforeAll(async () => {
-  smtp = fakeSmtp();
-  imap = fakeImap();
-  [smtpPort, imapPort] = await Promise.all([listen(smtp), listen(imap)]);
+  fake = await startFakeMail();
+  ({ smtpPort, imapPort } = fake);
 });
 
-afterAll(() => {
-  smtp.close();
-  imap.close();
-});
-
+afterAll(() => fake.close());
 const config = (password: string): MailAccountConfig => ({
   provider: "smtp",
   email: USER,
@@ -208,12 +76,12 @@ describe("SmtpImapAdapter.send", () => {
   };
 
   it("delivers with our Message-ID, threading and unsubscribe headers", async () => {
-    captured.length = 0;
+    fake.captured.length = 0;
     const r = await new SmtpImapAdapter(config(PASS), localOpts).send(msg);
     expect(r).toMatchObject({ ok: true, messageId: "<abc123@example.test>" });
-    expect(captured).toHaveLength(1);
-    const data = captured[0]!.data;
-    expect(captured[0]!.to).toEqual(["ada@example.org"]);
+    expect(fake.captured).toHaveLength(1);
+    const data = fake.captured[0]!.data;
+    expect(fake.captured[0]!.to).toEqual(["ada@example.org"]);
     expect(data).toMatch(/^Message-ID: <abc123@example.test>/m);
     expect(data).toMatch(/^In-Reply-To: <prev@example.test>/m);
     expect(data).toMatch(/^References: <first@example.test> <prev@example.test>/m);
@@ -236,6 +104,49 @@ describe("SmtpImapAdapter.send", () => {
   it("classifies connection failure as retryable", async () => {
     const r = await new SmtpImapAdapter({ ...config(PASS), smtpPort: 1 }, localOpts).send(msg);
     expect(r).toMatchObject({ ok: false, hardBounce: false, accountProblem: false, retryable: true });
+  });
+});
+
+describe("SmtpImapAdapter.fetchNewMessages", () => {
+  const raw = (n: number) => `From: Ada <ada@example.org>\nTo: me@example.test\nSubject: Re: hi ${n}\nMessage-ID: <reply-${n}@example.org>\n\nHello ${n}\n`;
+
+  it("starts from now on first sync, then returns only new mail from INBOX and Junk", async () => {
+    const adapter = new SmtpImapAdapter(config(PASS), localOpts);
+    fake.append("INBOX", raw(1)); // history before the first sync is skipped
+    const first = await adapter.fetchNewMessages({}, { includeJunk: true });
+    expect(first.messages).toEqual([]);
+    expect(first.initialized.sort()).toEqual(["INBOX", "Spam"]);
+    expect(first.cursors.INBOX).toEqual({ uidValidity: 1, lastUid: 1 });
+
+    fake.append("INBOX", raw(2));
+    fake.append("INBOX", raw(3));
+    fake.append("Spam", raw(4));
+    const second = await adapter.fetchNewMessages(first.cursors, { includeJunk: true });
+    expect(second.messages.map((m) => `${m.mailbox}:${m.uid}`)).toEqual(["INBOX:2", "INBOX:3", "Spam:1"]);
+    expect(second.messages[0]!.source.toString()).toContain("Hello 2");
+    expect(second.cursors.INBOX!.lastUid).toBe(3);
+
+    const third = await adapter.fetchNewMessages(second.cursors, { includeJunk: true });
+    expect(third.messages).toEqual([]); // nothing new ("3:*"-style quirk filtered)
+  });
+
+  it("respects the per-mailbox limit and resumes from the cursor", async () => {
+    const adapter = new SmtpImapAdapter(config(PASS), localOpts);
+    const start = await adapter.fetchNewMessages({});
+    for (let i = 0; i < 5; i++) fake.append("INBOX", raw(10 + i));
+    const a = await adapter.fetchNewMessages(start.cursors, { limitPerMailbox: 3 });
+    expect(a.messages).toHaveLength(3);
+    const b = await adapter.fetchNewMessages(a.cursors, { limitPerMailbox: 3 });
+    expect(b.messages).toHaveLength(2);
+  });
+
+  it("re-initializes when UIDVALIDITY changes", async () => {
+    const adapter = new SmtpImapAdapter(config(PASS), localOpts);
+    const start = await adapter.fetchNewMessages({});
+    fake.resetUidValidity("INBOX");
+    const r = await adapter.fetchNewMessages(start.cursors);
+    expect(r.initialized).toEqual(["INBOX"]);
+    expect(r.messages).toEqual([]);
   });
 });
 

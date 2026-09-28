@@ -815,6 +815,7 @@ export type Database = {
           created_at: string
           updated_at: string
           auto_verify_imports: boolean
+          ai_classification_enabled: boolean
         }
         Insert: {
           id?: string
@@ -829,6 +830,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           auto_verify_imports?: boolean
+          ai_classification_enabled?: boolean
         }
         Update: {
           id?: string
@@ -843,6 +845,7 @@ export type Database = {
           created_at?: string
           updated_at?: string
           auto_verify_imports?: boolean
+          ai_classification_enabled?: boolean
         }
         Relationships: []
       }
@@ -903,6 +906,10 @@ export type Database = {
           match_method: string | null
           received_at: string
           created_at: string
+          mailbox: string | null
+          ooo_until: string | null
+          classification_reason: string | null
+          outcome: string | null
         }
         Insert: {
           id?: string
@@ -922,6 +929,10 @@ export type Database = {
           match_method?: string | null
           received_at: string
           created_at?: string
+          mailbox?: string | null
+          ooo_until?: string | null
+          classification_reason?: string | null
+          outcome?: string | null
         }
         Update: {
           id?: string
@@ -941,6 +952,10 @@ export type Database = {
           match_method?: string | null
           received_at?: string
           created_at?: string
+          mailbox?: string | null
+          ooo_until?: string | null
+          classification_reason?: string | null
+          outcome?: string | null
         }
         Relationships: [
           {
@@ -1031,6 +1046,8 @@ export type Database = {
           created_at: string
           updated_at: string
           next_available_at: string | null
+          imap_cursors: Json
+          imap_last_error: string | null
         }
         Insert: {
           id?: string
@@ -1064,6 +1081,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           next_available_at?: string | null
+          imap_cursors?: Json
+          imap_last_error?: string | null
         }
         Update: {
           id?: string
@@ -1097,6 +1116,8 @@ export type Database = {
           created_at?: string
           updated_at?: string
           next_available_at?: string | null
+          imap_cursors?: Json
+          imap_last_error?: string | null
         }
         Relationships: [
           {
@@ -1559,6 +1580,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_reply_outcome: {
+        Args: {
+          p_org_id: string
+          p_reply_id: string
+          p_ooo_until?: unknown
+        }
+        Returns: string
+      }
       apply_verification_results: {
         Args: {
           p_org_id: string

@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source.
   transpilePackages: ["@crm/core", "@crm/db", "@crm/mail"],
   // Node-only mail libraries: load from node_modules at runtime instead of bundling.
-  serverExternalPackages: ["nodemailer", "imapflow"],
+  serverExternalPackages: ["nodemailer", "imapflow", "mailparser"],
   poweredByHeader: false,
   async headers() {
     return [

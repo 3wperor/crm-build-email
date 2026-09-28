@@ -10,10 +10,18 @@ import { updateOrgSettings } from "./actions";
 
 type Props = {
   disabled: boolean;
-  org: { name: string; physical_address: string | null; default_timezone: string; approval_mode: string; auto_verify_imports: boolean };
+  org: {
+    name: string;
+    physical_address: string | null;
+    default_timezone: string;
+    approval_mode: string;
+    auto_verify_imports: boolean;
+    ai_classification_enabled: boolean;
+  };
+  aiAvailable: boolean;
 };
 
-export function SettingsForm({ org, disabled }: Props) {
+export function SettingsForm({ org, disabled, aiAvailable }: Props) {
   const [state, action, pending] = useActionState(updateOrgSettings, undefined);
   return (
     <form action={action} className="grid max-w-xl gap-4">
@@ -41,6 +49,16 @@ export function SettingsForm({ org, disabled }: Props) {
           <span>
             <span className="font-medium">Verify emails automatically after each import</span>
             <span className="text-muted-foreground block text-xs">MX / DNS check, disposable-domain and role-address detection.</span>
+          </span>
+        </label>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="ai_classification_enabled" defaultChecked={org.ai_classification_enabled} className="mt-0.5" />
+          <span>
+            <span className="font-medium">Use AI to classify unclear replies</span>
+            <span className="text-muted-foreground block text-xs">
+              Rules classify first; Claude only sees replies the rules can&apos;t settle.
+              {!aiAvailable && " Requires ANTHROPIC_API_KEY on the server (not set)."}
+            </span>
           </span>
         </label>
         <div className="grid gap-2">

@@ -4,7 +4,7 @@ YCAReach is a cold-email outreach CRM. It covers the full loop: upload leads →
 
 It's built for solo use first. Every table is org-scoped with Postgres RLS so it can become multi-tenant SaaS without a rewrite.
 
-> **Status: Phases 1–6 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler, test email). See [Roadmap](#roadmap).
+> **Status: Phases 1–7 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler, test email, reply sync). See [Roadmap](#roadmap).
 
 ## Stack
 
@@ -12,7 +12,7 @@ It's built for solo use first. Every table is org-scoped with Postgres RLS so it
 |---|---|
 | Web app | Next.js 15 (App Router), TypeScript, Tailwind v4, shadcn/ui, deployed on Vercel |
 | Data / auth | Supabase: Postgres, Auth, RLS, Storage, Realtime |
-| Background jobs | Inngest: lead import, verification, scheduler (cron), per-inbox senders; IMAP sync next |
+| Background jobs | Inngest: lead import, verification, scheduler (cron), per-inbox senders, IMAP reply sync (cron) |
 | Mail | SMTP / IMAP with app passwords (`nodemailer`, `imapflow`, `mailparser`, from Phase 2) |
 | Credential encryption | App-level AES-256-GCM, key from env, versioned for rotation |
 | Agent control plane | MCP server (`apps/mcp`, Phase 11) |
@@ -205,6 +205,42 @@ Every variant has a **Test** button. It sends the variant *as currently edited*,
 - The kill switch blocks them too.
 - The logic lives in `lib/test-email.ts` so the MCP `send_test_email` tool can reuse it.
 
+### Reply detection
+
+Every 3 minutes, `imap-sync-tick` fans out one `imap-sync-account` job per active inbox, one at a time per inbox.
+
+**Fetch.** Each job reads new mail read-only from INBOX and the `\Junk` mailbox (Gmail's Spam), using per-mailbox UID cursors stored in `sending_accounts.imap_cursors`. On the first sync, or after a UIDVALIDITY change, the job starts from "now" rather than importing old mail. Cursors advance only after every message in the batch has been processed.
+
+**Skip.** Our own mail, test emails (`X-YCAReach-Test`), duplicates (replies are unique by Message-ID) and unrelated mail (no matching send) are never stored.
+
+**Bounces.** Delivery-status notifications are parsed with `parseBounce`. A 5.x.x status marks the send bounced, suppresses the address and stops the sequence; 4.x.x is only logged.
+
+**Matching** (`pickReplyMatch`), in priority order:
+1. `In-Reply-To` against our Message-IDs.
+2. `References`, newest first.
+3. Sender address plus a send to that same address from this inbox within 30 days.
+
+**Classification** (`classifyReplyHeuristic`):
+- Quoted history is stripped first.
+- Checks run in order: auto-reply headers/subject/wording → out of office (with a return date when one is given) → unsubscribe → negative → positive.
+- Anything else is a low-confidence neutral.
+- Optionally, only those low-confidence replies go to Claude (`@anthropic-ai/sdk`: structured JSON output, low effort, server-side refusal fallback). It's enabled per workspace in Settings and needs `ANTHROPIC_API_KEY`; the model is `AI_CLASSIFIER_MODEL`, default `claude-opus-5-5`. Any AI failure keeps the rule-based result.
+
+**Outcomes** (`apply_reply_outcome`, atomic and idempotent, re-run on manual reclassification):
+
+| Classification | What happens |
+|---|---|
+| Out of office | Sequence continues; the next step moves to the return date (or +3 days); anything already scheduled is pulled back |
+| Unsubscribe | Suppressed, every sequence stopped, no pipeline card |
+| Negative | Every sequence stopped, lead marked replied, pipeline → **Closed Lost** |
+| Positive / neutral | Every sequence stopped, lead marked replied, pipeline → **Replied** |
+
+**Local testing.** `packages/mail/src/testing/fake-mail.ts` is a fake SMTP + IMAP server, used by the unit tests and runnable standalone:
+
+```bash
+node --experimental-strip-types packages/mail/src/testing/run-fake-mail.mjs
+```
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
@@ -213,7 +249,7 @@ Every variant has a **Test** button. It sends the variant *as currently edited*,
 4. ✅ Verification: syntax, MX / DNS, disposable and role checks; statuses; auto-verify on import
 5. ✅ Sequences + scheduler: steps, delays, A/B, windows, timezones, caps, pacing, threading, unsubscribe, bounce handling
 6. ✅ Test email
-7. Reply sync: IMAP polling, matching, classification, auto-pipeline
+7. ✅ Reply sync: IMAP polling (+ spam folder), matching, bounce parsing, classification (rules + optional AI), auto-pipeline
 8. Pipeline kanban, lead detail, thread view
 9. A/B variants and analytics
 10. Warmup pool (beta)

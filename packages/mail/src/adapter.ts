@@ -59,11 +59,26 @@ export type SendResult =
  * Provider adapter. Connection checks, sending; inbox sync (Phase 7) will be
  * added to this same interface.
  */
+export type MailboxCursor = { uidValidity: number; lastUid: number };
+export type FetchedMessage = { mailbox: string; uid: number; source: Buffer };
+export type FetchResult = {
+  cursors: Record<string, MailboxCursor>;
+  messages: FetchedMessage[];
+  /** Mailboxes whose cursor was (re)initialized: history before now is intentionally skipped. */
+  initialized: string[];
+};
+
 export interface MailAdapter {
   readonly provider: Provider;
   verifySmtp(): Promise<CheckResult>;
   verifyImap(): Promise<CheckResult>;
   send(message: OutgoingMessage): Promise<SendResult>;
+  /**
+   * New messages since the stored UID cursors, read-only (nothing is marked
+   * seen). INBOX plus, optionally, the \Junk mailbox. A missing cursor or a
+   * UIDVALIDITY change starts from "now" instead of importing old mail.
+   */
+  fetchNewMessages(cursors: Record<string, MailboxCursor>, opts?: { includeJunk?: boolean; limitPerMailbox?: number }): Promise<FetchResult>;
 }
 
 type SmtpErr = { code?: string; responseCode?: number; response?: string; message?: string; rejected?: string[] };
@@ -177,6 +192,75 @@ export class SmtpImapAdapter implements MailAdapter {
     } finally {
       transport?.close();
     }
+  }
+
+  private async imapClient(): Promise<ImapFlow> {
+    const { host, address } = await resolvePublicHost(this.config.imapHost, { allowPrivate: this.opts.allowPrivateHosts });
+    const client = new ImapFlow({
+      host: address,
+      port: this.config.imapPort,
+      secure: this.config.imapSecure,
+      servername: sni(host),
+      doSTARTTLS: this.config.imapSecure ? undefined : !this.opts.allowPlaintextAuth,
+      auth: { user: this.config.username, pass: this.config.password },
+      tls: { servername: sni(host), minVersion: "TLSv1.2" },
+      logger: false,
+      connectionTimeout: this.timeoutMs,
+      greetingTimeout: this.timeoutMs,
+      socketTimeout: this.timeoutMs * 3,
+      disableAutoIdle: true,
+    });
+    client.on("error", () => {});
+    await client.connect();
+    return client;
+  }
+
+  async fetchNewMessages(
+    cursors: Record<string, MailboxCursor>,
+    opts: { includeJunk?: boolean; limitPerMailbox?: number } = {},
+  ): Promise<FetchResult> {
+    const limit = opts.limitPerMailbox ?? 100;
+    const client = await this.imapClient();
+    const next: Record<string, MailboxCursor> = { ...cursors };
+    const messages: FetchedMessage[] = [];
+    const initialized: string[] = [];
+    try {
+      const boxes = ["INBOX"];
+      if (opts.includeJunk) {
+        const junk = (await client.list()).find((m) => m.specialUse === "\\Junk");
+        if (junk) boxes.push(junk.path);
+      }
+      for (const path of boxes) {
+        const lock = await client.getMailboxLock(path, { readOnly: true });
+        try {
+          const mb = client.mailbox;
+          if (!mb) continue;
+          const uidValidity = Number(mb.uidValidity);
+          const current = next[path];
+          if (!current || current.uidValidity !== uidValidity) {
+            next[path] = { uidValidity, lastUid: Math.max(0, (mb.uidNext ?? 1) - 1) };
+            initialized.push(path);
+            continue;
+          }
+          if ((mb.uidNext ?? 1) - 1 <= current.lastUid) continue;
+          const batch: FetchedMessage[] = [];
+          for await (const msg of client.fetch(`${current.lastUid + 1}:*`, { uid: true, source: true }, { uid: true })) {
+            // "n:*" always returns the newest message, even when it's older than n.
+            if (msg.uid > current.lastUid && msg.source) batch.push({ mailbox: path, uid: msg.uid, source: msg.source });
+          }
+          batch.sort((a, b) => a.uid - b.uid);
+          const taken = batch.slice(0, limit);
+          if (taken.length) next[path] = { uidValidity, lastUid: taken[taken.length - 1]!.uid };
+          messages.push(...taken);
+        } finally {
+          lock.release();
+        }
+      }
+      await client.logout();
+    } finally {
+      client.close();
+    }
+    return { cursors: next, messages, initialized };
   }
 
   verifyImap(): Promise<CheckResult> {

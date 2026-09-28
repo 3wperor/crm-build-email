@@ -1,8 +1,8 @@
 import "server-only";
-import { checkSend, computeNextSendAt, nextDayWindowOpening } from "@crm/core";
+import { checkSend, computeNextSendAt, injectTracking, nextDayWindowOpening } from "@crm/core";
 import { createMailAdapter } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { unsubscribeUrls } from "@/lib/links";
+import { trackingUrls, unsubscribeUrls } from "@/lib/links";
 import { loadAccountPassword, mailAdapterOptions, toMailConfig, ACCOUNT_CONNECTION_COLUMNS } from "@/lib/sending-accounts";
 import { campaignWindow, MAX_SEND_ATTEMPTS, RETRY_BACKOFF_MS, sendGap } from "./config";
 import { setEnrollment } from "./planner";
@@ -23,7 +23,7 @@ export async function attemptSend(orgId: string, sendId: string, now = new Date(
     .from("sends")
     .select(
       "id, status, campaign_lead_id, lead_id, step_id, sending_account_id, message_id, in_reply_to, references, subject, body_text, body_html, " +
-        "campaigns!inner(id, status, timezone, send_window_start, send_window_end, send_days, include_risky, organizations!inner(sending_paused)), " +
+        "campaigns!inner(id, status, timezone, send_window_start, send_window_end, send_days, include_risky, track_opens, track_clicks, organizations!inner(sending_paused)), " +
         "leads!inner(email, status, verification_status), campaign_leads!inner(status, current_step_order), sequence_steps(step_order, sequence_id)",
     )
     .eq("org_id", orgId)
@@ -101,13 +101,20 @@ export async function attemptSend(orgId: string, sendId: string, now = new Date(
   const password = await loadAccountPassword(orgId, account.id);
   const adapter = createMailAdapter(toMailConfig(account, password), mailAdapterOptions());
   const urls = unsubscribeUrls(sendId);
+  // Tracking is added at send time only, so the stored body (thread view, previews) stays clean.
+  const tracking = trackingUrls(sendId);
+  const html = injectTracking(s.body_html ?? "", {
+    openPixelUrl: s.campaigns.track_opens ? tracking.openPixel : null,
+    clickUrl: s.campaigns.track_clicks ? tracking.click : null,
+    skip: [urls.page, urls.oneClick],
+  });
 
   const result = await adapter.send({
     fromName: account.display_name,
     to: s.leads.email,
     subject: s.subject ?? "",
     text: s.body_text ?? "",
-    html: s.body_html ?? "",
+    html,
     messageId: s.message_id!,
     inReplyTo: s.in_reply_to,
     references: s.references,
@@ -129,7 +136,7 @@ export async function attemptSend(orgId: string, sendId: string, now = new Date(
   }
 
   if (result.hardBounce) {
-    await admin.from("sends").update({ status: "bounced", error: result.error }).eq("id", sendId);
+    await admin.from("sends").update({ status: "bounced", error: result.error, sent_at: now.toISOString() }).eq("id", sendId);
     await admin.from("events").insert({ org_id: orgId, send_id: sendId, type: "bounce", meta: { stage: "smtp", error: result.error } });
     // Suppression trigger marks the lead bounced and stops every enrollment.
     await admin
@@ -190,6 +197,8 @@ type SendRow = {
     send_window_end: string;
     send_days: number[];
     include_risky: boolean;
+    track_opens: boolean;
+    track_clicks: boolean;
     organizations: { sending_paused: boolean };
   };
   leads: { email: string; status: string; verification_status: string };

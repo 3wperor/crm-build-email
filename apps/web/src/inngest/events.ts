@@ -21,3 +21,8 @@ export const emailSendRequested = eventType("email/send.requested", {
 export const imapSyncRequested = eventType("imap/sync.requested", {
   schema: z.object({ orgId: z.string().uuid(), accountId: z.string().uuid() }),
 });
+
+/** Run the A/B auto-promotion check now instead of waiting for the cron. */
+export const abEvaluateRequested = eventType("ab/evaluate.requested", {
+  schema: z.object({ reason: z.string().optional() }),
+});

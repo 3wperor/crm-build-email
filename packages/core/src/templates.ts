@@ -84,6 +84,23 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+/** Trailing punctuation that ends a sentence rather than a URL. */
+const TRAILING_PUNCT = /[.,;:!?)\]]+$/;
+
+/** Escapes text and turns bare http(s) URLs into links (what mail clients do for plain text anyway). */
+function linkify(text: string): string {
+  let out = "";
+  let last = 0;
+  for (const m of text.matchAll(URL_RE)) {
+    const url = m[0].replace(TRAILING_PUNCT, "");
+    const start = m.index!;
+    out += escapeHtml(text.slice(last, start)) + `<a href="${escapeHtml(url)}">${escapeHtml(url)}</a>`;
+    last = start + url.length;
+  }
+  return out + escapeHtml(text.slice(last));
+}
+
 /** Plain text → minimal HTML that renders like a hand-written email. */
 export function textToHtml(text: string): string {
   const paragraphs = text
@@ -91,7 +108,7 @@ export function textToHtml(text: string): string {
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean)
-    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br>")}</p>`);
+    .map((p) => `<p>${linkify(p).replace(/\n/g, "<br>")}</p>`);
   return paragraphs.join("\n");
 }
 

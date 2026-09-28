@@ -18,10 +18,11 @@ import { EnrollForm } from "./enroll-form";
 import { LifecycleButtons } from "./lifecycle-buttons";
 import { SequenceEditor } from "./sequence-editor";
 import { CampaignSettingsForm } from "./settings-form";
+import { ResultsTab } from "./results-tab";
 
 export const metadata = { title: "Campaign" };
 
-const TABS = ["sequence", "leads", "settings", "activity"] as const;
+const TABS = ["sequence", "results", "leads", "settings", "activity"] as const;
 type Tab = (typeof TABS)[number];
 
 function describeNext(n: NextSendEstimate, tz: string): string {
@@ -48,7 +49,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
   const { data: c } = await supabase
     .from("campaigns")
     .select(
-      "*, sequences(id, sequence_steps(id, step_order, delay_days, delay_hours, email_variants(id, ab_group, subject, body, weight, is_active))), campaign_sending_accounts(sending_account_id)",
+      "*, sequences(id, sequence_steps(id, step_order, delay_days, delay_hours, email_variants(id, ab_group, subject, body, weight, is_active, is_winner))), campaign_sending_accounts(sending_account_id)",
     )
     .eq("org_id", org.id)
     .eq("id", id)
@@ -211,6 +212,17 @@ export default async function CampaignPage({ params, searchParams }: { params: P
             inboxes: testInboxes.map((i) => ({ id: i.id, email: i.email })),
             leads: (testLeads ?? []).map((l) => l.leads),
           }}
+        />
+      )}
+
+      {tab === "results" && (
+        <ResultsTab
+          orgId={org.id}
+          campaignId={c.id}
+          steps={steps}
+          canEdit={canEdit}
+          tracking={{ opens: c.track_opens, clicks: c.track_clicks }}
+          autoPromote={c.auto_promote_winner}
         />
       )}
 

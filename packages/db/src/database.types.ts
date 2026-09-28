@@ -1622,11 +1622,55 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      analytics_breakdown: {
+        Args: {
+          p_org_id: string
+          p_group: string
+          p_tz?: string
+          p_days?: number
+          p_campaign_id?: string
+          p_account_id?: string
+        }
+        Returns: {
+          key: string
+          label: string
+          sub: string
+          step_id: string
+          step_order: number
+          is_active: boolean
+          is_winner: boolean
+          sent: number
+          bounced: number
+          opened: number
+          clicked: number
+          replied: number
+          positive: number
+          unsubscribed: number
+        }[]
+      }
+      analytics_daily: {
+        Args: {
+          p_org_id: string
+          p_tz?: string
+          p_days?: number
+          p_campaign_id?: string
+          p_account_id?: string
+        }
+        Returns: {
+          day: string
+          sent: number
+          bounced: number
+          opened: number
+          clicked: number
+          replied: number
+          unsubscribed: number
+        }[]
+      }
       apply_reply_outcome: {
         Args: {
           p_org_id: string
           p_reply_id: string
-          p_ooo_until?: unknown
+          p_ooo_until?: string
         }
         Returns: string
       }
@@ -1652,7 +1696,7 @@ export type Database = {
         Args: {
           p_org_id: string
           p_send_id: string
-          p_next_send_at?: unknown
+          p_next_send_at?: string
           p_error?: string
         }
         Returns: undefined
@@ -1681,6 +1725,15 @@ export type Database = {
           p_list_id?: string
         }
         Returns: Json
+      }
+      record_tracking_event: {
+        Args: {
+          p_send_id: string
+          p_type: string
+          p_meta?: Json
+          p_scanner?: boolean
+        }
+        Returns: boolean
       }
       release_send_slot: {
         Args: {
@@ -1716,6 +1769,16 @@ export type Database = {
         Args: {
           p_org_id: string
           p_paused: boolean
+          p_reason?: string
+          p_actor?: string
+        }
+        Returns: undefined
+      }
+      set_variant_winner: {
+        Args: {
+          p_org_id: string
+          p_step_id: string
+          p_variant_id: string
           p_reason?: string
           p_actor?: string
         }

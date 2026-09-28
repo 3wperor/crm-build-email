@@ -15,8 +15,8 @@ Read it with `README.md`, which covers architecture, setup and deploy.
 | 6 Test email | ✅ | 21f3e14 |
 | 7 Reply sync (IMAP + Junk, matching, DSN bounces, classification rules + optional Claude, auto-pipeline) | ✅ | ce8b337 |
 | 8 Pipeline kanban, stage editor, lead detail | ✅ | aa60c97 |
-| 9 A/B stats + analytics (+ open/click tracking) | ⏳ next | |
-| 10 Warmup pool (beta) | ⏳ | |
+| 9 A/B stats + analytics (+ open/click tracking) | ✅ | (this commit) |
+| 10 Warmup pool (beta) | ⏳ next | |
 | 11 MCP server + guardrails + agent audit | ⏳ | |
 | 12 HubSpot adapter (`CrmAdapter` interface) | ⏳ | |
 
@@ -62,7 +62,7 @@ Local fakes and escape hatches:
 
 With Docker available, the normal flow applies: `pnpm db:start` (Supabase), `pnpm dev`, `pnpm inngest:dev`.
 
-Suite totals at the last run: 157 core tests, 47 mail tests, 109 database assertions, 89 browser steps across 7 end-to-end suites.
+Suite totals at the last run: 177 core tests, 47 mail tests, 131 database assertions, 98 browser steps across 8 end-to-end suites.
 
 ## Not yet verified against real services
 
@@ -71,19 +71,12 @@ Suite totals at the last run: 157 core tests, 47 mail tests, 109 database assert
 - Supabase Realtime: the kanban refresh is wired but was never run.
 - A live Claude API call for reply classification, since no key was available.
 
-## Phase 9 plan (next)
+## Phase 9 (done)
 
-- **Open/click tracking**, off by default because it hurts deliverability; the toggles already exist on `campaigns`.
-  - Signed `/t/o/<token>` pixel and `/t/c/<token>` redirect, recording `open` / `click` events.
-  - The middleware already excludes `/t/`.
-  - Tracking must never apply to test emails.
-- **Per-variant stats:** sent, opened, clicked, replied, positive, bounced, and their rates.
-  - Significance: a two-proportion z-test on reply rate against variant A, with a minimum sample per arm.
-  - A "winner" badge. When `campaigns.auto_promote_winner` is on, set `email_variants.is_winner`; `pickVariant` already routes all traffic to the winner.
-- **`/analytics`** page:
-  - per campaign / inbox / variant tables;
-  - daily sent/reply/bounce series for the last 30 days;
-  - charts drawn with inline SVG, so there's no chart dependency.
+- **Tracking:** signed `/t/o` and `/t/c` routes, applied at send time only. Bot-flagged hits are stored but excluded from rates.
+- **Queries:** `analytics_breakdown` and `analytics_daily`.
+- **A/B:** `evaluateAbTest` (reply rate, Bonferroni correction, at least 100 sends per variant). Winners change only through `set_variant_winner`, which is audited, and the `ab-evaluate` cron handles auto-promotion.
+- **Charts:** inline SVG in `components/charts/daily-charts.tsx`. The palette was validated with the dataviz skill's validator; tokens are `--viz-1..3` in `globals.css`.
 
 ## Phases 10–12 notes
 

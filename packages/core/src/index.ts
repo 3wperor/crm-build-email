@@ -7,3 +7,4 @@ export * from "./scheduler";
 export * from "./templates";
 export * from "./campaigns";
 export * from "./replies";
+export * from "./analytics";

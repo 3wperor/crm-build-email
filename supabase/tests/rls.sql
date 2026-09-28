@@ -605,6 +605,95 @@ select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
 select pg_temp.expect_eq((select count(*) from public.lead_notes), 0, 'notes: other org cannot read');
 reset role;
 
+-- Phase 9: tracking events, analytics, A/B winners ------------------------------
+insert into public.campaigns (org_id, name, timezone) values (current_setting('test.org_a')::uuid, 'AB campaign', 'UTC');
+select set_config('test.ab', (select id::text from public.campaigns where name = 'AB campaign'), true);
+insert into public.sequences (org_id, campaign_id) values (current_setting('test.org_a')::uuid, current_setting('test.ab')::uuid);
+insert into public.sequence_steps (org_id, sequence_id, step_order, delay_days)
+select org_id, id, 1, 0 from public.sequences where campaign_id = current_setting('test.ab')::uuid;
+select set_config('test.ab_step', (select st.id::text from public.sequence_steps st join public.sequences sq on sq.id = st.sequence_id where sq.campaign_id = current_setting('test.ab')::uuid), true);
+insert into public.email_variants (org_id, step_id, ab_group, subject, body) values
+  (current_setting('test.org_a')::uuid, current_setting('test.ab_step')::uuid, 'A', 'A', 'a'),
+  (current_setting('test.org_a')::uuid, current_setting('test.ab_step')::uuid, 'B', 'B', 'b'),
+  (current_setting('test.org_a')::uuid, current_setting('test.ab_step')::uuid, 'C', 'C', 'c');
+update public.email_variants set is_active = false where step_id = current_setting('test.ab_step')::uuid and ab_group = 'C';
+insert into public.leads (org_id, email, status)
+select current_setting('test.org_a')::uuid, 'ab' || i || '@ab.example', 'in_sequence' from generate_series(1, 7) i;
+insert into public.campaign_leads (org_id, campaign_id, lead_id, status)
+select l.org_id, current_setting('test.ab')::uuid, l.id, 'active' from public.leads l where l.email like 'ab%@ab.example';
+-- ab1-3 + ab7 got variant A, ab4-6 variant B; ab6 bounced at SMTP; ab7 was sent just now.
+insert into public.sends (org_id, campaign_id, campaign_lead_id, lead_id, step_id, variant_id, sending_account_id, status, sent_at, message_id)
+select cl.org_id, cl.campaign_id, cl.id, cl.lead_id, current_setting('test.ab_step')::uuid,
+       (select id from public.email_variants where step_id = current_setting('test.ab_step')::uuid
+         and ab_group = case when l.email in ('ab4@ab.example', 'ab5@ab.example', 'ab6@ab.example') then 'B' else 'A' end),
+       current_setting('test.acct')::uuid,
+       case when l.email = 'ab6@ab.example' then 'bounced' else 'sent' end,
+       case when l.email = 'ab7@ab.example' then now() else now() - interval '1 hour' end,
+       '<' || l.email || '>'
+  from public.campaign_leads cl join public.leads l on l.id = cl.lead_id where l.email like 'ab%@ab.example';
+create function pg_temp.ab_send(p_email text) returns uuid language sql as $$
+  select s.id from public.sends s join public.leads l on l.id = s.lead_id where l.email = p_email;
+$$;
+
+select pg_temp.expect_eq(public.record_tracking_event(pg_temp.ab_send('ab1@ab.example'), 'open', '{"ua":"Mozilla"}')::int, 1, 'tracking: open recorded');
+select pg_temp.expect_eq(public.record_tracking_event(pg_temp.ab_send('ab1@ab.example'), 'click', '{"url":"https://x.io"}')::int, 1, 'tracking: click recorded');
+select public.record_tracking_event(pg_temp.ab_send('ab2@ab.example'), 'open', '{}', p_scanner => true);
+select public.record_tracking_event(pg_temp.ab_send('ab7@ab.example'), 'open', '{}');
+select pg_temp.expect_eq((select count(*) from public.events where send_id = pg_temp.ab_send('ab7@ab.example') and (meta ->> 'bot')::boolean), 1,
+  'tracking: open within 60 s of sending is flagged as a bot');
+select pg_temp.expect_eq(public.record_tracking_event(pg_temp.ab_send('ab6@ab.example'), 'open', '{}')::int, 0, 'tracking: bounced send ignored');
+select public.record_tracking_event(pg_temp.ab_send('ab3@ab.example'), 'click', '{}') from generate_series(1, 25);
+select pg_temp.expect_eq((select count(*) from public.events where send_id = pg_temp.ab_send('ab3@ab.example')), 20, 'tracking: capped at 20 events per send and type');
+select pg_temp.expect_error(format('select public.record_tracking_event(%L, %L)', pg_temp.ab_send('ab1@ab.example'), 'reply'), 'P0001', 'tracking: only open/click');
+delete from public.events where send_id = pg_temp.ab_send('ab3@ab.example');
+insert into public.events (org_id, send_id, type) values
+  (current_setting('test.org_a')::uuid, pg_temp.ab_send('ab3@ab.example'), 'unsubscribe'),
+  (current_setting('test.org_a')::uuid, pg_temp.ab_send('ab4@ab.example'), 'reply'),
+  (current_setting('test.org_a')::uuid, pg_temp.ab_send('ab5@ab.example'), 'reply'),
+  (current_setting('test.org_a')::uuid, pg_temp.ab_send('ab6@ab.example'), 'bounce');
+insert into public.replies (org_id, lead_id, send_id, message_id, from_email, received_at, classification)
+select s.org_id, s.lead_id, s.id, '<re-' || l.email || '>', l.email, now(), case when l.email = 'ab4@ab.example' then 'positive' else 'negative' end
+  from public.sends s join public.leads l on l.id = s.lead_id where l.email in ('ab4@ab.example', 'ab5@ab.example');
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000c'); -- viewer can read analytics
+select pg_temp.expect_eq((select sent * 1000000 + bounced * 100000 + opened * 10000 + clicked * 1000 + replied * 100 + positive * 10 + unsubscribed
+    from public.analytics_breakdown(current_setting('test.org_a')::uuid, 'total', 'UTC', 7, current_setting('test.ab')::uuid)),
+  7111211, 'analytics: totals (7 sent, 1 bounced, 1 opened, 1 clicked, 2 replied, 1 positive, 1 unsubscribed)');
+select pg_temp.expect_eq((select sent * 100 + opened * 10 + replied from public.analytics_breakdown(current_setting('test.org_a')::uuid, 'variant', 'UTC', null, current_setting('test.ab')::uuid) where label = 'Step 1 · A'),
+  410, 'analytics: variant A 4 sent, 1 opened, 0 replied');
+select pg_temp.expect_eq((select sent * 1000 + bounced * 100 + replied * 10 + positive from public.analytics_breakdown(current_setting('test.org_a')::uuid, 'variant', 'UTC', null, current_setting('test.ab')::uuid) where label = 'Step 1 · B'),
+  3121, 'analytics: variant B 3 sent, 1 bounced, 2 replied, 1 positive');
+select pg_temp.expect_eq((select count(*) from public.analytics_breakdown(current_setting('test.org_a')::uuid, 'inbox', 'UTC', 7, current_setting('test.ab')::uuid) where label = 'sender@sched.example'),
+  1, 'analytics: grouped by inbox');
+select pg_temp.expect_eq((select (count(*) * 1000 + sum(sent) * 10 + sum(replied))::bigint from public.analytics_daily(current_setting('test.org_a')::uuid, 'Europe/Berlin', 7, current_setting('test.ab')::uuid)),
+  7072, 'analytics: daily series has 7 days, 7 sent, 2 replied');
+select pg_temp.expect_error(format('select public.record_tracking_event(%L, %L)', pg_temp.ab_send('ab1@ab.example'), 'open'), '42501', 'tracking: not client-callable');
+select pg_temp.expect_error(format('select public.set_variant_winner(%L, %L, %L)', current_setting('test.org_a'), current_setting('test.ab_step'),
+  (select id from public.email_variants where step_id = current_setting('test.ab_step')::uuid and ab_group = 'B')), '42501', 'ab: viewer cannot promote a winner');
+select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
+select pg_temp.expect_eq((select count(*) from public.analytics_breakdown(current_setting('test.org_a')::uuid, 'total', 'UTC', null)), 0, 'analytics: other org sees nothing');
+select pg_temp.expect_eq((select count(*) from public.analytics_daily(current_setting('test.org_a')::uuid, 'UTC', 7) where sent > 0), 0, 'analytics: other org daily is empty');
+select pg_temp.expect_error(format('select public.set_variant_winner(%L, %L, null)', current_setting('test.org_a'), current_setting('test.ab_step')), '42501', 'ab: other org cannot change winners');
+select pg_temp.login('10000000-0000-4000-8000-00000000000d'); -- sender
+select public.set_variant_winner(current_setting('test.org_a')::uuid, current_setting('test.ab_step')::uuid,
+  (select id from public.email_variants where step_id = current_setting('test.ab_step')::uuid and ab_group = 'B'), 'B 66.7% vs A 0.0%');
+select public.set_variant_winner(current_setting('test.org_a')::uuid, current_setting('test.ab_step')::uuid,
+  (select id from public.email_variants where step_id = current_setting('test.ab_step')::uuid and ab_group = 'A'));
+select pg_temp.expect_eq((select count(*) from public.email_variants where step_id = current_setting('test.ab_step')::uuid and is_winner and ab_group = 'A'), 1,
+  'ab: sender promotes a winner; only one per step');
+select pg_temp.expect_error(format('select public.set_variant_winner(%L, %L, %L)', current_setting('test.org_a'), current_setting('test.ab_step'),
+  (select id from public.email_variants where step_id = current_setting('test.ab_step')::uuid and ab_group = 'C')), 'P0002', 'ab: inactive variant cannot win');
+select pg_temp.expect_error(format('update public.email_variants set is_winner = true where step_id = %L', current_setting('test.ab_step')), '42501',
+  'ab: is_winner only changes through the audited RPC');
+update public.email_variants set subject = 'A2' where step_id = current_setting('test.ab_step')::uuid and ab_group = 'A';
+select pg_temp.expect_eq((select count(*) from public.email_variants where subject = 'A2'), 1, 'ab: variant copy still editable');
+select public.set_variant_winner(current_setting('test.org_a')::uuid, current_setting('test.ab_step')::uuid, null);
+select pg_temp.expect_eq((select count(*) from public.email_variants where step_id = current_setting('test.ab_step')::uuid and is_winner), 0, 'ab: winner cleared');
+reset role;
+select pg_temp.expect_eq((select count(*) from public.agent_audit_log where action like 'ab.%' and target = 'campaign:' || current_setting('test.ab')
+    and actor = 'user:10000000-0000-4000-8000-00000000000d'), 3, 'ab: every winner change is audited');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

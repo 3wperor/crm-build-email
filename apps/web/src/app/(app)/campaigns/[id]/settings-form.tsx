@@ -25,6 +25,9 @@ type Props = {
     daily_limit: number;
     daily_limit_per_inbox: number;
     include_risky: boolean;
+    track_opens: boolean;
+    track_clicks: boolean;
+    auto_promote_winner: boolean;
     approval_mode: string;
   };
   inboxes: { id: string; email: string; status: string; health: string; daily_cap: number }[];
@@ -119,6 +122,31 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
             <span>
               <span className="font-medium">Include risky leads</span>
               <span className="text-muted-foreground block text-xs">Role addresses and domains without MX. Off by default. Invalid and suppressed leads are never emailed.</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="trackOpens" defaultChecked={campaign.track_opens} className="mt-0.5" />
+            <span>
+              <span className="font-medium">Track opens</span>
+              <span className="text-muted-foreground block text-xs">
+                Adds an invisible image. Can hurt deliverability, and Apple Mail and Gmail&apos;s image proxy inflate or blur opens: judge variants by replies.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="trackClicks" defaultChecked={campaign.track_clicks} className="mt-0.5" />
+            <span>
+              <span className="font-medium">Track link clicks</span>
+              <span className="text-muted-foreground block text-xs">Routes links through this app. The unsubscribe link is never tracked.</span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" name="autoPromoteWinner" defaultChecked={campaign.auto_promote_winner} className="mt-0.5" />
+            <span>
+              <span className="font-medium">Auto-promote A/B winners</span>
+              <span className="text-muted-foreground block text-xs">
+                When a variant&apos;s reply rate beats every other variant of its step with statistical significance, it gets all new sends.
+              </span>
             </span>
           </label>
           <div className="grid max-w-md gap-2">

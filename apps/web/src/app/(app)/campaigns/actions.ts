@@ -125,6 +125,9 @@ export async function updateCampaignSettings(_prev: CampaignState, formData: For
       daily_limit: s.dailyLimit,
       daily_limit_per_inbox: s.dailyLimitPerInbox,
       include_risky: s.includeRisky,
+      track_opens: s.trackOpens,
+      track_clicks: s.trackClicks,
+      auto_promote_winner: s.autoPromoteWinner,
       approval_mode: s.approvalMode,
     })
     .eq("org_id", ctx.org.id)
@@ -385,4 +388,26 @@ export async function sendTestEmailAction(_prev: TestEmailState, formData: FormD
   return result.ok
     ? { ok: true, message: `Sent "${result.subject}" to ${result.to} from ${result.from}.` }
     : { ok: false, error: result.error, hint: result.hint };
+}
+
+// ---------------------------------------------------------------------------
+// A/B winners
+// ---------------------------------------------------------------------------
+
+/** Promote a variant (it gets every new send for its step) or clear the winner. Audited by the RPC. */
+export async function setVariantWinner(formData: FormData) {
+  const ctx = await requireWriter();
+  if (!ctx) return;
+  const campaignId = String(formData.get("campaign_id"));
+  const variantId = String(formData.get("variant_id") ?? "");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_variant_winner", {
+    p_org_id: ctx.org.id,
+    p_step_id: String(formData.get("step_id")),
+    // null clears the winner; the generated type can't express a nullable argument.
+    p_variant_id: (variantId || null) as string,
+    p_reason: String(formData.get("reason") ?? "") || "manual",
+  });
+  if (error) throw new Error(error.message);
+  refresh(campaignId);
 }

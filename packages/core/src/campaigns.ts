@@ -35,6 +35,9 @@ export const campaignSettingsSchema = z
     dailyLimit: z.coerce.number().int().min(0).max(CAMPAIGN_DAILY_LIMIT_MAX),
     dailyLimitPerInbox: z.coerce.number().int().min(0).max(CAMPAIGN_PER_INBOX_MAX),
     includeRisky: checkbox,
+    trackOpens: checkbox,
+    trackClicks: checkbox,
+    autoPromoteWinner: checkbox,
     approvalMode: z.enum(["draft", "auto"]).default("draft"),
     accountIds: z.array(z.string().uuid()).default([]),
   })

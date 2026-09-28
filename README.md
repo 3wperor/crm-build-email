@@ -264,6 +264,34 @@ node --experimental-strip-types packages/mail/src/testing/run-fake-mail.mjs
 - Pipeline card: stage, booking link, add or remove manually.
 - Campaign enrollments, list memberships, suppression status and verification details.
 
+### Analytics, tracking and A/B tests
+
+**Open and click tracking** is off by default and turned on per campaign under Settings, because it can hurt deliverability.
+- It is added only at send time. The stored body, the thread view and test emails never carry it.
+- **Opens:** a signed `/t/o/<token>` pixel, served as an uncached GIF. A forged token still gets the GIF but records nothing.
+- **Clicks:** links in the HTML part go through `/t/c/<token>`, which redirects (302) to the original URL. The token signs the destination as well as the send, so it can't be used as an open redirect.
+- **Never tracked:** the unsubscribe link and the plain-text part.
+- **Bot filtering:** hits within 60 s of sending, from known security scanners (Barracuda, Proofpoint, Mimecast, curl…) or with no user agent are stored with `meta.bot = true` and left out of every rate. A click also counts as an open.
+- **Flood protection:** at most 20 events per send and type (`record_tracking_event`).
+
+**Reports:**
+- `/analytics` has a 7/30/90-day range and campaign and inbox filters.
+- It shows headline figures, sends per day and responses per day (inline SVG with hover and keyboard readouts, plus a table view), and breakdowns by campaign, inbox and variant.
+- Headline figures and tables count the sends made in the range plus everything that came back from them, so rates can't exceed 100%.
+- The charts count responses on the day they arrived.
+- "Delivered" means sent minus bounced.
+- Bounce rates above 3% are flagged.
+- The queries are `analytics_breakdown` and `analytics_daily`. Both are security invoker, so RLS scopes them.
+
+**A/B tests** (campaign → Results):
+- **Metric:** variants are compared on **reply rate**, because open rates are distorted by Apple Mail Privacy Protection and image proxies.
+- **Display:** each rate comes with a 95% Wilson interval.
+- **Winner rule:** the leading variant must beat every other active variant with a two-proportion z-test, p < 0.05 / (k − 1) (Bonferroni). Each variant also needs at least 100 sends, and the leader at least 5 replies. See `evaluateAbTest` in `packages/core/src/analytics.ts`.
+- **Caveat:** checking a running test repeatedly still raises the chance of a false winner. The floors reduce that risk but don't remove it.
+- **Manual promotion:** **Promote** gives a variant every new send for its step (`pickVariant` honours `is_winner`), and **Clear winner** restores the weighted split.
+- **Audit:** both go through `set_variant_winner`, which writes to the audit log. `is_winner` can't be changed directly.
+- **Auto-promote** (a per-campaign setting): the `ab-evaluate` Inngest cron runs every 30 minutes, or on the `ab/evaluate.requested` event. It promotes significant winners in active campaigns, acting as `system:ab-auto-promote`, and never overrides an existing winner.
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
@@ -273,8 +301,8 @@ node --experimental-strip-types packages/mail/src/testing/run-fake-mail.mjs
 5. ✅ Sequences + scheduler: steps, delays, A/B, windows, timezones, caps, pacing, threading, unsubscribe, bounce handling
 6. ✅ Test email
 7. ✅ Reply sync: IMAP polling (+ spam folder), matching, bounce parsing, classification (rules + optional AI), auto-pipeline
-8. Pipeline kanban, lead detail, thread view
-9. A/B variants and analytics
+8. ✅ Pipeline kanban, lead detail, thread view
+9. ✅ A/B variants and analytics (+ open/click tracking)
 10. Warmup pool (beta)
 11. MCP server, guardrails, audit log tooling
 12. HubSpot adapter

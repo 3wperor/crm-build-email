@@ -11,7 +11,8 @@
     "./scheduler": "./src/scheduler.ts",
     "./templates": "./src/templates.ts",
     "./campaigns": "./src/campaigns.ts",
-    "./replies": "./src/replies.ts"
+    "./replies": "./src/replies.ts",
+    "./analytics": "./src/analytics.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

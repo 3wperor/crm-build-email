@@ -301,6 +301,33 @@ export type Database = {
           },
         ]
       }
+      domain_checks: {
+        Row: {
+          domain: string
+          mx_hosts: string[]
+          null_mx: boolean
+          has_address: boolean
+          error: string | null
+          checked_at: string
+        }
+        Insert: {
+          domain: string
+          mx_hosts?: string[]
+          null_mx?: boolean
+          has_address?: boolean
+          error?: string | null
+          checked_at?: string
+        }
+        Update: {
+          domain?: string
+          mx_hosts?: string[]
+          null_mx?: boolean
+          has_address?: boolean
+          error?: string | null
+          checked_at?: string
+        }
+        Relationships: []
+      }
       domains: {
         Row: {
           id: string
@@ -591,6 +618,7 @@ export type Database = {
           import_id: string | null
           created_at: string
           updated_at: string
+          verification_run_id: string | null
         }
         Insert: {
           id?: string
@@ -608,6 +636,7 @@ export type Database = {
           import_id?: string | null
           created_at?: string
           updated_at?: string
+          verification_run_id?: string | null
         }
         Update: {
           id?: string
@@ -625,6 +654,7 @@ export type Database = {
           import_id?: string | null
           created_at?: string
           updated_at?: string
+          verification_run_id?: string | null
         }
         Relationships: [
           {
@@ -639,6 +669,13 @@ export type Database = {
             columns: ["org_id", "import_id"]
             isOneToOne: false
             referencedRelation: "imports"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "leads_org_id_verification_run_id_fkey"
+            columns: ["org_id", "verification_run_id"]
+            isOneToOne: false
+            referencedRelation: "verification_runs"
             referencedColumns: ["org_id", "id"]
           },
         ]
@@ -759,6 +796,7 @@ export type Database = {
           default_timezone: string
           created_at: string
           updated_at: string
+          auto_verify_imports: boolean
         }
         Insert: {
           id?: string
@@ -772,6 +810,7 @@ export type Database = {
           default_timezone?: string
           created_at?: string
           updated_at?: string
+          auto_verify_imports?: boolean
         }
         Update: {
           id?: string
@@ -785,6 +824,7 @@ export type Database = {
           default_timezone?: string
           created_at?: string
           updated_at?: string
+          auto_verify_imports?: boolean
         }
         Relationships: []
       }
@@ -1295,6 +1335,82 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_runs: {
+        Row: {
+          id: string
+          org_id: string
+          source: string
+          requested_by: string | null
+          import_id: string | null
+          status: string
+          total: number
+          processed: number
+          valid_count: number
+          invalid_count: number
+          risky_count: number
+          unknown_count: number
+          error: string | null
+          created_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          source: string
+          requested_by?: string | null
+          import_id?: string | null
+          status?: string
+          total?: number
+          processed?: number
+          valid_count?: number
+          invalid_count?: number
+          risky_count?: number
+          unknown_count?: number
+          error?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          source?: string
+          requested_by?: string | null
+          import_id?: string | null
+          status?: string
+          total?: number
+          processed?: number
+          valid_count?: number
+          invalid_count?: number
+          risky_count?: number
+          unknown_count?: number
+          error?: string | null
+          created_at?: string
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_runs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verification_runs_org_id_import_id_fkey"
+            columns: ["org_id", "import_id"]
+            isOneToOne: false
+            referencedRelation: "imports"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "verification_runs_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       warmup_events: {
         Row: {
           id: number
@@ -1345,6 +1461,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_verification_results: {
+        Args: {
+          p_org_id: string
+          p_run_id: string
+          p_results: Json
+        }
+        Returns: number
+      }
+      claim_leads_for_verification: {
+        Args: {
+          p_org_id: string
+          p_run_id: string
+          p_lead_ids?: string[]
+          p_import_id?: string
+          p_all_unverified?: boolean
+        }
+        Returns: number
+      }
       create_organization: {
         Args: {
           p_name: string

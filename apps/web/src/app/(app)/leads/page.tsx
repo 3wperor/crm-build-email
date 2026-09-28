@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Card, CardContent } from "@/components/ui/card";
+import { AutoRefresh } from "@/components/auto-refresh";
+import { UsageBar } from "@/components/usage-bar";
 import { AddLeadForm } from "./add-lead-form";
+import { VerifyAllButton } from "./verify-all-button";
 import { LeadsTable, type LeadRow } from "./leads-table";
 
 export const metadata = { title: "Leads" };
@@ -31,7 +34,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   const q = (sp.q ?? "").replace(/[,()*%\\"]/g, " ").trim().slice(0, 100);
   const listId = sp.list && UUID.test(sp.list) ? sp.list : null;
 
-  const columns = "id, email, first_name, last_name, company, title, status, verification_status, created_at";
+  const columns = "id, email, first_name, last_name, company, title, status, verification_status, verification_detail, created_at";
   let query = supabase
     .from("leads")
     .select(listId ? `${columns}, lead_list_members!inner(list_id)` : columns, { count: "exact" })
@@ -42,9 +45,18 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   if (sp.verification && VERIFICATIONS.includes(sp.verification)) query = query.eq("verification_status", sp.verification);
   if (sp.import && UUID.test(sp.import)) query = query.eq("import_id", sp.import);
 
-  const [{ data, count, error }, { data: lists }] = await Promise.all([
+  const [{ data, count, error }, { data: lists }, { count: unverified }, { data: activeRun }] = await Promise.all([
     query.order("created_at", { ascending: false }).order("email").range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1),
     supabase.from("lead_lists").select("id, name").eq("org_id", org.id).order("name"),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("org_id", org.id).eq("verification_status", "unverified"),
+    supabase
+      .from("verification_runs")
+      .select("id, status, total, processed, valid_count, invalid_count, risky_count, unknown_count")
+      .eq("org_id", org.id)
+      .in("status", ["queued", "running"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
   const rows = (data ?? []) as unknown as LeadRow[];
   const total = count ?? 0;
@@ -77,7 +89,20 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         }
       />
 
+      <AutoRefresh active={!!activeRun} intervalMs={2000} />
       <div className="grid gap-4">
+        {activeRun && (
+          <Card className="gap-2 py-4" data-testid="verification-progress">
+            <CardContent className="flex flex-wrap items-center gap-4 text-sm">
+              <span className="font-medium">Verifying emails…</span>
+              <UsageBar used={activeRun.processed} cap={Math.max(activeRun.total, 1)} className="w-48" />
+              <span className="text-muted-foreground">
+                {activeRun.valid_count} valid · {activeRun.risky_count} risky · {activeRun.invalid_count} invalid · {activeRun.unknown_count} unknown
+              </span>
+            </CardContent>
+          </Card>
+        )}
+        {canWrite && !activeRun && (unverified ?? 0) > 0 && <VerifyAllButton count={unverified ?? 0} />}
         {canWrite && (
           <details className="rounded-lg border p-4">
             <summary className="cursor-pointer text-sm font-medium">Add a single lead</summary>

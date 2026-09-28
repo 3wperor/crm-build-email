@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@crm/core": "workspace:*",
+    "disposable-email-domains-js": "1.26.0",
     "imapflow": "2.1.1",
     "nodemailer": "10.0.12"
   },

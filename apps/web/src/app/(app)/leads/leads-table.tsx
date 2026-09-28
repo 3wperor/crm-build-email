@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { VERIFICATION_REASON_LABELS, type VerificationReason } from "@crm/core/verification";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-native";
@@ -17,8 +18,18 @@ export type LeadRow = {
   title: string | null;
   status: string;
   verification_status: string;
+  verification_detail: { level?: string; reasons?: string[]; mx?: string[] } | null;
   created_at: string;
 };
+
+function verificationTitle(r: LeadRow): string | undefined {
+  const d = r.verification_detail;
+  if (!d) return undefined;
+  const reasons = (d.reasons ?? []).map((x) => VERIFICATION_REASON_LABELS[x as VerificationReason] ?? x);
+  const parts = [d.level === "mx" ? "Domain accepts mail (DNS check; mailbox not probed)" : null, ...reasons];
+  if (d.mx?.length) parts.push(`MX: ${d.mx.slice(0, 2).join(", ")}`);
+  return parts.filter(Boolean).join(" · ");
+}
 
 const VERIFY_VARIANT = {
   valid: "success",
@@ -73,6 +84,7 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
           <span className="text-muted-foreground text-sm">{selected.size} selected</span>
           <NativeSelect name="bulk_action" value={action} onChange={(e) => setAction(e.target.value)} className="w-auto" aria-label="Bulk action">
             <option value="add_to_list">Add to list</option>
+            <option value="verify">Verify emails</option>
             <option value="suppress">Add to suppression list</option>
             <option value="delete">Delete</option>
           </NativeSelect>
@@ -88,7 +100,7 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
               ))}
             </NativeSelect>
           )}
-          <Button size="sm" variant={action === "add_to_list" ? "outline" : "destructive"} disabled={selected.size === 0 || pending}>
+          <Button size="sm" variant={action === "add_to_list" || action === "verify" ? "outline" : "destructive"} disabled={selected.size === 0 || pending}>
             Apply
           </Button>
           {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
@@ -140,7 +152,11 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
                 <Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>{r.status.replaceAll("_", " ")}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant={VERIFY_VARIANT[r.verification_status as keyof typeof VERIFY_VARIANT] ?? "outline"}>
+                <Badge
+                  variant={VERIFY_VARIANT[r.verification_status as keyof typeof VERIFY_VARIANT] ?? "outline"}
+                  title={verificationTitle(r)}
+                  data-testid={`verification-${r.email}`}
+                >
                   {r.verification_status}
                 </Badge>
               </TableCell>

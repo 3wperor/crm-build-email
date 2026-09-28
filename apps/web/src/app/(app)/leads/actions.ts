@@ -10,7 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fieldErrors, formToObject, type FieldErrors } from "@/lib/forms";
 import { IMPORTS_BUCKET, importFilePath } from "@/lib/imports/storage";
 import { inngest } from "@/inngest/client";
-import { leadImportRequested } from "@/inngest/events";
+import { leadImportRequested, leadVerificationRequested } from "@/inngest/events";
+import { createVerificationRun, type VerificationTarget } from "@/lib/verification/runs";
 
 const FORBIDDEN = "You don't have permission to change leads.";
 
@@ -206,5 +207,35 @@ export async function bulkLeadAction(_prev: BulkState, formData: FormData): Prom
     return { message: `Added ${ids.data.length} lead(s) to the list.` };
   }
 
+  if (action === "verify") {
+    const started = await startVerification(ctx.org.id, ctx.user.id, { leadIds: ids.data });
+    if ("error" in started) return started;
+    return { message: started.total ? `Verifying ${started.total} lead(s)…` : "Those leads are already being verified." };
+  }
+
   return { error: "Unknown action" };
+}
+
+// ---------------------------------------------------------------------------
+// Verification
+// ---------------------------------------------------------------------------
+
+async function startVerification(orgId: string, userId: string, target: VerificationTarget) {
+  try {
+    const run = await createVerificationRun(orgId, target, { source: "manual", requestedBy: userId });
+    if (!run) return { total: 0 };
+    await inngest.send(leadVerificationRequested.create({ orgId, runId: run.runId }, { id: `verify-${run.runId}` }));
+    revalidatePath("/leads");
+    return { total: run.total };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Could not start verification" };
+  }
+}
+
+export async function verifyAllUnverified(_prev: BulkState, _formData: FormData): Promise<BulkState> {
+  const ctx = await requireWriter();
+  if (!ctx) return { error: FORBIDDEN };
+  const started = await startVerification(ctx.org.id, ctx.user.id, { allUnverified: true });
+  if ("error" in started) return started;
+  return { message: started.total ? `Verifying ${started.total.toLocaleString()} lead(s)…` : "Nothing to verify." };
 }

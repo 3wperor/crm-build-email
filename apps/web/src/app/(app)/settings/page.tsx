@@ -15,7 +15,7 @@ export default async function SettingsPage() {
   const supabase = await createClient();
 
   const [{ data: settings }, { data: members }] = await Promise.all([
-    supabase.from("organizations").select("name, physical_address, default_timezone, approval_mode").eq("id", org.id).single(),
+    supabase.from("organizations").select("name, physical_address, default_timezone, approval_mode, auto_verify_imports").eq("id", org.id).single(),
     supabase.from("memberships").select("id, role, created_at, users(email, full_name)").eq("org_id", org.id).order("created_at"),
   ]);
 

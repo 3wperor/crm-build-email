@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImportStatusBadge } from "../status-badge";
-import { AutoRefresh } from "./auto-refresh";
+import { AutoRefresh } from "@/components/auto-refresh";
 
 export const metadata = { title: "Import" };
 
@@ -25,7 +25,16 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
     .maybeSingle();
   if (!imp) notFound();
 
-  const running = imp.status === "pending" || imp.status === "processing";
+  const { data: verification } = await supabase
+    .from("verification_runs")
+    .select("status, total, processed, valid_count, risky_count, invalid_count, unknown_count")
+    .eq("org_id", org.id)
+    .eq("import_id", id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const verifying = verification?.status === "queued" || verification?.status === "running";
+  const running = imp.status === "pending" || imp.status === "processing" || verifying;
   const options = imp.options as { mode?: string };
   const stats = [
     { label: "Imported", value: imp.imported_count, testid: "imported" },
@@ -35,7 +44,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
       testid: "existing",
     },
     { label: "Suppressed", value: imp.suppressed_count, testid: "suppressed" },
-    { label: "Invalid", value: imp.invalid_count, testid: "invalid" },
+    { label: "Invalid rows", value: imp.invalid_count, testid: "invalid" },
     { label: "Duplicates in file", value: imp.duplicate_count, testid: "duplicates" },
   ];
 
@@ -81,6 +90,19 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
               </div>
             ))}
           </dl>
+          {verification && (
+            <div className="grid gap-2 rounded-md border p-3 text-sm" data-testid="import-verification">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">Email verification</span>
+                <ImportStatusBadge status={verification.status === "queued" ? "pending" : verification.status === "running" ? "processing" : verification.status} />
+              </div>
+              {verifying && <UsageBar used={verification.processed} cap={Math.max(verification.total, 1)} className="max-w-md" />}
+              <div className="text-muted-foreground">
+                {verification.valid_count} valid · {verification.risky_count} risky · {verification.invalid_count} invalid ·{" "}
+                {verification.unknown_count} unknown
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {imp.error_report_path && (
               <Button asChild variant="outline">

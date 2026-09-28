@@ -4,7 +4,7 @@ A cold-email outreach CRM. It covers the full loop: upload leads → verify → 
 
 It's built for solo use first. Every table is org-scoped with Postgres RLS so it can become multi-tenant SaaS without a rewrite.
 
-> **Status: Phases 1–3 complete** (scaffold, sending accounts, leads & import). See [Roadmap](#roadmap).
+> **Status: Phases 1–4 complete** (scaffold, sending accounts, leads & import, verification). See [Roadmap](#roadmap).
 
 ## Stack
 
@@ -12,7 +12,7 @@ It's built for solo use first. Every table is org-scoped with Postgres RLS so it
 |---|---|
 | Web app | Next.js 15 (App Router), TypeScript, Tailwind v4, shadcn/ui, deployed on Vercel |
 | Data / auth | Supabase: Postgres, Auth, RLS, Storage, Realtime |
-| Background jobs | Inngest (lead imports now; scheduler, IMAP sync, verification next) |
+| Background jobs | Inngest (lead import, email verification; scheduler and IMAP sync next) |
 | Mail | SMTP / IMAP with app passwords (`nodemailer`, `imapflow`, `mailparser`, from Phase 2) |
 | Credential encryption | App-level AES-256-GCM, key from env, versioned for rotation |
 | Agent control plane | MCP server (`apps/mcp`, Phase 11) |
@@ -142,14 +142,31 @@ App passwords live in `sending_account_credentials`. Only the service role can r
 
 ### Email verification
 
-Verification ships as syntax, MX, disposable-domain and role-address checks. Anything that would need an SMTP `RCPT` probe returns `unknown`. Serverless hosts, Vercel included, block outbound port 25. The prober sits behind an interface so a small port-25 VPS worker can be added later without schema changes.
+Verification runs in the Inngest job `verify-leads`. It starts from the leads page (selected leads, or "Verify N unverified"), automatically after each import (org setting, on by default), and later from the agent.
+
+| Check | Result |
+|---|---|
+| Bad syntax | `invalid` |
+| Disposable domain ([community blocklist](https://github.com/disposable-email-domains/disposable-email-domains), subdomains included) | `invalid` |
+| Domain doesn't exist (NXDOMAIN) | `invalid` |
+| RFC 7505 null MX, or no MX and no A record | `invalid` |
+| No MX but has an A record (implicit MX) | `risky` |
+| Role address (`info@`, `sales@`, …) | `risky` |
+| DNS timeout or SERVFAIL | `unknown` (retried after 1 h) |
+| MX present | `valid`, with `detail.level = "mx"` |
+
+- **What `valid` means here:** the domain receives mail. The individual mailbox and catch-all status aren't probed, because that needs an SMTP `RCPT` probe over outbound port 25, which serverless hosts block. A future prober on a small VPS plugs in through `EmailProber` in `@crm/core/verification` and raises `detail.level` to `"smtp"`. No schema change is needed.
+- **Domain cache:** DNS results are cached per domain in `domain_checks`, shared across orgs because it's public DNS data. Good results are kept 7 days and temporary failures 1 hour, so a list of 10,000 `@gmail.com` leads costs one lookup. Lookups run 20 at a time with a 3 s timeout.
+- **Runs:** each run claims its leads through `leads.verification_run_id`. Batches release leads as their results are written, so retries are idempotent and two runs never fight over a lead.
+- **Invalid means never emailed:** a lead that turns out `invalid` has its active enrollments stopped and scheduled sends cancelled straight away. The send path re-checks at send time (Phase 5).
+- Changing a lead's email resets it to `unverified`.
 
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
 2. ✅ Sending accounts: add / test / encrypt, connection health
 3. ✅ Leads: CSV upload, mapping, dedupe, suppression check
-4. Verification: MX / syntax probe worker and statuses
+4. ✅ Verification: syntax, MX / DNS, disposable and role checks; statuses; auto-verify on import
 5. Sequences + scheduler (Inngest)
 6. Test email
 7. Reply sync: IMAP polling, matching, classification, auto-pipeline

@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./crypto": "./src/crypto.ts",
-    "./imports": "./src/imports.ts"
+    "./imports": "./src/imports.ts",
+    "./verification": "./src/verification.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

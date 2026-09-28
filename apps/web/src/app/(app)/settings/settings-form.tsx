@@ -10,7 +10,7 @@ import { updateOrgSettings } from "./actions";
 
 type Props = {
   disabled: boolean;
-  org: { name: string; physical_address: string | null; default_timezone: string; approval_mode: string };
+  org: { name: string; physical_address: string | null; default_timezone: string; approval_mode: string; auto_verify_imports: boolean };
 };
 
 export function SettingsForm({ org, disabled }: Props) {
@@ -36,6 +36,13 @@ export function SettingsForm({ org, disabled }: Props) {
           <Label htmlFor="default_timezone">Default timezone</Label>
           <Input id="default_timezone" name="default_timezone" defaultValue={org.default_timezone} placeholder="America/New_York" />
         </div>
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" name="auto_verify_imports" defaultChecked={org.auto_verify_imports} className="mt-0.5" />
+          <span>
+            <span className="font-medium">Verify emails automatically after each import</span>
+            <span className="text-muted-foreground block text-xs">MX / DNS check, disposable-domain and role-address detection.</span>
+          </span>
+        </label>
         <div className="grid gap-2">
           <Label htmlFor="approval_mode">AI agent approval mode</Label>
           <NativeSelect id="approval_mode" name="approval_mode" defaultValue={org.approval_mode}>

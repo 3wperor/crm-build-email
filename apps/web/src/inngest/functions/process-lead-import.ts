@@ -11,8 +11,9 @@ import {
 } from "@crm/core/imports";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { downloadText, importErrorsPath, importFilePath, uploadText } from "@/lib/imports/storage";
+import { createVerificationRun } from "@/lib/verification/runs";
 import { inngest } from "../client";
-import { leadImportRequested } from "../events";
+import { leadImportRequested, leadVerificationRequested } from "../events";
 
 type ChunkResult = { imported_rows: number[]; existing_rows: number[]; suppressed_rows: number[] };
 
@@ -105,7 +106,7 @@ export const processLeadImport = inngest.createFunction(
       results.push(result);
     }
 
-    return step.run("finish", async () => {
+    const counts = await step.run("finish", async () => {
       const { parsed, prepared } = await prepare(orgId, importId, start.mapping);
       const suppressed = results.flatMap((r) => r.suppressed_rows);
       const existing = results.flatMap((r) => r.existing_rows);
@@ -146,5 +147,17 @@ export const processLeadImport = inngest.createFunction(
       if (error) throw new Error(error.message);
       return counts;
     });
+
+    // Auto-verify newly imported leads (org setting, on by default).
+    const run = await step.run("queue-verification", async () => {
+      if (counts.imported_count === 0) return null;
+      const { data: org } = await createAdminClient().from("organizations").select("auto_verify_imports").eq("id", orgId).single();
+      if (!org?.auto_verify_imports) return null;
+      return createVerificationRun(orgId, { importId }, { source: "import" });
+    });
+    if (run) {
+      await step.sendEvent("request-verification", leadVerificationRequested.create({ orgId, runId: run.runId }, { id: `verify-${run.runId}` }));
+    }
+    return { ...counts, verificationRunId: run?.runId ?? null };
   },
 );

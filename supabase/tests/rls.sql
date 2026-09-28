@@ -314,6 +314,79 @@ select pg_temp.expect_eq(
   (select count(*) from public.leads where email = 'new1@a.example' and status = 'new'), 1,
   'admin removing suppression makes lead contactable again');
 
+-- Phase 4: verification -------------------------------------------------------
+insert into public.leads (org_id, email) values
+  (current_setting('test.org_a')::uuid, 'v1@acme.example'),
+  (current_setting('test.org_a')::uuid, 'v2@acme.example'),
+  (current_setting('test.org_a')::uuid, 'v3@acme.example');
+insert into public.verification_runs (org_id, source) values (current_setting('test.org_a')::uuid, 'manual');
+select set_config('test.run', (select id::text from public.verification_runs limit 1), true);
+
+select pg_temp.expect_eq(public.claim_leads_for_verification(
+  current_setting('test.org_a')::uuid, current_setting('test.run')::uuid,
+  p_lead_ids => (select array_agg(id) from public.leads where email like 'v_@acme.example')), 3, 'verify: claims 3 leads');
+insert into public.verification_runs (org_id, source) values (current_setting('test.org_a')::uuid, 'manual');
+select pg_temp.expect_eq(public.claim_leads_for_verification(
+  current_setting('test.org_a')::uuid, (select id from public.verification_runs where total = 0 order by created_at desc limit 1),
+  p_all_unverified => true), (select count(*)::int from public.leads where org_id = current_setting('test.org_a')::uuid and verification_status = 'unverified'),
+  'verify: second run skips leads already claimed');
+select pg_temp.expect_error(
+  format('select public.claim_leads_for_verification(%L, %L)', current_setting('test.org_a'), current_setting('test.run')),
+  'P0001', 'verify: claim requires exactly one selector');
+
+-- v3 is enrolled + scheduled; turning out invalid must stop it.
+insert into public.campaign_leads (org_id, campaign_id, lead_id, status)
+select l.org_id, c.id, l.id, 'active' from public.leads l, public.campaigns c
+ where l.email = 'v3@acme.example' and c.name = 'A campaign';
+insert into public.sends (org_id, campaign_id, campaign_lead_id, lead_id, status)
+select cl.org_id, cl.campaign_id, cl.id, cl.lead_id, 'scheduled' from public.campaign_leads cl
+  join public.leads l on l.id = cl.lead_id where l.email = 'v3@acme.example';
+
+select set_config('test.results', (select jsonb_agg(jsonb_build_object(
+  'id', id,
+  'status', case email when 'v1@acme.example' then 'valid' when 'v2@acme.example' then 'risky' else 'invalid' end,
+  'detail', jsonb_build_object('level', 'mx'))) from public.leads where email like 'v_@acme.example')::text, true);
+select pg_temp.expect_eq(public.apply_verification_results(
+  current_setting('test.org_a')::uuid, current_setting('test.run')::uuid, current_setting('test.results')::jsonb), 3,
+  'verify: applies 3 results');
+select pg_temp.expect_eq(public.apply_verification_results(
+  current_setting('test.org_a')::uuid, current_setting('test.run')::uuid, current_setting('test.results')::jsonb), 0,
+  'verify: re-applying (retry) is a no-op');
+select pg_temp.expect_eq(
+  (select valid_count * 100 + risky_count * 10 + invalid_count from public.verification_runs where id = current_setting('test.run')::uuid), 111,
+  'verify: run counters');
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email like 'v_@acme.example' and verification_run_id is null and verified_at is not null), 3,
+  'verify: leads released from run');
+select pg_temp.expect_eq(
+  (select count(*) from public.campaign_leads cl join public.leads l on l.id = cl.lead_id
+    where l.email = 'v3@acme.example' and cl.status = 'stopped' and cl.stopped_reason = 'invalid_email'), 1,
+  'verify: invalid lead enrollment stopped');
+select pg_temp.expect_eq(
+  (select count(*) from public.sends s join public.leads l on l.id = s.lead_id
+    where l.email = 'v3@acme.example' and s.status = 'cancelled'), 1, 'verify: invalid lead scheduled send cancelled');
+
+-- Email change resets verification.
+update public.leads set email = 'v1-new@acme.example' where email = 'v1@acme.example';
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'v1-new@acme.example' and verification_status = 'unverified' and verified_at is null), 1,
+  'verify: changing email resets verification');
+
+-- Clients can't touch job bookkeeping or the cache.
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select pg_temp.expect_error(
+  format('update public.leads set verification_run_id = %L', current_setting('test.run')), '42501', 'verify: clients cannot set verification_run_id');
+select pg_temp.expect_error('select * from public.domain_checks', '42501', 'verify: domain cache not client-readable');
+select pg_temp.expect_error(
+  format('select public.apply_verification_results(%L, %L, ''[]'')', current_setting('test.org_a'), current_setting('test.run')),
+  '42501', 'verify: apply_verification_results not client-callable');
+select pg_temp.expect_eq((select count(*) from public.verification_runs), 2, 'verify: members can read their runs');
+update public.leads set verification_status = 'valid' where email = 'v2@acme.example';
+select pg_temp.expect_eq((select count(*) from public.leads where email = 'v2@acme.example' and verification_status = 'valid'), 1,
+  'verify: manual verification override allowed');
+reset role;
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

@@ -24,6 +24,7 @@ export async function updateOrgSettings(_prev: SettingsState, formData: FormData
   const physicalAddress = String(formData.get("physical_address") ?? "").trim();
   const timezone = String(formData.get("default_timezone") ?? "").trim();
   const approvalMode = String(formData.get("approval_mode") ?? "");
+  const autoVerifyImports = formData.get("auto_verify_imports") === "on";
 
   if (!name || name.length > 120) return { error: "Name must be 1–120 characters." };
   if (!isValidTimezone(timezone)) return { error: `Unknown timezone: ${timezone}` };
@@ -37,6 +38,7 @@ export async function updateOrgSettings(_prev: SettingsState, formData: FormData
       physical_address: physicalAddress || null,
       default_timezone: timezone,
       approval_mode: approvalMode,
+      auto_verify_imports: autoVerifyImports,
     })
     .eq("id", org.id);
   if (error) return { error: error.message };

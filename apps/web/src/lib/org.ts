@@ -11,6 +11,7 @@ export type OrgSummary = {
   id: string;
   name: string;
   approval_mode: string;
+  default_timezone: string;
   sending_paused: boolean;
   sending_paused_at: string | null;
   sending_paused_by: string | null;
@@ -40,7 +41,7 @@ export const getOrgContext = cache(async (): Promise<OrgContext> => {
   const { data, error } = await supabase
     .from("memberships")
     .select(
-      "role, organizations!inner(id, name, approval_mode, sending_paused, sending_paused_at, sending_paused_by, sending_paused_reason)",
+      "role, organizations!inner(id, name, approval_mode, default_timezone, sending_paused, sending_paused_at, sending_paused_by, sending_paused_reason)",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });

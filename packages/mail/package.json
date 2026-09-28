@@ -1,22 +1,24 @@
 {
-  "name": "@crm/core",
+  "name": "@crm/mail",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "description": "Server-only mail transport adapters (SMTP/IMAP). Never import from client code.",
   "exports": {
-    ".": "./src/index.ts",
-    "./crypto": "./src/crypto.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@crm/core": "workspace:*",
+    "imapflow": "2.1.1",
+    "nodemailer": "10.0.12"
+  },
   "devDependencies": {
     "@types/node": "22.20.4",
     "typescript": "5.9.3",
     "vitest": "5.0.2"
-  },
-  "dependencies": {
-    "zod": "4.6.5"
   }
 }

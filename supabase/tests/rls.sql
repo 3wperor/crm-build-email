@@ -171,6 +171,49 @@ set local role anon;
 select pg_temp.expect_error('select * from public.leads', '42501', 'anon has no table access');
 reset role;
 
+-- Phase 2: sending accounts (Alice = owner A)
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+insert into public.sending_accounts (org_id, email, provider, smtp_host, smtp_port, smtp_secure, imap_host, imap_port, imap_secure, username, daily_cap, display_name)
+values (current_setting('test.org_a')::uuid, 'Owner@A.example', 'smtp', 'smtp.a.example', 587, false, 'imap.a.example', 993, true, 'owner', 40, 'Owner');
+select pg_temp.expect_eq(
+  (select count(*) from public.sending_accounts where email = 'owner@a.example'), 1, 'admin+ can add a sending account (email normalized)');
+select pg_temp.expect_error(
+  format($q$insert into public.sending_accounts (org_id, email, provider, smtp_host, smtp_port, imap_host, imap_port, username, health)
+            values (%L, 'h@a.example', 'smtp', 'h', 465, 'h', 993, 'h', 'healthy')$q$, current_setting('test.org_a')),
+  '42501', 'clients cannot set health on insert');
+select pg_temp.expect_error(
+  $q$update public.sending_accounts set health = 'healthy'$q$, '42501', 'clients cannot set health on update');
+update public.sending_accounts set daily_cap = 45, status = 'paused' where email = 'owner@a.example';
+select pg_temp.expect_eq(
+  (select daily_cap from public.sending_accounts where email = 'owner@a.example'), 45, 'admin+ can update cap/status');
+select pg_temp.expect_error(
+  $q$insert into public.sending_account_credentials (account_id, org_id, ciphertext)
+     select id, org_id, 'x' from public.sending_accounts where email = 'owner@a.example'$q$,
+  '42501', 'clients cannot write credentials');
+reset role;
+
+insert into public.sending_account_credentials (account_id, org_id, ciphertext)
+select id, org_id, 'v1:x:y:z' from public.sending_accounts where email = 'owner@a.example';
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+delete from public.sending_accounts where email = 'owner@a.example';
+reset role;
+select pg_temp.expect_eq(
+  (select count(*) from public.sending_account_credentials c
+   where not exists (select 1 from public.sending_accounts a where a.id = c.account_id)), 0,
+  'deleting an account cascades its credential');
+select pg_temp.expect_eq(
+  (select count(*) from public.sending_account_credentials), 1, 'other credentials untouched');
+
+insert into public.sending_accounts (org_id, email, provider, smtp_host, smtp_port, imap_host, imap_port, username)
+values (current_setting('test.org_a')::uuid, 'nocred@a.example', 'smtp', 'h', 465, 'h', 993, 'u');
+select pg_temp.expect_error(
+  format($q$insert into public.sending_account_credentials (account_id, org_id, ciphertext)
+            select id, %L, 'x' from public.sending_accounts where email = 'nocred@a.example'$q$, current_setting('test.org_b')),
+  '23503', 'credential org must match its account org (composite FK)');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

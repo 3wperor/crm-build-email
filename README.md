@@ -4,7 +4,7 @@ A cold-email outreach CRM. It covers the full loop: upload leads → verify → 
 
 It's built for solo use first. Every table is org-scoped with Postgres RLS so it can become multi-tenant SaaS without a rewrite.
 
-> **Status: Phase 1 (scaffold) complete.** See [Roadmap](#roadmap).
+> **Status: Phases 1–2 complete** (scaffold, sending accounts). See [Roadmap](#roadmap).
 
 ## Stack
 
@@ -24,8 +24,9 @@ apps/
   web/            Next.js app (UI, server actions, Inngest endpoint)
   mcp/            MCP server (Phase 11)
 packages/
-  core/           Pure, unit-tested domain logic: roles, guardrails, scheduler, dedupe, reply matching…
+  core/           Pure, unit-tested domain logic: roles, guardrails, validation, crypto, scheduler…
   db/             Supabase-generated TypeScript types
+  mail/           Server-only SMTP/IMAP provider adapters (nodemailer, imapflow)
 supabase/
   migrations/     All schema changes (never edit the DB by hand)
   seed.sql        Local dev data  (login: dev@example.com / password123)
@@ -45,6 +46,19 @@ pnpm dev                          # http://localhost:3000
 ```
 
 Sign in as **dev@example.com / password123**, or sign up for a fresh account and go through onboarding. Auth emails such as magic links are captured by Inbucket at http://127.0.0.1:54324. Studio runs at http://127.0.0.1:54323.
+
+### Testing inboxes locally
+
+You can connect a real Gmail / Workspace account with an app password. You'll need 2-Step Verification turned on, then create the password at https://myaccount.google.com/apppasswords.
+
+To test against a local mail catcher such as [Mailpit](https://mailpit.axllent.org), set these in `apps/web/.env.local`:
+
+```
+MAIL_ALLOW_PRIVATE_HOSTS=true    # allow localhost / private IPs (blocked by default: SSRF guard)
+MAIL_ALLOW_PLAINTEXT_AUTH=true   # allow auth without TLS (refused by default)
+```
+
+Both flags are ignored when `VERCEL_ENV=production`.
 
 ### Useful scripts
 
@@ -93,7 +107,20 @@ pnpm db:reset && pnpm db:test && pnpm db:types
 
 ### Credentials
 
-App passwords live in `sending_account_credentials`. Only the service role can read that table: RLS is on with no policies, and all privileges are revoked from `anon` and `authenticated`. Values are AES-256-GCM encrypted in the app with a versioned key before they reach the DB. The password is never returned to the browser.
+App passwords live in `sending_account_credentials`. Only the service role can read that table: RLS is on with no policies, and all privileges are revoked from `anon` and `authenticated`.
+
+- Values are AES-256-GCM encrypted in the app (`@crm/core/crypto`) before they reach the DB.
+- The ciphertext format is `v<keyVersion>:<iv>:<tag>:<data>`.
+- The account ID is used as authenticated data, so a ciphertext copied onto another row won't decrypt.
+- **Key rotation:** set the new key as `CREDENTIALS_ENCRYPTION_KEY`, bump `CREDENTIALS_ENCRYPTION_KEY_VERSION`, and keep the old key as `CREDENTIALS_ENCRYPTION_KEY_V<old>` until every row has been re-saved.
+- The password is never returned to the browser.
+
+### Mail connections
+
+- `@crm/mail` defines a `MailAdapter` interface. `google` and `smtp` share the SMTP/IMAP implementation. `outlook` is declared but throws `ProviderNotImplementedError` until a Graph/OAuth adapter exists.
+- **SSRF guard:** a user-supplied host is resolved once and rejected if *any* record points at a private or reserved range. The connection then goes to that pinned IP, with the hostname used only as the TLS servername, so DNS rebinding can't get around the check.
+- **No cleartext auth:** non-TLS ports must upgrade with STARTTLS. Credentials never go over an unencrypted connection.
+- "Test connection" checks SMTP (sending) and IMAP (opening INBOX read-only, which reply detection needs). Health is `healthy`, `degraded` (only one side works) or `failing`. Only the server can write it.
 
 ### Guardrails
 
@@ -108,7 +135,7 @@ Verification ships as syntax, MX, disposable-domain and role-address checks. Any
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
-2. Sending accounts: add / test / encrypt, connection health
+2. ✅ Sending accounts: add / test / encrypt, connection health
 3. Leads: CSV upload, mapping, dedupe, suppression check
 4. Verification: MX / syntax probe worker and statuses
 5. Sequences + scheduler (Inngest)

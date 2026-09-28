@@ -18,6 +18,14 @@ export default async function UnsubscribePage({
   searchParams: Promise<{ done?: string }>;
 }) {
   const [{ token }, { done }] = await Promise.all([params, searchParams]);
+  if (token === "test") {
+    return (
+      <Shell>
+        <h1 className="text-lg font-semibold">This was a test email</h1>
+        <p className="text-muted-foreground mt-2 text-sm">Unsubscribe links in test emails are inactive. Real campaign emails carry a working link.</p>
+      </Shell>
+    );
+  }
   const target = await resolveUnsubscribe(token);
 
   if (!target) {

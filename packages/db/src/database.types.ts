@@ -1338,6 +1338,77 @@ export type Database = {
           },
         ]
       }
+      test_sends: {
+        Row: {
+          id: string
+          org_id: string
+          user_id: string | null
+          actor: string
+          sending_account_id: string | null
+          variant_id: string | null
+          to_email: string
+          subject: string
+          status: string
+          error: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          user_id?: string | null
+          actor: string
+          sending_account_id?: string | null
+          variant_id?: string | null
+          to_email: string
+          subject: string
+          status: string
+          error?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          user_id?: string | null
+          actor?: string
+          sending_account_id?: string | null
+          variant_id?: string | null
+          to_email?: string
+          subject?: string
+          status?: string
+          error?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_sends_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "test_sends_org_id_sending_account_id_fkey"
+            columns: ["org_id", "sending_account_id"]
+            isOneToOne: false
+            referencedRelation: "sending_accounts"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "test_sends_org_id_variant_id_fkey"
+            columns: ["org_id", "variant_id"]
+            isOneToOne: false
+            referencedRelation: "email_variants"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "test_sends_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           id: string

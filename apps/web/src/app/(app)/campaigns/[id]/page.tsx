@@ -41,7 +41,7 @@ function describeNext(n: NextSendEstimate, tz: string): string {
 export default async function CampaignPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const tab: Tab = TABS.includes(sp.tab as Tab) ? (sp.tab as Tab) : "sequence";
-  const { org, role } = await getOrgContext();
+  const { org, role, user } = await getOrgContext();
   const supabase = await createClient();
   const canEdit = can(role, "campaigns.write");
 
@@ -119,6 +119,14 @@ export default async function CampaignPage({ params, searchParams }: { params: P
     ? { ...sample.leads, custom_json: sample.leads.custom_json as Record<string, unknown> }
     : { email: "ada@example.com", first_name: "Ada", last_name: "Lovelace", company: "Analytical Engines", title: "CTO", custom_json: {} };
   const firstInbox = (inboxes ?? []).find((i) => attached.includes(i.id));
+  const { data: testLeads } = await supabase
+    .from("campaign_leads")
+    .select("leads!inner(id, email)")
+    .eq("campaign_id", id)
+    .order("enrolled_at")
+    .limit(25);
+  // Attached inboxes first; any inbox can send a test.
+  const testInboxes = [...(inboxes ?? [])].sort((a, b) => Number(attached.includes(b.id)) - Number(attached.includes(a.id)));
 
   return (
     <>
@@ -198,6 +206,11 @@ export default async function CampaignPage({ params, searchParams }: { params: P
           sampleLead={sampleLead}
           sender={{ name: firstInbox?.display_name ?? null, email: firstInbox?.email ?? "you@example.com" }}
           physicalAddress={orgRow?.physical_address ?? null}
+          testOptions={{
+            defaultTo: user.email,
+            inboxes: testInboxes.map((i) => ({ id: i.id, email: i.email })),
+            leads: (testLeads ?? []).map((l) => l.leads),
+          }}
         />
       )}
 

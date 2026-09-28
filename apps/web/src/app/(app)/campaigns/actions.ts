@@ -16,6 +16,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { fieldErrors, formToObject, type FieldErrors } from "@/lib/forms";
 import { inngest } from "@/inngest/client";
 import { schedulerTickRequested } from "@/inngest/events";
+import { sendTestEmail } from "@/lib/test-email";
 
 export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[] } | undefined;
 
@@ -354,4 +355,34 @@ export async function pauseCampaign(_prev: CampaignState, formData: FormData): P
   refresh(id);
   revalidatePath("/campaigns");
   return { message: "Campaign paused." };
+}
+
+// ---------------------------------------------------------------------------
+// Test email
+// ---------------------------------------------------------------------------
+
+export type TestEmailState =
+  | { ok: true; message: string }
+  | { ok: false; error: string; hint?: string }
+  | undefined;
+
+export async function sendTestEmailAction(_prev: TestEmailState, formData: FormData): Promise<TestEmailState> {
+  const ctx = await requireWriter();
+  if (!ctx) return { ok: false, error: FORBIDDEN.error };
+  const f = formToObject(formData);
+  const result = await sendTestEmail({
+    orgId: ctx.org.id,
+    actor: `user:${ctx.user.id}`,
+    userId: ctx.user.id,
+    to: f.to ?? "",
+    accountId: f.account_id ?? "",
+    subject: f.subject ?? "",
+    body: f.body ?? "",
+    variantId: f.variant_id || null,
+    leadId: f.lead_id || null,
+    threadSubject: f.thread_subject || null,
+  });
+  return result.ok
+    ? { ok: true, message: `Sent "${result.subject}" to ${result.to} from ${result.from}.` }
+    : { ok: false, error: result.error, hint: result.hint };
 }

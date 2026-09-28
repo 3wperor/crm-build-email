@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildEmail, renderTemplate, templateTags, textToHtml } from "./templates";
+import { buildEmail, buildTestEmail, renderTemplate, templateTags, textToHtml } from "./templates";
 
 const ctx = {
   lead: { email: "ada@x.io", first_name: "Ada", last_name: "Lovelace", company: "Analytical", title: null, custom_json: { plan: "pro", seats: 12 } },
@@ -44,9 +44,23 @@ describe("buildEmail", () => {
   it("threads follow-ups with an empty subject as Re:", () => {
     expect(buildEmail({ ...base, subject: "", body: "bump", threadSubject: "Quick q, Ada" }).subject).toBe("Re: Quick q, Ada");
     expect(buildEmail({ ...base, subject: " ", body: "bump", threadSubject: "Re: Quick q" }).subject).toBe("Re: Quick q");
+    // An unrendered step-1 subject (preview / test emails) is rendered too.
+    expect(buildEmail({ ...base, subject: "", body: "bump", threadSubject: "Quick q, {{first_name|there}}" }).subject).toBe("Re: Quick q, Ada");
   });
 
   it("strips newlines from subjects (header injection)", () => {
     expect(buildEmail({ ...base, subject: "Hi\r\nBcc: x@evil.io", body: "b" }).subject).toBe("Hi Bcc: x@evil.io");
+  });
+});
+
+describe("buildTestEmail", () => {
+  const base = { ctx, unsubscribeUrl: "https://app.test/u/test", physicalAddress: "1 Main St", body: "Hi {{first_name}}" };
+  it("prefixes [TEST] once and keeps rendering identical", () => {
+    const t = buildTestEmail({ ...base, subject: "Quick q, {{first_name}}" });
+    expect(t.subject).toBe("[TEST] Quick q, Ada");
+    expect(t.text).toBe(buildEmail({ ...base, subject: "x" }).text);
+    expect(buildTestEmail({ ...base, subject: "[TEST] already" }).subject).toBe("[TEST] already");
+    expect(buildTestEmail({ ...base, subject: "", threadSubject: "Quick q" }).subject).toBe("[TEST] Re: Quick q");
+    expect(buildTestEmail({ ...base, subject: "" }).subject).toBe("[TEST] (no subject)");
   });
 });

@@ -114,7 +114,9 @@ export function buildEmail(opts: {
   const b = renderTemplate(opts.body, opts.ctx);
   let subject = s.text.replace(/[\r\n]+/g, " ").trim();
   if (!subject && opts.threadSubject) {
-    subject = /^re:/i.test(opts.threadSubject) ? opts.threadSubject : `Re: ${opts.threadSubject}`;
+    // The thread subject may be a template (editor preview, test emails) or already rendered (real sends).
+    const thread = renderTemplate(opts.threadSubject, opts.ctx).text.replace(/[\r\n]+/g, " ").trim();
+    subject = /^re:/i.test(thread) ? thread : `Re: ${thread}`;
   }
 
   const body = b.text.replace(/\r\n/g, "\n").trim();
@@ -127,4 +129,14 @@ export function buildEmail(opts: {
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5">\n${textToHtml(body)}\n${footerHtml}\n</div>`;
 
   return { subject, text, html, missing: [...new Set([...s.missing, ...b.missing])] };
+}
+
+export const TEST_SUBJECT_PREFIX = "[TEST] ";
+export const TEST_EMAILS_PER_HOUR = 20;
+
+/** A test email renders exactly like the real one, with "[TEST]" in front of the subject. */
+export function buildTestEmail(opts: Parameters<typeof buildEmail>[0]): BuiltEmail {
+  const email = buildEmail(opts);
+  const subject = email.subject || "(no subject)";
+  return { ...email, subject: subject.startsWith(TEST_SUBJECT_PREFIX) ? subject : TEST_SUBJECT_PREFIX + subject };
 }

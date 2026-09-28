@@ -490,6 +490,14 @@ update public.campaigns set daily_limit = 10 where id = current_setting('test.ca
 select pg_temp.expect_eq((select daily_limit from public.campaigns where id = current_setting('test.camp')::uuid), 10, 'campaign settings client-writable');
 reset role;
 
+-- Phase 6: test email log is server-written only
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select pg_temp.expect_error(
+  format($q$insert into public.test_sends (org_id, actor, to_email, subject, status) values (%L, 'user:x', 'a@b.io', 's', 'sent')$q$, current_setting('test.org_a')),
+  '42501', 'test_sends not client-writable');
+reset role;
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

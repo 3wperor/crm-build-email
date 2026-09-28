@@ -4,7 +4,7 @@ YCAReach is a cold-email outreach CRM. It covers the full loop: upload leads →
 
 It's built for solo use first. Every table is org-scoped with Postgres RLS so it can become multi-tenant SaaS without a rewrite.
 
-> **Status: Phases 1–5 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler). See [Roadmap](#roadmap).
+> **Status: Phases 1–6 complete** (scaffold, sending accounts, leads & import, verification, sequences & scheduler, test email). See [Roadmap](#roadmap).
 
 ## Stack
 
@@ -194,6 +194,17 @@ cron (every minute) ─► scheduler-tick ─► planCampaign()     for each act
 - **Compliance.** Every email carries `List-Unsubscribe` + `List-Unsubscribe-Post` (RFC 8058 one-click), an HMAC-signed unsubscribe link (`/u/<token>`, with a confirm button so link scanners can't unsubscribe people), and the org's physical address. A campaign can't start without that address.
 - **Hooks for later phases.** `stop_lead_sequences()` is ready for reply detection in Phase 7. `approval_mode` is stored per campaign for the agent in Phase 11.
 
+### Test email
+
+Every variant has a **Test** button. It sends the variant *as currently edited*, saved or not, to any address from any inbox, rendered with a lead from the campaign (or a sample lead).
+
+- The subject is prefixed `[TEST]`, and follow-ups show their real `Re:` subject.
+- Delivery errors (auth, 550, TLS…) appear inline, with the same hints as the connection test.
+- Tests never touch campaign sends, caps or the suppression list.
+- They're logged in `test_sends` and limited to 20 per hour per user or agent.
+- The kill switch blocks them too.
+- The logic lives in `lib/test-email.ts` so the MCP `send_test_email` tool can reuse it.
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
@@ -201,7 +212,7 @@ cron (every minute) ─► scheduler-tick ─► planCampaign()     for each act
 3. ✅ Leads: CSV upload, mapping, dedupe, suppression check
 4. ✅ Verification: syntax, MX / DNS, disposable and role checks; statuses; auto-verify on import
 5. ✅ Sequences + scheduler: steps, delays, A/B, windows, timezones, caps, pacing, threading, unsubscribe, bounce handling
-6. Test email
+6. ✅ Test email
 7. Reply sync: IMAP polling, matching, classification, auto-pipeline
 8. Pipeline kanban, lead detail, thread view
 9. A/B variants and analytics

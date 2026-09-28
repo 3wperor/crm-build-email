@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Eye, Plus, Trash2 } from "lucide-react";
+import { Eye, Plus, Send, Trash2 } from "lucide-react";
 import { buildEmail, BUILTIN_TAGS, type MergeLead } from "@crm/core/templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addStep, addVariant, deleteStep, deleteVariant, saveVariant, updateStep } from "../actions";
+import { TestEmailPanel, type TestOptions } from "./test-email-panel";
 
 export type EditorVariant = { id: string; ab_group: string; subject: string; body: string; weight: number; is_active: boolean };
 export type EditorStep = { id: string; step_order: number; delay_days: number; delay_hours: number; variants: EditorVariant[] };
@@ -21,6 +22,7 @@ type Props = {
   sampleLead: MergeLead;
   sender: { name: string | null; email: string };
   physicalAddress: string | null;
+  testOptions: TestOptions;
 };
 
 export function SequenceEditor(props: Props) {
@@ -122,8 +124,10 @@ function VariantEditor({
   sampleLead,
   sender,
   physicalAddress,
+  testOptions,
 }: {
   campaignId: string;
+  testOptions: TestOptions;
   variant: EditorVariant;
   canEdit: boolean;
   canDelete: boolean;
@@ -137,6 +141,7 @@ function VariantEditor({
   const [subject, setSubject] = useState(variant.subject);
   const [body, setBody] = useState(variant.body);
   const [preview, setPreview] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const rendered = useMemo(
     () =>
@@ -152,87 +157,101 @@ function VariantEditor({
   );
 
   return (
-    <form action={action} className="grid gap-3 rounded-md border p-3" data-testid={`variant-${variant.ab_group}`}>
-      <input type="hidden" name="campaign_id" value={campaignId} />
-      <input type="hidden" name="variant_id" value={variant.id} />
-      <div className="flex flex-wrap items-center gap-3">
-        <Badge variant="secondary">Variant {variant.ab_group}</Badge>
-        <label className="flex items-center gap-1 text-sm">
-          Weight
-          <Input name="weight" type="number" min={0} max={10000} defaultValue={variant.weight} className="h-8 w-20" disabled={!canEdit} />
-        </label>
-        <label className="flex items-center gap-1 text-sm">
-          <input type="checkbox" name="isActive" defaultChecked={variant.is_active} disabled={!canEdit} /> Active
-        </label>
-        <div className="ml-auto flex gap-1">
-          <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((p) => !p)}>
-            <Eye /> {preview ? "Edit" : "Preview"}
-          </Button>
-          {canEdit && canDelete && (
-            <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete variant ${variant.ab_group}`}>
-              <Trash2 />
+    <div className="grid gap-2 rounded-md border p-3" data-testid={`variant-${variant.ab_group}`}>
+      <form action={action} className="grid gap-3">
+        <input type="hidden" name="campaign_id" value={campaignId} />
+        <input type="hidden" name="variant_id" value={variant.id} />
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="secondary">Variant {variant.ab_group}</Badge>
+          <label className="flex items-center gap-1 text-sm">
+            Weight
+            <Input name="weight" type="number" min={0} max={10000} defaultValue={variant.weight} className="h-8 w-20" disabled={!canEdit} />
+          </label>
+          <label className="flex items-center gap-1 text-sm">
+            <input type="checkbox" name="isActive" defaultChecked={variant.is_active} disabled={!canEdit} /> Active
+          </label>
+          <div className="ml-auto flex gap-1">
+            <Button type="button" size="sm" variant="ghost" onClick={() => setTesting((t) => !t)}>
+              <Send /> Test
             </Button>
-          )}
+            <Button type="button" size="sm" variant="ghost" onClick={() => setPreview((p) => !p)}>
+              <Eye /> {preview ? "Edit" : "Preview"}
+            </Button>
+            {canEdit && canDelete && (
+              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete variant ${variant.ab_group}`}>
+                <Trash2 />
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {preview ? (
-        <div className="bg-muted/30 grid gap-2 rounded-md p-3 text-sm" data-testid="preview">
-          <div>
-            <span className="text-muted-foreground">To:</span> {sampleLead.email} · <span className="text-muted-foreground">Subject:</span>{" "}
-            <strong>{rendered.subject || "(no subject)"}</strong>
+        {preview ? (
+          <div className="bg-muted/30 grid gap-2 rounded-md p-3 text-sm" data-testid="preview">
+            <div>
+              <span className="text-muted-foreground">To:</span> {sampleLead.email} · <span className="text-muted-foreground">Subject:</span>{" "}
+              <strong>{rendered.subject || "(no subject)"}</strong>
+            </div>
+            <pre className="font-sans whitespace-pre-wrap">{rendered.text}</pre>
+            {rendered.missing.length > 0 && (
+              <p className="text-xs text-amber-600">
+                No value for {rendered.missing.map((m) => `{{${m}}}`).join(", ")} on this sample lead — add a fallback like {"{{tag|text}}"}.
+              </p>
+            )}
           </div>
-          <pre className="font-sans whitespace-pre-wrap">{rendered.text}</pre>
-          {rendered.missing.length > 0 && (
-            <p className="text-xs text-amber-600">
-              No value for {rendered.missing.map((m) => `{{${m}}}`).join(", ")} on this sample lead — add a fallback like {"{{tag|text}}"}.
-            </p>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="grid gap-1">
-            <Label htmlFor={`subject-${variant.id}`}>Subject</Label>
-            <Input
-              id={`subject-${variant.id}`}
-              name="subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder={isFollowUp ? `Empty = "Re: ${threadSubject || "…"}"` : "Quick question, {{first_name}}"}
-              disabled={!canEdit}
-              maxLength={300}
-            />
+        ) : (
+          <>
+            <div className="grid gap-1">
+              <Label htmlFor={`subject-${variant.id}`}>Subject</Label>
+              <Input
+                id={`subject-${variant.id}`}
+                name="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder={isFollowUp ? `Empty = "Re: ${threadSubject || "…"}"` : "Quick question, {{first_name}}"}
+                disabled={!canEdit}
+                maxLength={300}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor={`body-${variant.id}`}>Body</Label>
+              <textarea
+                id={`body-${variant.id}`}
+                name="body"
+                rows={7}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                disabled={!canEdit}
+                placeholder={"Hi {{first_name|there}},\n\n…\n\n{{sender_first_name}}"}
+                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
+              />
+            </div>
+          </>
+        )}
+        {preview && (
+          <>
+            <input type="hidden" name="subject" value={subject} />
+            <input type="hidden" name="body" value={body} />
+          </>
+        )}
+        {canEdit && (
+          <div className="flex items-center gap-3">
+            <Button size="sm" disabled={pending}>
+              {pending ? "Saving…" : "Save variant"}
+            </Button>
+            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </div>
-          <div className="grid gap-1">
-            <Label htmlFor={`body-${variant.id}`}>Body</Label>
-            <textarea
-              id={`body-${variant.id}`}
-              name="body"
-              rows={7}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              disabled={!canEdit}
-              placeholder={"Hi {{first_name|there}},\n\n…\n\n{{sender_first_name}}"}
-              className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
-            />
-          </div>
-        </>
+        )}
+      </form>
+      {testing && (
+        <TestEmailPanel
+          variantId={variant.id}
+          subject={subject}
+          body={body}
+          threadSubject={isFollowUp ? threadSubject : null}
+          options={testOptions}
+        />
       )}
-      {preview && (
-        <>
-          <input type="hidden" name="subject" value={subject} />
-          <input type="hidden" name="body" value={body} />
-        </>
-      )}
-      {canEdit && (
-        <div className="flex items-center gap-3">
-          <Button size="sm" disabled={pending}>
-            {pending ? "Saving…" : "Save variant"}
-          </Button>
-          {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
-          {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-        </div>
-      )}
-    </form>
+    </div>
   );
 }

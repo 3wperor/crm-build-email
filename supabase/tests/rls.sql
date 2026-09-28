@@ -214,6 +214,106 @@ select pg_temp.expect_error(
             select id, %L, 'x' from public.sending_accounts where email = 'nocred@a.example'$q$, current_setting('test.org_b')),
   '23503', 'credential org must match its account org (composite FK)');
 
+-- Phase 3: import_leads_chunk + suppression triggers ----------------------------
+insert into public.leads (org_id, email, first_name, company) values
+  (current_setting('test.org_a')::uuid, 'existing@a.example', 'Old', null);
+insert into public.suppression_list (org_id, email, reason) values
+  (current_setting('test.org_a')::uuid, 'blocked@a.example', 'unsubscribe');
+insert into public.lead_lists (org_id, name) values (current_setting('test.org_a')::uuid, 'Imported list');
+insert into public.imports (org_id, filename) values (current_setting('test.org_a')::uuid, 'test.csv');
+select set_config('test.import', (select id::text from public.imports where filename = 'test.csv'), true);
+select set_config('test.list', (select id::text from public.lead_lists where name = 'Imported list'), true);
+
+select set_config('test.chunk', $j$[
+  {"row": 2, "email": "New1@A.example", "first_name": "N1", "custom": {"plan": "pro"}},
+  {"row": 3, "email": "existing@a.example", "first_name": "Ignored", "company": "FillMe", "custom": {"plan": "x"}},
+  {"row": 4, "email": "blocked@a.example", "first_name": "B"}
+]$j$, true);
+
+select set_config('test.result', public.import_leads_chunk(
+  current_setting('test.org_a')::uuid, current_setting('test.import')::uuid,
+  'skip', current_setting('test.chunk')::jsonb, current_setting('test.list')::uuid)::text, true);
+select pg_temp.expect_eq(
+  (select count(*) from jsonb_array_elements(current_setting('test.result')::jsonb -> 'imported_rows')), 1, 'import: 1 new lead');
+select pg_temp.expect_eq(
+  ((current_setting('test.result')::jsonb -> 'existing_rows' ->> 0)::int), 3, 'import: existing row reported');
+select pg_temp.expect_eq(
+  ((current_setting('test.result')::jsonb -> 'suppressed_rows' ->> 0)::int), 4, 'import: suppressed row reported');
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'blocked@a.example'), 0, 'import: suppressed address not inserted');
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'existing@a.example' and first_name = 'Old' and company is null), 1,
+  'import skip mode: existing lead untouched');
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'new1@a.example' and custom_json ->> 'plan' = 'pro'), 1,
+  'import: email normalized, custom fields stored');
+select pg_temp.expect_eq(
+  (select count(*) from public.lead_list_members where list_id = current_setting('test.list')::uuid), 2,
+  'import: new + existing leads added to list, suppressed not');
+
+-- Retry of the same chunk is idempotent.
+select pg_temp.expect_eq(
+  (select count(*) from jsonb_array_elements(public.import_leads_chunk(
+     current_setting('test.org_a')::uuid, current_setting('test.import')::uuid,
+     'skip', current_setting('test.chunk')::jsonb, current_setting('test.list')::uuid) -> 'imported_rows')), 1, 'import: retry is idempotent');
+
+-- Fill mode fills blanks only.
+insert into public.imports (org_id, filename) values (current_setting('test.org_a')::uuid, 'fill.csv');
+select public.import_leads_chunk(
+  current_setting('test.org_a')::uuid, (select id from public.imports where filename = 'fill.csv'),
+  'fill', current_setting('test.chunk')::jsonb);
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'existing@a.example' and first_name = 'Old' and company = 'FillMe'
+     and custom_json ->> 'plan' = 'x'), 1, 'import fill mode: blanks filled, existing values kept');
+
+-- Only the service role may call it.
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select pg_temp.expect_error(
+  format('select public.import_leads_chunk(%L, %L, ''skip'', ''[]'')', current_setting('test.org_a'), current_setting('test.import')),
+  '42501', 'import_leads_chunk is not callable by clients');
+select pg_temp.expect_error(
+  format('update public.imports set imported_count = 5 where id = %L', current_setting('test.import')),
+  '42501', 'clients cannot write import counters');
+reset role;
+
+-- Suppression triggers: mark lead + stop enrollments + cancel scheduled sends.
+insert into public.campaign_leads (org_id, campaign_id, lead_id, status)
+select l.org_id, c.id, l.id, 'active'
+  from public.leads l, public.campaigns c
+ where l.email = 'new1@a.example' and c.name = 'A campaign';
+insert into public.sends (org_id, campaign_id, campaign_lead_id, lead_id, status)
+select cl.org_id, cl.campaign_id, cl.id, cl.lead_id, 'scheduled' from public.campaign_leads cl
+  join public.leads l on l.id = cl.lead_id where l.email = 'new1@a.example';
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000d');   -- Sam (sender) suppresses
+insert into public.suppression_list (org_id, email, reason) values (current_setting('test.org_a')::uuid, 'NEW1@a.example', 'manual');
+reset role;
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'new1@a.example' and status = 'do_not_contact'), 1,
+  'suppression marks lead do_not_contact');
+select pg_temp.expect_eq(
+  (select count(*) from public.campaign_leads cl join public.leads l on l.id = cl.lead_id
+    where l.email = 'new1@a.example' and cl.status = 'stopped' and cl.next_send_at is null), 1,
+  'suppression stops active enrollments');
+select pg_temp.expect_eq(
+  (select count(*) from public.sends s join public.leads l on l.id = s.lead_id
+    where l.email = 'new1@a.example' and s.status = 'cancelled'), 1,
+  'suppression cancels scheduled sends');
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000d');
+delete from public.suppression_list where email = 'new1@a.example';
+select pg_temp.expect_eq(
+  (select count(*) from public.suppression_list where email = 'new1@a.example'), 1, 'sender cannot remove suppression entries');
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+delete from public.suppression_list where email = 'new1@a.example';
+reset role;
+select pg_temp.expect_eq(
+  (select count(*) from public.leads where email = 'new1@a.example' and status = 'new'), 1,
+  'admin removing suppression makes lead contactable again');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

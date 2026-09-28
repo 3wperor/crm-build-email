@@ -434,6 +434,10 @@ export type Database = {
           created_by: string | null
           created_at: string
           completed_at: string | null
+          options: Json
+          processed_rows: number
+          updated_count: number
+          existing_count: number
         }
         Insert: {
           id?: string
@@ -453,6 +457,10 @@ export type Database = {
           created_by?: string | null
           created_at?: string
           completed_at?: string | null
+          options?: Json
+          processed_rows?: number
+          updated_count?: number
+          existing_count?: number
         }
         Update: {
           id?: string
@@ -472,6 +480,10 @@ export type Database = {
           created_by?: string | null
           created_at?: string
           completed_at?: string | null
+          options?: Json
+          processed_rows?: number
+          updated_count?: number
+          existing_count?: number
         }
         Relationships: [
           {
@@ -1338,6 +1350,16 @@ export type Database = {
           p_name: string
         }
         Returns: string
+      }
+      import_leads_chunk: {
+        Args: {
+          p_org_id: string
+          p_import_id: string
+          p_mode: string
+          p_rows: Json
+          p_list_id?: string
+        }
+        Returns: Json
       }
       set_sending_paused: {
         Args: {

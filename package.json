@@ -14,13 +14,20 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > packages/db/src/database.types.ts",
-    "db:test": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql"
+    "db:test": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql",
+    "inngest:dev": "npx --yes inngest-cli@1.45.1 dev -u http://localhost:3000/api/inngest"
   },
   "devDependencies": {
     "supabase": "2.118.0",
     "typescript": "5.9.3"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["supabase", "esbuild", "sharp", "@tailwindcss/oxide", "unrs-resolver"]
+    "onlyBuiltDependencies": [
+      "supabase",
+      "esbuild",
+      "sharp",
+      "@tailwindcss/oxide",
+      "unrs-resolver"
+    ]
   }
 }

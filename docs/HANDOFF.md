@@ -16,9 +16,9 @@ Read it with `README.md`, which covers architecture, setup and deploy.
 | 7 Reply sync (IMAP + Junk, matching, DSN bounces, classification rules + optional Claude, auto-pipeline) | ✅ | ce8b337 |
 | 8 Pipeline kanban, stage editor, lead detail | ✅ | aa60c97 |
 | 9 A/B stats + analytics (+ open/click tracking) | ✅ | 8900bab |
-| 10 Warmup pool (beta) | ✅ | (this commit) |
-| 11 MCP server + guardrails + agent audit | ⏳ next | |
-| 12 HubSpot adapter (`CrmAdapter` interface) | ⏳ | |
+| 10 Warmup pool (beta) | ✅ | c3612d3 |
+| 11 MCP server + guardrails + agent audit | ✅ | 5b0b8a2 |
+| 12 HubSpot adapter (`CrmAdapter` interface) | ✅ | (this commit) |
 
 ## Decisions the user made (don't re-ask)
 
@@ -63,7 +63,7 @@ Local fakes and escape hatches:
 
 With Docker available, the normal flow applies: `pnpm db:start` (Supabase), `pnpm dev`, `pnpm inngest:dev`.
 
-Suite totals at the last run: 189 core tests, 49 mail tests, 159 database assertions, 106 browser steps across 9 end-to-end suites.
+Suite totals at the last run: 208 core tests, 49 mail tests, 4 MCP tests, 167 database assertions, 133 browser steps across 12 end-to-end suites.
 
 ## Not yet verified against real services
 
@@ -86,10 +86,18 @@ Suite totals at the last run: 189 core tests, 49 mail tests, 159 database assert
 - **Reply sync:** `processMessage` engages with warmup mail only when the Message-ID matches mail we queued for that inbox. Mailbox writes go through `MailAdapter.engage`.
 - **Fake mail server:** now multi-user, delivers locally and supports `UID STORE` and `UID MOVE`.
 
-## Phases 11–12 notes
+## Phases 11–12 (done)
 
-- **MCP:**
-  - `apps/mcp` exists as a placeholder, and `api_keys` stores SHA-256 hashes of keys.
-  - Tools must reuse the core/lib functions: `sendTestEmail`, `createVerificationRun`, `enroll_leads`, `set_sending_paused(p_actor='agent:<key>')`.
-  - Honor `approval_mode` (`effectiveApprovalMode`) and write every action to `agent_audit_log`.
-- **HubSpot:** define `CrmAdapter` in core, then build a HubSpot implementation that syncs pipeline cards.
+- **Phase 11, agent:**
+  - The tool catalog and guardrail are in `packages/core/src/agent.ts`; the implementations are in `apps/web/src/lib/agent/*`, behind `/api/agent` with API-key auth.
+  - Approvals live in the `agent_approvals` table and are handled under Settings → AI agent.
+  - `apps/mcp` is a thin MCP server (stdio + Streamable HTTP) that forwards to `/api/agent`.
+  - Decisions: the official MCP SDK was approved.
+- **Phase 12, CRM:**
+  - The `CrmAdapter` interface and the HubSpot adapter are in `packages/core/src/crm.ts`; sync is in `apps/web/src/lib/crm`, the Inngest functions are `crm-sync-tick` and `crm-sync`, and the page is Settings → Integrations.
+  - Decisions: HubSpot uses a private app token, stored encrypted.
+
+## Possible next steps
+
+- Deploy and test against real services. `docs/SETUP_PROMPT.md` walks through it.
+- Salesforce adapter, Outlook/Graph (non-goals for v1), billing and multi-tenant signup.

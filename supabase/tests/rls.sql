@@ -774,6 +774,26 @@ update public.sending_accounts set warmup_enabled = true where id = current_sett
 select pg_temp.expect_eq((select (warmup_started_at < now() - interval '9 days')::int from public.sending_accounts where id = current_setting('test.w1')::uuid), 1,
   'toggle: a short off/on keeps the ramp');
 
+-- Phase 12: CRM connections ---------------------------------------------------------
+insert into public.crm_connections (org_id, provider, account_label) values (current_setting('test.org_a')::uuid, 'hubspot', 'portal 123');
+insert into public.crm_credentials (connection_id, org_id, ciphertext)
+select id, org_id, 'v1:secret' from public.crm_connections where org_id = current_setting('test.org_a')::uuid;
+insert into public.crm_links (org_id, connection_id, object, local_id, external_id)
+select org_id, id, 'contact', gen_random_uuid(), '901' from public.crm_connections where org_id = current_setting('test.org_a')::uuid;
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000c'); -- viewer in A
+select pg_temp.expect_eq((select count(*) from public.crm_connections), 1, 'crm: members see the connection');
+select pg_temp.expect_eq((select count(*) from public.crm_links), 1, 'crm: members see links');
+select pg_temp.expect_error('select * from public.crm_credentials', '42501', 'crm: tokens are service-role only');
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- owner
+select pg_temp.expect_error('select * from public.crm_credentials', '42501', 'crm: even owners cannot read tokens');
+select pg_temp.expect_error($q$update public.crm_connections set stage_map = '{}'$q$, '42501', 'crm: connection changes go through the server');
+select pg_temp.expect_error(format($q$insert into public.crm_connections (org_id, provider) values (%L, 'hubspot')$q$, current_setting('test.org_a')), '42501', 'crm: clients cannot create connections');
+select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
+select pg_temp.expect_eq((select count(*) from public.crm_connections) + (select count(*) from public.crm_links), 0, 'crm: other org sees nothing');
+reset role;
+select pg_temp.expect_eq((select count(*) from public.opportunities where updated_at is null), 0, 'crm: opportunities carry updated_at');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

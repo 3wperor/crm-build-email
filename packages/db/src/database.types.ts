@@ -399,6 +399,136 @@ export type Database = {
           },
         ]
       }
+      crm_connections: {
+        Row: {
+          id: string
+          org_id: string
+          provider: string
+          status: string
+          account_label: string | null
+          pipeline_id: string | null
+          stage_map: Json
+          last_synced_at: string | null
+          last_error: string | null
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          provider: string
+          status?: string
+          account_label?: string | null
+          pipeline_id?: string | null
+          stage_map?: Json
+          last_synced_at?: string | null
+          last_error?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          provider?: string
+          status?: string
+          account_label?: string | null
+          pipeline_id?: string | null
+          stage_map?: Json
+          last_synced_at?: string | null
+          last_error?: string | null
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_connections_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_connections_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_credentials: {
+        Row: {
+          connection_id: string
+          org_id: string
+          ciphertext: string
+          key_version: number
+          updated_at: string
+        }
+        Insert: {
+          connection_id: string
+          org_id: string
+          ciphertext: string
+          key_version?: number
+          updated_at?: string
+        }
+        Update: {
+          connection_id?: string
+          org_id?: string
+          ciphertext?: string
+          key_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_credentials_org_id_connection_id_fkey"
+            columns: ["org_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_connections"
+            referencedColumns: ["org_id", "id"]
+          },
+        ]
+      }
+      crm_links: {
+        Row: {
+          id: number
+          org_id: string
+          connection_id: string
+          object: string
+          local_id: string
+          external_id: string
+          synced_at: string
+        }
+        Insert: {
+          id?: never
+          org_id: string
+          connection_id: string
+          object: string
+          local_id: string
+          external_id: string
+          synced_at?: string
+        }
+        Update: {
+          id?: never
+          org_id?: string
+          connection_id?: string
+          object?: string
+          local_id?: string
+          external_id?: string
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_links_org_id_connection_id_fkey"
+            columns: ["org_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "crm_connections"
+            referencedColumns: ["org_id", "id"]
+          },
+        ]
+      }
       domain_checks: {
         Row: {
           domain: string
@@ -874,6 +1004,7 @@ export type Database = {
           notes: string | null
           moved_at: string
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -886,6 +1017,7 @@ export type Database = {
           notes?: string | null
           moved_at?: string
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -898,6 +1030,7 @@ export type Database = {
           notes?: string | null
           moved_at?: string
           created_at?: string
+          updated_at?: string
         }
         Relationships: [
           {

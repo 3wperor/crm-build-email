@@ -14,7 +14,8 @@
     "./replies": "./src/replies.ts",
     "./analytics": "./src/analytics.ts",
     "./warmup": "./src/warmup.ts",
-    "./agent": "./src/agent.ts"
+    "./agent": "./src/agent.ts",
+    "./crm": "./src/crm.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

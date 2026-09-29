@@ -35,3 +35,8 @@ export const warmupTickRequested = eventType("warmup/tick.requested", {
 export const warmupSendRequested = eventType("warmup/send.requested", {
   schema: z.object({ orgId: z.string().uuid(), id: z.string().uuid(), accountId: z.string().uuid(), scheduledAt: z.string() }),
 });
+
+/** Sync one CRM connection now (e.g. "Sync now" or right after connecting). */
+export const crmSyncRequested = eventType("crm/sync.requested", {
+  schema: z.object({ connectionId: z.string().uuid() }),
+});

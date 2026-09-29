@@ -34,7 +34,11 @@ What works (phases 1–10 are done):
 - Analytics: opt-in open/click tracking and A/B significance testing with a winner promoter.
 - A warmup pool (beta) between my own inboxes.
 
-Not built: Phase 11 (an MCP server so an AI agent can operate the CRM) and Phase 12 (a HubSpot sync). Both are optional. Don't start them unless I ask.
+Also built (optional to set up):
+- Phase 11: an MCP server so an AI agent can operate the CRM within approval guardrails. See the README section "AI agent control plane (MCP)".
+- Phase 12: HubSpot sync using a private app token. See the README section "CRM sync (HubSpot)".
+
+Offer these only after the core setup works.
 
 Everything passes automated tests against a **local fake mail server**, but it has **never been run against real services**. Expect first-contact issues with the following (help me read logs, identify the problem and fix it):
 - a real Gmail inbox;

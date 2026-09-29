@@ -375,6 +375,30 @@ Claude Desktop config:
 
 (`pnpm install` first; Node 22.6+.)
 
+### CRM sync (HubSpot)
+
+YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`) is the interface: HubSpot is implemented now, and Salesforce would slot in behind it later.
+
+**Connecting** (Settings → Integrations):
+- Create a HubSpot **private app** with the scopes `crm.objects.contacts.read/write` and `crm.objects.deals.read/write`, then paste its token.
+- The token is verified, then stored AES-256-GCM encrypted in `crm_credentials`, which only the service role can read. It is never readable from the browser.
+- Owners and admins only.
+
+**What syncs:**
+- Every pipeline card becomes a HubSpot **contact**, upserted by email, plus a **deal** associated with that contact.
+- The deal's stage comes from a per-stage mapping. The suggested mapping matches by name, then maps won to Closed Won and lost to Closed Lost; any stage can be set to "Don't sync".
+
+**When it syncs:**
+- `crm-sync-tick` runs every 15 minutes, and there's also a "Sync now" button.
+- Each run pushes cards that are new or moved since the last sync.
+- `crm_links` remembers the external ids, so re-syncs update the same deal. A deal deleted in HubSpot is recreated.
+
+**Errors:**
+- Rate limits and HubSpot 5xx errors retry with backoff, keeping the progress already made.
+- A revoked token or a missing scope marks the connection "Needs attention" and shows the reason.
+- Disconnecting removes the token and links. Nothing is ever deleted in HubSpot.
+- Local tests point `HUBSPOT_API_BASE` at a fake HubSpot; this is ignored in production.
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
@@ -388,4 +412,4 @@ Claude Desktop config:
 9. ✅ A/B variants and analytics (+ open/click tracking)
 10. ✅ Warmup pool (beta)
 11. ✅ MCP server, guardrails, approvals, audit log, kill switch
-12. HubSpot adapter
+12. ✅ HubSpot adapter (`CrmAdapter`)

@@ -10,3 +10,4 @@ export * from "./replies";
 export * from "./analytics";
 export * from "./warmup";
 export * from "./agent";
+export * from "./crm";

@@ -3,15 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "MCP server (Phase 11). Placeholder so the workspace layout is fixed from day one.",
+  "description": "MCP server for YCAReach: forwards MCP tool calls to the web app's /api/agent (stdio + Streamable HTTP).",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "start": "node --experimental-strip-types --no-warnings src/index.ts",
+    "start:http": "node --experimental-strip-types --no-warnings src/index.ts --http",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@crm/core": "workspace:*",
-    "@crm/db": "workspace:*"
+    "@modelcontextprotocol/sdk": "1.31.0"
   },
   "devDependencies": {
-    "typescript": "5.9.3"
+    "@types/node": "22.20.4",
+    "typescript": "5.9.3",
+    "vitest": "5.0.2"
   }
 }

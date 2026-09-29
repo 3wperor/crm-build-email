@@ -25,9 +25,14 @@ export default async function SettingsPage() {
       <PageHeader
         title="Settings"
         actions={
-          <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">
-            Audit log
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/settings/agent" className="text-sm underline underline-offset-4">
+              AI agent
+            </Link>
+            <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">
+              Audit log
+            </Link>
+          </div>
         }
       />
       <div className="grid gap-6">

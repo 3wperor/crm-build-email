@@ -13,7 +13,8 @@
     "./campaigns": "./src/campaigns.ts",
     "./replies": "./src/replies.ts",
     "./analytics": "./src/analytics.ts",
-    "./warmup": "./src/warmup.ts"
+    "./warmup": "./src/warmup.ts",
+    "./agent": "./src/agent.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

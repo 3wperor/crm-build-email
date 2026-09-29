@@ -5,18 +5,15 @@ import { revalidatePath } from "next/cache";
 import {
   can,
   campaignSettingsSchema,
-  campaignStartProblems,
   nextAbGroup,
   stepSchema,
   variantSchema,
 } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { fieldErrors, formToObject, type FieldErrors } from "@/lib/forms";
-import { inngest } from "@/inngest/client";
-import { schedulerTickRequested } from "@/inngest/events";
 import { sendTestEmail } from "@/lib/test-email";
+import { pauseCampaignFor, startCampaignFor } from "@/lib/campaigns/lifecycle";
 
 export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[] } | undefined;
 
@@ -296,68 +293,22 @@ export async function startCampaign(_prev: CampaignState, formData: FormData): P
   const ctx = await requireWriter();
   if (!ctx) return FORBIDDEN;
   const id = String(formData.get("campaign_id"));
-  const supabase = await createClient();
-  const { data: c } = await supabase
-    .from("campaigns")
-    .select(
-      "id, status, daily_limit, daily_limit_per_inbox, sequences(sequence_steps(step_order, email_variants(subject, body, is_active, weight))), campaign_sending_accounts(sending_accounts(status, health))",
-    )
-    .eq("org_id", ctx.org.id)
-    .eq("id", id)
-    .maybeSingle();
-  if (!c) return { error: "Campaign not found" };
-  if (!["draft", "paused"].includes(c.status)) return { error: `Campaign is ${c.status}.` };
-
-  const [{ data: org }, { count: enrolled }] = await Promise.all([
-    supabase.from("organizations").select("physical_address").eq("id", ctx.org.id).single(),
-    // Any enrollment counts: resuming a campaign whose leads have all finished is harmless.
-    supabase.from("campaign_leads").select("id", { count: "exact", head: true }).eq("campaign_id", id),
-  ]);
-  const problems = campaignStartProblems({
-    steps: (c.sequences[0]?.sequence_steps ?? []).map((s) => ({ step_order: s.step_order, variants: s.email_variants })),
-    inboxes: c.campaign_sending_accounts.map((l) => l.sending_accounts),
-    physicalAddress: org?.physical_address ?? null,
-    enrolled: enrolled ?? 0,
-    dailyLimit: c.daily_limit,
-    dailyLimitPerInbox: c.daily_limit_per_inbox,
-  });
-  if (problems.length) return { error: "This campaign isn't ready to start yet.", problems };
-
-  // Status is server-controlled (not client-writable).
-  const admin = createAdminClient();
-  const now = new Date().toISOString();
-  await admin.from("campaigns").update({ status: "active", started_at: now, last_error: null }).eq("id", id);
-  await admin.from("campaign_leads").update({ next_send_at: now }).eq("campaign_id", id).in("status", ["queued", "active"]).is("next_send_at", null);
-  await inngest.send(schedulerTickRequested.create({ reason: `campaign ${id} started` })).catch(() => {});
-
+  const r = await startCampaignFor(ctx.org.id, id);
+  if (!r.ok) return { error: r.error, problems: r.problems };
   refresh(id);
   revalidatePath("/campaigns");
-  return { message: c.status === "paused" ? "Campaign resumed." : "Campaign started." };
+  return { message: r.message };
 }
 
 export async function pauseCampaign(_prev: CampaignState, formData: FormData): Promise<CampaignState> {
   const ctx = await requireWriter();
   if (!ctx) return FORBIDDEN;
   const id = String(formData.get("campaign_id"));
-  const c = await loadCampaign(ctx.org.id, id);
-  if (!c) return { error: "Campaign not found" };
-  if (c.status !== "active") return { error: "Campaign isn't running." };
-
-  const admin = createAdminClient();
-  await admin.from("campaigns").update({ status: "paused" }).eq("id", id);
-  // Pull back anything scheduled but not yet sending; those leads are re-planned on resume.
-  const { data: cancelled } = await admin
-    .from("sends")
-    .update({ status: "cancelled", error: "campaign_paused" })
-    .eq("campaign_id", id)
-    .eq("status", "scheduled")
-    .select("campaign_lead_id");
-  const leadIds = (cancelled ?? []).map((s) => s.campaign_lead_id);
-  if (leadIds.length) await admin.from("campaign_leads").update({ next_send_at: new Date().toISOString() }).in("id", leadIds);
-
+  const r = await pauseCampaignFor(ctx.org.id, id);
+  if (!r.ok) return { error: r.error };
   refresh(id);
   revalidatePath("/campaigns");
-  return { message: "Campaign paused." };
+  return { message: r.message };
 }
 
 // ---------------------------------------------------------------------------

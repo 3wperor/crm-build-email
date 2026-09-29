@@ -9,3 +9,4 @@ export * from "./campaigns";
 export * from "./replies";
 export * from "./analytics";
 export * from "./warmup";
+export * from "./agent";

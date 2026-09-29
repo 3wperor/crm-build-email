@@ -322,6 +322,59 @@ The header alone proves nothing: only Message-IDs we queued for that inbox count
 
 **Testing locally:** the fake mail server accepts any `@example.test` user with the fake password and delivers mail between them. `POST /spam/<address>` routes that recipient's incoming mail to Spam. `WARMUP_JITTER_SECONDS` and `WARMUP_REPLY_DELAY_*` shorten the delays.
 
+### AI agent control plane (MCP)
+
+The architecture has three parts:
+- **Where the logic lives:** all agent logic is in the web app (`apps/web/src/lib/agent/*`) behind `POST /api/agent`, authenticated with a workspace API key (`Authorization: Bearer ycr_…`).
+- **The MCP server:** `apps/mcp` is a thin server that forwards MCP tool calls to that endpoint.
+- **Tool catalog and guardrail:** both live in `@crm/core/agent` (`AGENT_TOOLS`, `agentGuard`), with tests.
+
+**API keys:**
+- Created by owners and admins under Settings → AI agent.
+- Shown once; only the SHA-256 hash is stored.
+- Scoped to one workspace, and revocable (takes effect immediately).
+
+**Tools (27).** The spec's list, plus `enroll_leads` and `pause_all_sending` (the kill switch). Inputs are validated with Zod, and the hard caps (daily volume, per-inbox limits, lead batch sizes) are part of the schemas.
+
+**Guardrails:**
+
+| Risk | Tools | Behaviour |
+|---|---|---|
+| read | list/get/analytics/status/audit log | always allowed |
+| write | drafts, copy, leads, enrollment, send window, pipeline, reply classification, add or test inbox | allowed (none of these can send by themselves) |
+| send | `start_campaign`, raising `set_daily_volume`, `send_test_email` to a non-member | **queued for approval** unless the workspace AND the campaign are full-auto |
+| safety | `pause_campaign`, `add_to_suppression`, `pause_all_sending` | always allowed |
+
+**Hard limits on the agent:**
+- It can **never** resume sending, change approval modes, remove suppressions, or turn on "include risky leads".
+- Inboxes it adds start **paused** until a human activates them.
+- The send path still enforces suppression, verification, caps and pacing.
+
+**Approvals and audit:**
+- Pending requests appear under Settings → AI agent with Approve / Reject.
+- Approving runs the call, claimed atomically so it can't run twice.
+- Every call is written to `agent_audit_log`: allowed, pending, denied or failed. Passwords and tokens are redacted from the log.
+
+**Running the MCP server:**
+
+```bash
+# stdio, e.g. for Claude Desktop / Claude Code
+YCAREACH_URL=https://your-app.vercel.app YCAREACH_API_KEY=ycr_… pnpm --filter @crm/mcp start
+# Streamable HTTP on :3333/mcp; each request sends its own Bearer key
+YCAREACH_URL=https://your-app.vercel.app pnpm --filter @crm/mcp start:http
+```
+
+Claude Desktop config:
+
+```json
+{ "mcpServers": { "ycareach": {
+  "command": "node",
+  "args": ["--experimental-strip-types", "--no-warnings", "/path/to/repo/apps/mcp/src/index.ts"],
+  "env": { "YCAREACH_URL": "https://your-app.vercel.app", "YCAREACH_API_KEY": "ycr_…" } } } }
+```
+
+(`pnpm install` first; Node 22.6+.)
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log
@@ -334,5 +387,5 @@ The header alone proves nothing: only Message-IDs we queued for that inbox count
 8. ✅ Pipeline kanban, lead detail, thread view
 9. ✅ A/B variants and analytics (+ open/click tracking)
 10. ✅ Warmup pool (beta)
-11. MCP server, guardrails, audit log tooling
+11. ✅ MCP server, guardrails, approvals, audit log, kill switch
 12. HubSpot adapter

@@ -12,6 +12,86 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agent_approvals: {
+        Row: {
+          id: string
+          org_id: string
+          api_key_id: string | null
+          tool: string
+          args: Json
+          campaign_id: string | null
+          summary: string
+          reason: string | null
+          status: string
+          result: Json | null
+          error: string | null
+          decided_by: string | null
+          decided_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          api_key_id?: string | null
+          tool: string
+          args?: Json
+          campaign_id?: string | null
+          summary: string
+          reason?: string | null
+          status?: string
+          result?: Json | null
+          error?: string | null
+          decided_by?: string | null
+          decided_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          api_key_id?: string | null
+          tool?: string
+          args?: Json
+          campaign_id?: string | null
+          summary?: string
+          reason?: string | null
+          status?: string
+          result?: Json | null
+          error?: string | null
+          decided_by?: string | null
+          decided_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_approvals_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_approvals_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_approvals_org_id_campaign_id_fkey"
+            columns: ["org_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "agent_approvals_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_audit_log: {
         Row: {
           id: number

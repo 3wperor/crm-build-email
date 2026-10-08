@@ -33,10 +33,11 @@ export type OrgContext = {
  */
 export const getOrgContext = cache(async (): Promise<OrgContext> => {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  // Verified JWT claims (local check with asymmetric signing keys; see middleware).
+  const { data: auth } = await supabase.auth.getClaims();
+  const claims = auth?.claims;
+  if (!claims?.sub) redirect("/login");
+  const user = { id: claims.sub, email: typeof claims.email === "string" ? claims.email : "" };
 
   const { data, error } = await supabase
     .from("memberships")
@@ -56,5 +57,5 @@ export const getOrgContext = cache(async (): Promise<OrgContext> => {
   const preferred = (await cookies()).get(ORG_COOKIE)?.value;
   const active = orgs.find((o) => o.org.id === preferred) ?? orgs[0]!;
 
-  return { user: { id: user.id, email: user.email ?? "" }, org: active.org, role: active.role, orgs };
+  return { user, org: active.org, role: active.role, orgs };
 });

@@ -5,16 +5,24 @@ import { can, isValidEmailSyntax, normalizeEmail } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 
-export type SuppressionState = { error?: string; message?: string } | undefined;
+export type SuppressionState = { error?: string; message?: string; added?: number; already?: number; invalid?: number } | undefined;
 
 const MAX_BATCH = 5000;
 
 export async function addSuppressions(_prev: SuppressionState, formData: FormData): Promise<SuppressionState> {
+  const raw = String(formData.get("emails") ?? "");
+  return suppress(raw.split(/[\s,;]+/).map((t) => t.trim()).filter(Boolean));
+}
+
+/** From a spreadsheet upload: the browser extracts the email column and sends it in batches. */
+export async function addSuppressionBatch(emails: string[]): Promise<SuppressionState> {
+  if (!Array.isArray(emails)) return { error: "Invalid upload." };
+  return suppress(emails.map(String).slice(0, MAX_BATCH + 1));
+}
+
+async function suppress(tokens: string[]): Promise<SuppressionState> {
   const ctx = await getOrgContext();
   if (!can(ctx.role, "suppression.add")) return { error: "You don't have permission to add suppressions." };
-
-  const raw = String(formData.get("emails") ?? "");
-  const tokens = raw.split(/[\s,;]+/).map((t) => t.trim()).filter(Boolean);
   if (tokens.length === 0) return { error: "Paste at least one email address." };
   if (tokens.length > MAX_BATCH) return { error: `Max ${MAX_BATCH} addresses at a time.` };
 
@@ -38,7 +46,7 @@ export async function addSuppressions(_prev: SuppressionState, formData: FormDat
   const parts = [`Added ${added}`];
   if (valid.length - added > 0) parts.push(`${valid.length - added} already suppressed`);
   if (invalid > 0) parts.push(`${invalid} invalid skipped`);
-  return { message: parts.join(" · ") + "." };
+  return { message: parts.join(" · ") + ".", added, already: valid.length - added, invalid };
 }
 
 export async function removeSuppression(formData: FormData) {

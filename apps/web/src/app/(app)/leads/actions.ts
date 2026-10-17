@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { can, isValidEmailSyntax, normalizeEmail } from "@crm/core";
-import { MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, validateMapping, type ColumnMapping } from "@crm/core/imports";
+import { MAX_IMPORT_BYTES, MAX_IMPORT_ROWS, isSpreadsheetFile, parsePastedLeads, prepareRows, validateMapping, type ColumnMapping } from "@crm/core/imports";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,6 +12,8 @@ import { IMPORTS_BUCKET, importFilePath } from "@/lib/imports/storage";
 import { inngest } from "@/inngest/client";
 import { leadImportRequested, leadVerificationRequested } from "@/inngest/events";
 import { createVerificationRun, type VerificationTarget } from "@/lib/verification/runs";
+import { importLeadsDirect } from "@/lib/leads/direct-import";
+import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 
 const FORBIDDEN = "You don't have permission to change leads.";
 
@@ -36,6 +38,7 @@ const startImportSchema = z.object({
     z.object({ type: z.literal("existing"), id: z.string().uuid() }),
     z.object({ type: z.literal("new"), name: z.string().trim().min(1, "Name the new list").max(120) }),
   ]),
+  campaignId: z.string().uuid().nullish(),
 });
 
 export type StartImportInput = z.input<typeof startImportSchema>;
@@ -52,7 +55,11 @@ export async function startImport(input: StartImportInput): Promise<StartImportR
   const mapping = parsed.data.mapping as ColumnMapping;
   const mappingError = validateMapping(mapping, columnCount);
   if (mappingError) return { error: mappingError };
-  if (!/\.(csv|txt)$/i.test(filename)) return { error: "Upload a .csv file" };
+  if (!isSpreadsheetFile(filename)) return { error: "Upload a .csv or .xlsx file" };
+  if (parsed.data.campaignId) {
+    const { data: c } = await (await createClient()).from("campaigns").select("id").eq("org_id", ctx.org.id).eq("id", parsed.data.campaignId).maybeSingle();
+    if (!c) return { error: "Campaign not found" };
+  }
 
   const supabase = await createClient();
   let listId: string | null = null;
@@ -76,6 +83,7 @@ export async function startImport(input: StartImportInput): Promise<StartImportR
       options: { mode },
       total_rows: totalRows,
       created_by: ctx.user.id,
+      campaign_id: parsed.data.campaignId ?? null,
     })
     .select("id")
     .single();
@@ -238,4 +246,62 @@ export async function verifyAllUnverified(_prev: BulkState, _formData: FormData)
   const started = await startVerification(ctx.org.id, ctx.user.id, { allUnverified: true });
   if ("error" in started) return started;
   return { message: started.total ? `Verifying ${started.total.toLocaleString()} lead(s)…` : "Nothing to verify." };
+}
+
+// ---------------------------------------------------------------------------
+// Paste / type leads
+// ---------------------------------------------------------------------------
+
+export type PasteState = { error?: string; message?: string; version?: number } | undefined;
+const MAX_PASTE_LINES = 5000;
+
+/** One lead per line: "email, first name, last name, company, title" (or paste rows copied from a spreadsheet). */
+export async function pasteLeads(_prev: PasteState, formData: FormData): Promise<PasteState> {
+  const ctx = await requireWriter();
+  if (!ctx) return { error: FORBIDDEN };
+  const text = String(formData.get("leads") ?? "");
+  const lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
+  if (lines === 0) return { error: "Type or paste at least one lead." };
+  if (lines > MAX_PASTE_LINES) return { error: `Max ${MAX_PASTE_LINES.toLocaleString()} lines at a time; upload a file for more.` };
+
+  const campaignId = String(formData.get("campaign_id") ?? "") || null;
+  let campaignName: string | null = null;
+  if (campaignId) {
+    const { data: c } = await (await createClient()).from("campaigns").select("name").eq("org_id", ctx.org.id).eq("id", campaignId).maybeSingle();
+    if (!c) return { error: "Campaign not found" };
+    campaignName = c.name;
+  }
+
+  const { parsed, mapping } = parsePastedLeads(text);
+  const prepared = prepareRows(parsed.rows, mapping);
+  if (prepared.leads.length === 0) return { error: "No valid email addresses found. Put one lead per line, starting with the email." };
+  const invalid = prepared.rejected.filter((r) => r.reason !== "duplicate_in_file").length;
+  const duplicates = prepared.rejected.length - invalid;
+
+  const r = await importLeadsDirect(ctx.org.id, prepared.leads, {
+    label: campaignName ? `Pasted into ${campaignName}` : "Pasted leads",
+    totalRows: parsed.rows.length,
+    invalid,
+    duplicates,
+    listName: String(formData.get("list_name") ?? "").trim() || null,
+    campaignId,
+    createdBy: ctx.user.id,
+    source: "manual",
+  });
+
+  const parts = [`${r.imported} new`];
+  if (r.alreadyExisted) parts.push(`${r.alreadyExisted} already existed`);
+  if (r.suppressed) parts.push(`${r.suppressed} suppressed`);
+  if (invalid) parts.push(`${invalid} invalid`);
+  if (duplicates) parts.push(`${duplicates} duplicate lines`);
+  let message = `Saved leads: ${parts.join(", ")}.`;
+  if (campaignId) {
+    const { data: imp } = await createAdminClient().from("imports").select("campaign_result").eq("id", r.importId).single();
+    message += imp?.campaign_result
+      ? ` ${describeEnroll(imp.campaign_result as unknown as EnrollResult)}`
+      : " They'll be added to the campaign as soon as they're verified (usually under a minute).";
+    revalidatePath(`/campaigns/${campaignId}`);
+  }
+  revalidatePath("/leads");
+  return { message, version: Date.now() };
 }

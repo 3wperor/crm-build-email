@@ -693,6 +693,8 @@ export type Database = {
           processed_rows: number
           updated_count: number
           existing_count: number
+          campaign_id: string | null
+          campaign_result: Json | null
         }
         Insert: {
           id?: string
@@ -716,6 +718,8 @@ export type Database = {
           processed_rows?: number
           updated_count?: number
           existing_count?: number
+          campaign_id?: string | null
+          campaign_result?: Json | null
         }
         Update: {
           id?: string
@@ -739,8 +743,17 @@ export type Database = {
           processed_rows?: number
           updated_count?: number
           existing_count?: number
+          campaign_id?: string | null
+          campaign_result?: Json | null
         }
         Relationships: [
+          {
+            foreignKeyName: "imports_campaign_fk"
+            columns: ["org_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["org_id", "id"]
+          },
           {
             foreignKeyName: "imports_created_by_fkey"
             columns: ["created_by"]

@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   // Node-only mail libraries: load from node_modules at runtime instead of bundling.
   serverExternalPackages: ["nodemailer", "imapflow", "mailparser"],
   poweredByHeader: false,
+  experimental: {
+    // Revisiting a page within 30 s renders instantly from the browser's cache
+    // (any save/server action still refreshes it). Prefetched pages stay 5 min.
+    staleTimes: { dynamic: 30, static: 300 },
+  },
   async headers() {
     return [
       {

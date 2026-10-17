@@ -5,6 +5,8 @@ import { Nav } from "@/components/nav";
 import { OrgSwitcher } from "@/components/org-switcher";
 import { KillSwitch } from "@/components/kill-switch";
 import { Badge } from "@/components/ui/badge";
+import { Suspense } from "react";
+import { NavigationProgress } from "@/components/navigation-progress";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getOrgContext();
@@ -12,6 +14,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen">
+      <Suspense fallback={null}>
+        <NavigationProgress />
+      </Suspense>
       <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-3 md:flex">
         <div className="mb-4 grid gap-2 pt-1">
           <div className="px-2 text-base font-bold tracking-tight">

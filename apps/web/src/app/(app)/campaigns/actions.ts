@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fieldErrors, formToObject, type FieldErrors } from "@/lib/forms";
 import { sendTestEmail } from "@/lib/test-email";
 import { pauseCampaignFor, startCampaignFor } from "@/lib/campaigns/lifecycle";
+import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 
 export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[] } | undefined;
 
@@ -276,13 +277,8 @@ export async function enrollLeads(_prev: CampaignState, formData: FormData): Pro
     ...(source === "all" ? { p_all_eligible: true } : { p_list_id: source }),
   });
   if (error) return { error: error.message };
-  const r = data as { enrolled: number; skipped: number };
   refresh(id);
-  return {
-    message:
-      `Added ${r.enrolled.toLocaleString()} lead(s).` +
-      (r.skipped ? ` Skipped ${r.skipped.toLocaleString()} (already added, in another active campaign, suppressed, invalid, risky or replied).` : ""),
-  };
+  return { message: describeEnroll(data as unknown as EnrollResult) };
 }
 
 // ---------------------------------------------------------------------------

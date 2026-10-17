@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { deleteCampaign } from "../actions";
 import { CampaignStatusBadge } from "../status-badge";
 import { EnrollForm } from "./enroll-form";
+import { FileUp } from "lucide-react";
+import { PasteLeadsForm } from "@/components/leads/paste-leads-form";
+import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 import { LifecycleButtons } from "./lifecycle-buttons";
 import { SequenceEditor } from "./sequence-editor";
 import { CampaignSettingsForm } from "./settings-form";
@@ -263,15 +266,62 @@ async function LeadsTab({
   statusCounts: Map<string, number>;
 }) {
   const supabase = await createClient();
+  const { data: recentImports } = await supabase
+    .from("imports")
+    .select("id, filename, status, campaign_result, created_at")
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  const imports = recentImports ?? [];
   const { data: rows } = await supabase
     .from("campaign_leads")
     .select("id, status, current_step_order, next_send_at, stopped_reason, leads!inner(id, email, first_name, last_name), sending_accounts(email)")
     .eq("campaign_id", campaignId)
     .order("enrolled_at", { ascending: false })
     .limit(100);
+  const importing = imports.some((i) => i.status !== "failed" && !i.campaign_result && Date.now() - new Date(i.created_at).getTime() < 30 * 60_000);
   return (
     <div className="grid gap-4">
-      {canEdit && <EnrollForm campaignId={campaignId} lists={lists} />}
+      <AutoRefresh active={importing} intervalMs={3000} />
+      {canEdit && (
+        <Card data-testid="add-leads">
+          <CardHeader>
+            <CardTitle className="text-base">Add leads</CardTitle>
+            <CardDescription>Invalid, suppressed and already-contacted addresses are skipped automatically, and you&apos;ll see why.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-6 md:grid-cols-2">
+            <div className="grid content-start gap-2">
+              <div className="text-sm font-medium">Upload a spreadsheet</div>
+              <p className="text-muted-foreground text-xs">CSV or Excel (.xlsx). Google Sheets: File → Download → .xlsx.</p>
+              <Button asChild variant="outline" className="w-fit">
+                <Link href={`/leads/import?campaign=${campaignId}`}>
+                  <FileUp /> Upload CSV or Excel
+                </Link>
+              </Button>
+              <div className="mt-4 text-sm font-medium">From leads you already have</div>
+              <EnrollForm campaignId={campaignId} lists={lists} />
+            </div>
+            <PasteLeadsForm campaignId={campaignId} />
+          </CardContent>
+        </Card>
+      )}
+      {imports.length > 0 && (
+        <div className="grid gap-1 text-sm" data-testid="campaign-imports">
+          {imports.map((i) => (
+            <div key={i.id} className="text-muted-foreground">
+              <Link href={`/leads/imports/${i.id}`} className="text-foreground underline underline-offset-4">
+                {i.filename}
+              </Link>
+              {" · "}
+              {i.status === "failed"
+                ? "import failed"
+                : i.campaign_result
+                  ? describeEnroll(i.campaign_result as unknown as EnrollResult)
+                  : "importing and verifying… leads are added automatically"}
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap gap-2">
         {[...statusCounts.entries()].map(([s, n]) => (
           <Badge key={s} variant="outline">

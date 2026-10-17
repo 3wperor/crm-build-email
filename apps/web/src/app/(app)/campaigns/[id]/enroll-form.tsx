@@ -18,10 +18,10 @@ export function EnrollForm({ campaignId, lists }: { campaignId: string; lists: {
               List: {l.name}
             </option>
           ))}
-          <option value="all">All eligible leads</option>
+          <option value="all">All my leads (eligible ones)</option>
         </NativeSelect>
         <Button variant="outline" disabled={pending}>
-          <UserPlus /> {pending ? "Adding…" : "Add leads"}
+          <UserPlus /> {pending ? "Adding…" : "Add existing leads"}
         </Button>
       </div>
       {state?.message && <p className="text-sm text-emerald-600">{state.message}</p>}

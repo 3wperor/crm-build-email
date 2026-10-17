@@ -8,10 +8,12 @@ import {
   LEAD_FIELD_LABELS,
   MAX_IMPORT_BYTES,
   MAX_IMPORT_ROWS,
+  SPREADSHEET_ACCEPT,
   customKey,
   detectColumnMapping,
-  parseCsv,
+  isExcelFile,
   prepareRows,
+  toCsv,
   validateMapping,
   type ColumnMapping,
   type ColumnTarget,
@@ -25,12 +27,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { createClient } from "@/lib/supabase/client";
+import { readSpreadsheetFile } from "@/lib/spreadsheet";
 import { cn } from "@/lib/utils";
 import { queueImport, startImport } from "../actions";
 
 type ListChoice = "none" | "new" | string; // string = existing list id
 
-export function ImportWizard({ lists }: { lists: { id: string; name: string }[] }) {
+export function ImportWizard({ lists, campaign }: { lists: { id: string; name: string }[]; campaign?: { id: string; name: string } | null }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -46,15 +49,19 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
 
   const loadFile = useCallback(async (f: File) => {
     setError(null);
-    if (!/\.(csv|txt)$/i.test(f.name)) return setError("Choose a .csv file.");
     if (f.size > MAX_IMPORT_BYTES) return setError("File is larger than 20 MB. Split it into smaller files.");
-    const parsed = parseCsv(await f.text());
+    let parsed: ParsedCsv;
+    try {
+      parsed = await readSpreadsheetFile(f);
+    } catch (e) {
+      return setError(e instanceof Error ? e.message : "Couldn't read that file.");
+    }
     if (parsed.headers.length === 0 || parsed.rows.length === 0) return setError("The file has no data rows.");
     if (parsed.rows.length > MAX_IMPORT_ROWS) return setError(`Max ${MAX_IMPORT_ROWS.toLocaleString()} rows per import.`);
     setFile(f);
     setCsv(parsed);
     setMapping(detectColumnMapping(parsed.headers, parsed.rows.slice(0, 20)));
-    setNewListName(f.name.replace(/\.(csv|txt)$/i, ""));
+    setNewListName(f.name.replace(/\.(csv|txt|tsv|xlsx)$/i, ""));
   }, []);
 
   const mappingError = csv ? validateMapping(mapping, csv.headers.length) : null;
@@ -84,6 +91,7 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
         mapping,
         mode,
         list,
+        campaignId: campaign?.id ?? null,
       });
       if ("error" in res) {
         setStage(null);
@@ -93,7 +101,8 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
       setStage("Uploading…");
       const { error: uploadError } = await createClient()
         .storage.from("imports")
-        .uploadToSignedUrl(res.path, res.token, file, { contentType: "text/csv" });
+        // Excel is converted in the browser; the background import always reads CSV.
+        .uploadToSignedUrl(res.path, res.token, isExcelFile(file.name) ? new Blob([toCsv(csv)], { type: "text/csv" }) : file, { contentType: "text/csv" });
       if (uploadError) {
         setStage(null);
         return setError(`Upload failed: ${uploadError.message}`);
@@ -109,9 +118,20 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
     });
   }
 
+  const banner = campaign ? (
+    <Alert>
+      <AlertDescription>
+        <span>
+          Leads from this file will be added to <strong>{campaign.name}</strong> as soon as they&apos;re verified (usually under a minute).
+        </span>
+      </AlertDescription>
+    </Alert>
+  ) : null;
+
   if (!csv) {
     return (
       <div className="grid gap-4">
+        {banner}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
@@ -132,13 +152,15 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
           )}
         >
           <FileUp className="text-muted-foreground size-8" />
-          <div className="font-medium">Drop a CSV here or click to choose</div>
-          <div className="text-muted-foreground text-sm">Up to 20 MB / {MAX_IMPORT_ROWS.toLocaleString()} rows. First row must be headers.</div>
+          <div className="font-medium">Drop a CSV or Excel file here, or click to choose</div>
+          <div className="text-muted-foreground text-sm">
+            .csv or .xlsx, up to 20 MB / {MAX_IMPORT_ROWS.toLocaleString()} rows. First row must be headers. Google Sheets: File → Download → .xlsx.
+          </div>
         </button>
         <input
           ref={inputRef}
           type="file"
-          accept=".csv,text/csv,.txt"
+          accept={SPREADSHEET_ACCEPT}
           className="hidden"
           data-testid="csv-input"
           onChange={(e) => {
@@ -160,6 +182,7 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
   return (
     // minmax(0,1fr): let the wide mapping table scroll instead of stretching the page.
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
+      {banner}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
@@ -265,7 +288,7 @@ export function ImportWizard({ lists }: { lists: { id: string; name: string }[] 
       <div className="flex gap-2">
         <Button onClick={submit} disabled={pending || !!mappingError || !dryRun?.leads.length}>
           {pending && <Loader2 className="animate-spin" />}
-          {stage ?? `Import ${dryRun?.leads.length.toLocaleString() ?? 0} leads`}
+          {stage ?? `Import ${dryRun?.leads.length.toLocaleString() ?? 0} leads${campaign ? ` into ${campaign.name}` : ""}`}
         </Button>
         <Button
           variant="ghost"

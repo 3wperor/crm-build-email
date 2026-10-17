@@ -72,7 +72,7 @@ export const AGENT_TOOLS = {
   },
   upload_leads: {
     risk: "write",
-    description: "Import up to 1000 leads (deduped; suppressed addresses skipped), optionally into a named list; verification runs automatically.",
+    description: "Import up to 1000 leads (deduped; suppressed addresses skipped), optionally into a named list and/or straight into a campaign (enrolled once verified); verification runs automatically.",
     input: z.object({
       leads: z
         .array(
@@ -88,6 +88,7 @@ export const AGENT_TOOLS = {
         .min(1)
         .max(1000),
       list_name: z.string().trim().min(1).max(200).optional(),
+      campaign_id: uuid.optional(),
     }),
   },
   verify_leads: {

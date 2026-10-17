@@ -426,6 +426,8 @@ reset role;
 select pg_temp.expect_eq((current_setting('test.enroll')::jsonb ->> 'enrolled')::int, 2, 'enroll: only ok1 + ok2 eligible');
 select pg_temp.expect_eq((current_setting('test.enroll')::jsonb ->> 'skipped')::int, 5,
   'enroll: risky, invalid, replied, suppressed, busy-elsewhere skipped');
+select pg_temp.expect_eq(((current_setting('test.enroll')::jsonb -> 'reasons') = '{"risky": 1, "invalid": 1, "lead_status": 1, "suppressed": 1, "in_other_campaign": 1}'::jsonb)::int, 1,
+  'enroll: says why each lead was skipped');
 update public.campaigns set include_risky = true where id = current_setting('test.camp')::uuid;
 select pg_temp.expect_eq((public.enroll_leads(current_setting('test.camp')::uuid,
   p_lead_ids => array(select id from public.leads where email = 'risky@sched.example')) ->> 'enrolled')::int, 1,

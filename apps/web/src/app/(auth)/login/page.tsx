@@ -21,6 +21,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <Link href="/signup" className="text-foreground underline underline-offset-4">
             Sign up
           </Link>
+          {" · "}
+          <Link href="/docs" className="text-foreground underline underline-offset-4">
+            How it works
+          </Link>
         </p>
       </CardContent>
     </Card>

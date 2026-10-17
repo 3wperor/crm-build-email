@@ -267,3 +267,80 @@ export function summarize(rejections: Rejection[], imported: number, existing: n
     duplicates: count("duplicate_in_file"),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Spreadsheets, pasted text, email columns
+// ---------------------------------------------------------------------------
+
+/** File types the import accepts. Excel files are read in the browser and uploaded as CSV. */
+export const SPREADSHEET_ACCEPT = ".csv,.txt,.tsv,.xlsx";
+export const isExcelFile = (name: string) => /\.xlsx$/i.test(name);
+export const isSpreadsheetFile = (name: string) => /\.(csv|txt|tsv|xlsx)$/i.test(name);
+
+function cellToString(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? "" : v.toISOString().slice(0, 10);
+  return String(v).trim();
+}
+
+/** Excel cells (strings, numbers, dates, booleans, nulls) → the same shape as a parsed CSV. Blank rows are dropped. */
+export function sheetToParsed(cells: readonly (readonly unknown[])[]): ParsedCsv {
+  const rows = cells.map((r) => r.map(cellToString)).filter((r) => r.some((c) => c !== ""));
+  const [headers = [], ...data] = rows;
+  const width = Math.max(headers.length, ...data.map((r) => r.length));
+  const pad = (r: string[]) => (r.length < width ? [...r, ...Array(width - r.length).fill("")] : r);
+  return { headers: pad(headers).map((h, i) => h || `Column ${i + 1}`), rows: data.map(pad) };
+}
+
+export function toCsv(parsed: ParsedCsv): string {
+  return Papa.unparse({ fields: parsed.headers, data: parsed.rows });
+}
+
+const PASTE_COLUMNS = ["email", "first_name", "last_name", "company", "title"] as const;
+
+/**
+ * Leads typed or pasted into a box: one per line, "email, first name, last
+ * name, company, title" (comma or tab separated, e.g. copied from a sheet).
+ * A header row is used if the first line has no email address in it.
+ */
+export function parsePastedLeads(text: string): { parsed: ParsedCsv; mapping: ColumnMapping } {
+  // Each line on its own: pasted text often mixes typed (comma) and copied-from-a-sheet (tab) lines.
+  const all = text
+    .replace(/^\uFEFF/, "")
+    .split(/\r?\n/)
+    .filter((l) => l.trim())
+    .map((l) => (Papa.parse<string[]>(l, { delimiter: l.includes("\t") ? "\t" : l.includes(";") && !l.includes(",") ? ";" : "," }).data[0] ?? []).map((c) => String(c ?? "").trim()));
+  const hasHeader = all.length > 0 && !all[0]!.some((c) => /@/.test(c)) && detectColumnMapping(all[0]!).includes("email");
+  if (hasHeader) {
+    const parsed = { headers: all[0]!.map((h) => h.trim()), rows: all.slice(1) };
+    return { parsed, mapping: detectColumnMapping(parsed.headers, parsed.rows.slice(0, 20)) };
+  }
+  const width = Math.max(1, ...all.map((r) => r.length));
+  const headers = Array.from({ length: width }, (_, i) => PASTE_COLUMNS[i] ?? `extra_${i - PASTE_COLUMNS.length + 1}`);
+  const mapping = headers.map((h, i) => (i < PASTE_COLUMNS.length ? (h as ColumnTarget) : "ignore")) as ColumnMapping;
+  return { parsed: { headers, rows: all.map((r) => r.map((c) => String(c ?? "").trim())) }, mapping };
+}
+
+/** Index of the column holding email addresses: by header first, then by content. -1 if none. */
+export function findEmailColumn(parsed: ParsedCsv): number {
+  const byHeader = detectColumnMapping(parsed.headers, parsed.rows.slice(0, 20)).indexOf("email");
+  if (byHeader >= 0) return byHeader;
+  const sample = parsed.rows.slice(0, 50);
+  let best = -1;
+  let bestHits = 0;
+  for (let c = 0; c < parsed.headers.length; c++) {
+    const hits = sample.filter((r) => extractEmail(r[c] ?? "")).length;
+    if (hits > bestHits) [best, bestHits] = [c, hits];
+  }
+  // A header-less file: the "header" row may itself be an address.
+  if (best < 0) best = parsed.headers.findIndex((h) => extractEmail(h));
+  return best;
+}
+
+/** Every address in a spreadsheet's email column (the header row too, when it is an address). */
+export function emailsFromParsed(parsed: ParsedCsv): string[] {
+  const col = findEmailColumn(parsed);
+  if (col < 0) return [];
+  const cells = [parsed.headers[col] ?? "", ...parsed.rows.map((r) => r[col] ?? "")];
+  return [...new Set(cells.map((c) => extractEmail(c)).filter((e): e is string => !!e))];
+}

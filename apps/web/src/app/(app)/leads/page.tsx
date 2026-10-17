@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { UsageBar } from "@/components/usage-bar";
 import { AddLeadForm } from "./add-lead-form";
+import { PasteLeadsForm } from "@/components/leads/paste-leads-form";
 import { VerifyAllButton } from "./verify-all-button";
 import { LeadsTable, type LeadRow } from "./leads-table";
 
@@ -81,7 +82,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             {canWrite && (
               <Button asChild>
                 <Link href="/leads/import">
-                  <Upload /> Import CSV
+                  <Upload /> Import CSV or Excel
                 </Link>
               </Button>
             )}
@@ -105,9 +106,13 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         {canWrite && !activeRun && (unverified ?? 0) > 0 && <VerifyAllButton count={unverified ?? 0} />}
         {canWrite && (
           <details className="rounded-lg border p-4">
-            <summary className="cursor-pointer text-sm font-medium">Add a single lead</summary>
-            <div className="pt-3">
-              <AddLeadForm />
+            <summary className="cursor-pointer text-sm font-medium">Add leads by hand</summary>
+            <div className="grid gap-6 pt-3 md:grid-cols-2">
+              <PasteLeadsForm />
+              <div className="grid content-start gap-2">
+                <div className="text-sm font-medium">Or one at a time</div>
+                <AddLeadForm />
+              </div>
             </div>
           </details>
         )}

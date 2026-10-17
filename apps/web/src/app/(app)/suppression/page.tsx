@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { removeSuppression } from "./actions";
 import { AddSuppressionForm } from "./add-form";
+import { SuppressionUploadForm } from "./upload-form";
 
 export const metadata = { title: "Suppression list" };
 
@@ -40,10 +41,13 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Add addresses</CardTitle>
-              <CardDescription>Paste one or more emails, separated by new lines, commas or spaces.</CardDescription>
+              <CardDescription>Upload a CSV or Excel file, or paste emails separated by new lines, commas or spaces.</CardDescription>
             </CardHeader>
             <CardContent>
-              <AddSuppressionForm />
+              <div className="grid gap-4">
+                <SuppressionUploadForm />
+                <AddSuppressionForm />
+              </div>
             </CardContent>
           </Card>
         )}

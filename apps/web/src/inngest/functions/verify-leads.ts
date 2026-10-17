@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyNextBatch } from "@/lib/verification/batch";
+import { enrollImportIntoCampaign } from "@/lib/imports/campaign";
 import { inngest } from "../client";
 import { leadVerificationRequested } from "../events";
 
@@ -48,13 +49,18 @@ export const verifyLeads = inngest.createFunction(
       verified += batch.applied;
     }
 
-    await step.run("finish", async () => {
-      await createAdminClient()
+    const importId = await step.run("finish", async () => {
+      const { data } = await createAdminClient()
         .from("verification_runs")
         .update({ status: "completed", completed_at: new Date().toISOString() })
         .eq("org_id", orgId)
-        .eq("id", runId);
+        .eq("id", runId)
+        .select("import_id")
+        .maybeSingle();
+      return data?.import_id ?? null;
     });
+    // Imports started from a campaign: enroll the verified leads.
+    if (importId) await step.run("enroll-into-campaign", () => enrollImportIntoCampaign(orgId, importId));
     return { verified };
   },
 );

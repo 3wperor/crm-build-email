@@ -17,6 +17,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { checkAccount, recordHealth, runConnectionTest, storeAccountPassword } from "@/lib/sending-accounts";
 import { sendTestEmail } from "@/lib/test-email";
 import { createVerificationRun } from "@/lib/verification/runs";
+import { importLeadsDirect } from "@/lib/leads/direct-import";
+import { prepareRows } from "@crm/core/imports";
 import { pauseCampaignFor, startCampaignFor } from "@/lib/campaigns/lifecycle";
 import { loadBreakdown } from "@/lib/analytics";
 import { inngest } from "@/inngest/client";
@@ -163,48 +165,36 @@ const tools: { [N in AgentToolName]: Impl<N> } = {
     return { variant_id: v!.id, ab_group: group };
   },
 
-  async upload_leads(ctx, { leads, list_name }) {
-    const admin = db();
-    const seen = new Set<string>();
-    const rows: Record<string, unknown>[] = [];
-    let invalid = 0;
-    leads.forEach((l, i) => {
-      const email = normalizeEmail(l.email);
-      if (!isValidEmailSyntax(email)) return void invalid++;
-      if (seen.has(email)) return;
-      seen.add(email);
-      rows.push({ row: i + 1, email, first_name: l.first_name ?? null, last_name: l.last_name ?? null, company: l.company ?? null, title: l.title ?? null, custom: l.custom ?? {} });
+  async upload_leads(ctx, { leads, list_name, campaign_id }) {
+    if (campaign_id) await campaignOf(ctx.orgId, campaign_id);
+    const prepared = prepareRows(
+      leads.map((l) => [l.email, l.first_name ?? "", l.last_name ?? "", l.company ?? "", l.title ?? ""]),
+      ["email", "first_name", "last_name", "company", "title"],
+    );
+    // Custom fields ride along by input position (prepareRows keeps 1-based rows; header = line 1).
+    for (const p of prepared.leads) p.custom = leads[p.row - 2]?.custom ?? {};
+    const invalid = prepared.rejected.filter((r) => r.reason !== "duplicate_in_file").length;
+    const duplicates = prepared.rejected.length - invalid;
+    const r = await importLeadsDirect(ctx.orgId, prepared.leads, {
+      label: `agent-${new Date().toISOString().slice(0, 10)}`,
+      totalRows: leads.length,
+      invalid,
+      duplicates,
+      listName: list_name ?? null,
+      campaignId: campaign_id ?? null,
+      source: "agent",
     });
-    let listId: string | null = null;
-    if (list_name) {
-      const { data: existing } = await admin.from("lead_lists").select("id").eq("org_id", ctx.orgId).eq("name", list_name).maybeSingle();
-      listId = existing?.id ?? (await admin.from("lead_lists").insert({ org_id: ctx.orgId, name: list_name }).select("id").single()).data!.id;
-    }
-    const { data: imp, error: impError } = await admin
-      .from("imports")
-      .insert({ org_id: ctx.orgId, list_id: listId, filename: `agent-${new Date().toISOString().slice(0, 10)}.json`, status: "processing", total_rows: leads.length })
-      .select("id")
-      .single();
-    if (impError) fail(impError.message);
-    const { data: result, error } = await admin.rpc("import_leads_chunk", { p_org_id: ctx.orgId, p_import_id: imp!.id, p_mode: "skip", p_rows: rows as never, ...(listId ? { p_list_id: listId } : {}) });
-    if (error) fail(error.message);
-    const raw = (result ?? {}) as { imported_rows?: number[]; existing_rows?: number[]; suppressed_rows?: number[] };
-    const r = { imported: raw.imported_rows?.length ?? 0, already_existed: raw.existing_rows?.length ?? 0, suppressed: raw.suppressed_rows?.length ?? 0 };
-    const duplicatesInBatch = leads.length - invalid - rows.length;
-    await admin
-      .from("imports")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        imported_count: r.imported,
-        duplicate_count: r.already_existed + duplicatesInBatch,
-        suppressed_count: r.suppressed,
-        invalid_count: invalid,
-      })
-      .eq("id", imp!.id);
-    const run = await createVerificationRun(ctx.orgId, { importId: imp!.id }, { source: "agent" });
-    if (run) await inngest.send(leadVerificationRequested.create({ orgId: ctx.orgId, runId: run.runId }, { id: `verify-${run.runId}` }));
-    return { import_id: imp!.id, list_id: listId, ...r, duplicates_in_batch: duplicatesInBatch, invalid, verification_queued: run?.total ?? 0 };
+    return {
+      import_id: r.importId,
+      list_id: r.listId,
+      imported: r.imported,
+      already_existed: r.alreadyExisted,
+      suppressed: r.suppressed,
+      duplicates_in_batch: duplicates,
+      invalid,
+      verification_queued: r.verificationQueued,
+      ...(campaign_id ? { campaign: "Leads are added to the campaign once verification finishes." } : {}),
+    };
   },
 
   async verify_leads(ctx, { lead_ids, all_unverified }) {

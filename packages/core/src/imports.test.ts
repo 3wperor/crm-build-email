@@ -147,3 +147,47 @@ describe("summarize / chunk / customKey", () => {
     expect(customKey("!!!")).toBe("field");
   });
 });
+
+describe("spreadsheets and pasted leads", () => {
+  it("turns Excel cells into a parsed sheet (dates, numbers, blank rows)", async () => {
+    const { sheetToParsed, toCsv, parseCsv } = await import("./imports");
+    const p = sheetToParsed([
+      ["Email", "First name", "Joined", null],
+      [null, null, null, null],
+      ["ada@x.io", "Ada", new Date("2026-01-05T00:00:00Z"), 42],
+      ["bob@y.io", "Bob"],
+    ]);
+    expect(p.headers).toEqual(["Email", "First name", "Joined", "Column 4"]);
+    expect(p.rows).toEqual([
+      ["ada@x.io", "Ada", "2026-01-05", "42"],
+      ["bob@y.io", "Bob", "", ""],
+    ]);
+    expect(parseCsv(toCsv(p))).toEqual(p);
+  });
+
+  it("parses pasted lines without a header (comma or tab, positional)", async () => {
+    const { parsePastedLeads, prepareRows } = await import("./imports");
+    const { parsed, mapping } = parsePastedLeads("ada@x.io, Ada, Lovelace, Engines\nbob@y.io\tBob\n\n  carol@z.io ");
+    const r = prepareRows(parsed.rows, mapping);
+    expect(r.leads.map((l) => [l.email, l.first_name, l.last_name, l.company])).toEqual([
+      ["ada@x.io", "Ada", "Lovelace", "Engines"],
+      ["bob@y.io", "Bob", null, null],
+      ["carol@z.io", null, null, null],
+    ]);
+  });
+
+  it("uses a pasted header row when there is one", async () => {
+    const { parsePastedLeads, prepareRows } = await import("./imports");
+    const { parsed, mapping } = parsePastedLeads("Company,Work Email,Name\nEngines,ada@x.io,Ada Lovelace");
+    const [lead] = prepareRows(parsed.rows, mapping).leads;
+    expect(lead).toMatchObject({ email: "ada@x.io", company: "Engines", first_name: "Ada", last_name: "Lovelace" });
+  });
+
+  it("finds the email column by header or by content, header-less files included", async () => {
+    const { emailsFromParsed, findEmailColumn } = await import("./imports");
+    expect(emailsFromParsed({ headers: ["Name", "E-mail"], rows: [["A", "A@X.io"], ["B", "a@x.io"], ["C", "nope"]] })).toEqual(["a@x.io"]);
+    expect(findEmailColumn({ headers: ["Name", "Contact"], rows: [["A", "a@x.io"]] })).toBe(1);
+    expect(emailsFromParsed({ headers: ["first@x.io"], rows: [["second@x.io"]] })).toEqual(["first@x.io", "second@x.io"]);
+    expect(emailsFromParsed({ headers: ["Name"], rows: [["Ada"]] })).toEqual([]);
+  });
+});

@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImportStatusBadge } from "../status-badge";
 import { AutoRefresh } from "@/components/auto-refresh";
+import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 
 export const metadata = { title: "Import" };
 
@@ -19,7 +20,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
   const supabase = await createClient();
   const { data: imp } = await supabase
     .from("imports")
-    .select("*, lead_lists(id, name)")
+    .select("*, lead_lists(id, name), campaigns(id, name)")
     .eq("org_id", org.id)
     .eq("id", id)
     .maybeSingle();
@@ -34,7 +35,8 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
     .limit(1)
     .maybeSingle();
   const verifying = verification?.status === "queued" || verification?.status === "running";
-  const running = imp.status === "pending" || imp.status === "processing" || verifying;
+  const awaitingCampaign = !!imp.campaign_id && !imp.campaign_result && imp.status !== "failed";
+  const running = imp.status === "pending" || imp.status === "processing" || verifying || awaitingCampaign;
   const options = imp.options as { mode?: string };
   const stats = [
     { label: "Imported", value: imp.imported_count, testid: "imported" },
@@ -75,6 +77,24 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
         </CardHeader>
         <CardContent className="grid gap-6">
           {running && <UsageBar used={imp.processed_rows} cap={Math.max(imp.total_rows, 1)} className="max-w-md" />}
+          {imp.campaigns && (
+            <Alert data-testid="import-campaign">
+              <AlertDescription>
+                <span>
+                  Campaign{" "}
+                  <Link href={`/campaigns/${imp.campaigns.id}?tab=leads`} className="font-medium underline underline-offset-4">
+                    {imp.campaigns.name}
+                  </Link>
+                  :{" "}
+                  {imp.campaign_result
+                    ? describeEnroll(imp.campaign_result as unknown as EnrollResult)
+                    : imp.status === "failed"
+                      ? "nothing added because the import failed."
+                      : "leads will be added as soon as they're verified."}
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
           {imp.status === "failed" && (
             <Alert variant="destructive">
               <AlertDescription>{imp.error ?? "Import failed."}</AlertDescription>

@@ -140,6 +140,15 @@ App passwords live in `sending_account_credentials`. Only the service role can r
 3. Each step re-derives its rows from the stored file with the same pure functions (`@crm/core/imports`), so no large payloads pass between steps. `import_leads_chunk` is idempotent, so an Inngest retry doesn't change the result.
 4. Suppression is authoritative. Adding an address marks the lead, stops its active enrollments and cancels scheduled sends, via a trigger. Send-time checks come in Phase 5.
 
+**Spreadsheets and pasting** (added after v1):
+- **Excel:** `.xlsx` files are read in the browser with `read-excel-file` and uploaded as CSV, so the background import is unchanged. Google Sheets users download the sheet as `.xlsx` or `.csv`.
+- **Pasting:** leads can be typed or pasted, one per line (`email, first, last, company, title`); rows copied from a sheet work too. This goes through `importLeadsDirect`, which applies the same dedupe and suppression rules.
+- **Importing into a campaign:** an import or paste started from a campaign stores `imports.campaign_id`. Its leads are enrolled when verification finishes, or immediately when auto-verify is off.
+- **Skip reasons:** `enroll_leads` returns why each lead was skipped (`reasons`), and the UI spells it out.
+- **Suppression list:** also accepts CSV or Excel uploads; the email column is detected automatically.
+
+**User docs:** a public page at `/docs` (no login needed).
+
 ### Email verification
 
 Verification runs in the Inngest job `verify-leads`. It starts from the leads page (selected leads, or "Verify N unverified"), automatically after each import (org setting, on by default), and later from the agent.

@@ -12,6 +12,7 @@ import {
 import { createAdminClient } from "@/lib/supabase/admin";
 import { downloadText, importErrorsPath, importFilePath, uploadText } from "@/lib/imports/storage";
 import { createVerificationRun } from "@/lib/verification/runs";
+import { enrollImportIntoCampaign } from "@/lib/imports/campaign";
 import { inngest } from "../client";
 import { leadImportRequested, leadVerificationRequested } from "../events";
 
@@ -157,6 +158,9 @@ export const processLeadImport = inngest.createFunction(
     });
     if (run) {
       await step.sendEvent("request-verification", leadVerificationRequested.create({ orgId, runId: run.runId }, { id: `verify-${run.runId}` }));
+    } else {
+      // Started from a campaign and nothing to verify: enroll now (verify-leads does it otherwise).
+      await step.run("enroll-into-campaign", () => enrollImportIntoCampaign(orgId, importId));
     }
     return { ...counts, verificationRunId: run?.runId ?? null };
   },

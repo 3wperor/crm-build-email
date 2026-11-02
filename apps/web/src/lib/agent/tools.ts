@@ -20,7 +20,7 @@ import { createVerificationRun } from "@/lib/verification/runs";
 import { importLeadsDirect } from "@/lib/leads/direct-import";
 import { prepareRows } from "@crm/core/imports";
 import { pauseCampaignFor, startCampaignFor } from "@/lib/campaigns/lifecycle";
-import { UPGRADE_MESSAGE, isUserPaid } from "@/lib/billing";
+import { sendBlockedMessage } from "@/lib/billing";
 import { loadBreakdown } from "@/lib/analytics";
 import { inngest } from "@/inngest/client";
 import { leadVerificationRequested } from "@/inngest/events";
@@ -329,9 +329,8 @@ const tools: { [N in AgentToolName]: Impl<N> } = {
   },
 
   async start_campaign(ctx, { campaign_id }) {
-    // Paywall: the person who created the API key must have paid.
-    const { data: key } = ctx.apiKeyId ? await db().from("api_keys").select("created_by").eq("id", ctx.apiKeyId).maybeSingle() : { data: null };
-    if (!(await isUserPaid(key?.created_by))) fail(`${UPGRADE_MESSAGE} (the account that created this API key hasn't upgraded).`);
+    const blocked = await sendBlockedMessage(ctx.orgId);
+    if (blocked) fail(blocked);
     const r = await startCampaignFor(ctx.orgId, campaign_id);
     if (!r.ok) fail(r.problems?.length ? `${r.error} ${r.problems.join(" ")}` : r.error);
     return r;

@@ -258,6 +258,30 @@ const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "billing",
+    title: "Plans and billing",
+    body: (
+      <>
+        <p>
+          Every new workspace starts with a <strong>free 7-day trial</strong> (up to 200 campaign emails) with everything unlocked, including the Claude
+          features. No card needed.
+        </p>
+        <ul>
+          <li>
+            <strong>Standard: £20/month</strong> (or £200/year): everything except the Claude features.
+          </li>
+          <li>
+            <strong>Pro: £25/month</strong> (or £250/year): everything, plus connecting your own Claude (Anthropic) key and the AI agent.
+          </li>
+        </ul>
+        <p>
+          Choose or change a plan under <strong>Billing</strong>. Payments are handled by Stripe, and your plan switches on within seconds. If the trial ends
+          or a payment fails, sending pauses but nothing is deleted: pick a plan and it carries on where it left off.
+        </p>
+      </>
+    ),
+  },
+  {
     id: "team",
     title: "Team and roles",
     body: (

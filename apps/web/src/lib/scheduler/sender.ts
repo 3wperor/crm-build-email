@@ -90,6 +90,12 @@ export async function attemptSend(orgId: string, sendId: string, now = new Date(
   if (!reservation.ok) {
     if (reservation.reason === "pacing" && reservation.retry_at) return { kind: "wait", until: reservation.retry_at, reason: "pacing" };
     if (reservation.reason === "not_scheduled") return { kind: "done", outcome: "skipped", detail: "not scheduled" };
+    if (reservation.reason === "plan") {
+      // Trial over / no plan: hold. The planner skips this workspace until it pays, then re-plans.
+      await cancel(admin, sendId, "plan");
+      await setEnrollment(admin, s.campaign_lead_id, { next_send_at: now.toISOString() });
+      return { kind: "done", outcome: "held", detail: "plan" };
+    }
     // A daily cap is full: this lead goes out tomorrow.
     await cancel(admin, sendId, reservation.reason ?? "cap");
     await setEnrollment(admin, s.campaign_lead_id, { next_send_at: nextDayWindowOpening(now, window).toISOString() });

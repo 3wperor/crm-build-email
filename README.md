@@ -408,6 +408,29 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 - Disconnecting removes the token and links. Nothing is ever deleted in HubSpot.
 - Local tests point `HUBSPOT_API_BASE` at a fake HubSpot; this is ignored in production.
 
+### Plans and billing
+
+**Plans** belong to the **workspace** (`organizations.plan`): `trial`, `standard`, `pro` or `expired`.
+
+**Trial:**
+- A new workspace gets a **7-day / 200-email trial** with everything unlocked, Pro included, and no card needed.
+- Trial emails are reserved campaign sends.
+
+**When sending stops:**
+- When the trial ends, or a subscription is cancelled or a payment fails, the plan becomes `expired` and sending pauses. All data is kept.
+- The rule lives in one place, `private.send_block_reason`. It is enforced in `reserve_send_slot` and `reserve_warmup_slot` (atomically, at the moment of sending), by the planners, by test emails, and by "Start campaign".
+
+**What Pro adds:**
+- The AI agent (MCP).
+- Coming next: the customer's own Anthropic key, and Claude writing and replying.
+
+**Stripe, with no SDK:**
+- `/billing` opens Stripe-hosted Checkout (monthly or yearly), or the billing portal once subscribed.
+- `POST /api/stripe/webhook` verifies the `Stripe-Signature` header. For every relevant event it re-reads the subscription from Stripe and applies it with `apply_stripe_subscription`, so retries and out-of-order events are harmless.
+- Subscribe to these events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`.
+
+**Manual override:** `pnpm activate-user <owner-email> [pro|standard|trial|expired]`. It uses the service-role key, from your machine only.
+
 ## Roadmap
 
 1. ✅ Scaffold: monorepo, auth, orgs and memberships, schema + RLS, base layout, kill switch, audit log

@@ -1084,6 +1084,15 @@ export type Database = {
           updated_at: string
           auto_verify_imports: boolean
           ai_classification_enabled: boolean
+          plan: string
+          trial_ends_at: string
+          trial_email_limit: number
+          billing_interval: string | null
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          current_period_end: string | null
+          cancel_at_period_end: boolean
         }
         Insert: {
           id?: string
@@ -1099,6 +1108,15 @@ export type Database = {
           updated_at?: string
           auto_verify_imports?: boolean
           ai_classification_enabled?: boolean
+          plan?: string
+          trial_ends_at?: string
+          trial_email_limit?: number
+          billing_interval?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
         }
         Update: {
           id?: string
@@ -1114,6 +1132,15 @@ export type Database = {
           updated_at?: string
           auto_verify_imports?: boolean
           ai_classification_enabled?: boolean
+          plan?: string
+          trial_ends_at?: string
+          trial_email_limit?: number
+          billing_interval?: string | null
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          current_period_end?: string | null
+          cancel_at_period_end?: boolean
         }
         Relationships: []
       }
@@ -1720,7 +1747,6 @@ export type Database = {
           full_name: string | null
           created_at: string
           updated_at: string
-          is_paid: boolean
         }
         Insert: {
           id: string
@@ -1728,7 +1754,6 @@ export type Database = {
           full_name?: string | null
           created_at?: string
           updated_at?: string
-          is_paid?: boolean
         }
         Update: {
           id?: string
@@ -1736,7 +1761,6 @@ export type Database = {
           full_name?: string | null
           created_at?: string
           updated_at?: string
-          is_paid?: boolean
         }
         Relationships: []
       }
@@ -2022,6 +2046,19 @@ export type Database = {
         }
         Returns: string
       }
+      apply_stripe_subscription: {
+        Args: {
+          p_org_id: string
+          p_customer_id: string
+          p_subscription_id: string
+          p_status: string
+          p_plan: string
+          p_interval: string
+          p_period_end: string
+          p_cancel_at_end: boolean
+        }
+        Returns: string
+      }
       apply_verification_results: {
         Args: {
           p_org_id: string
@@ -2029,6 +2066,12 @@ export type Database = {
           p_results: Json
         }
         Returns: number
+      }
+      billing_status: {
+        Args: {
+          p_org_id: string
+        }
+        Returns: Json
       }
       claim_leads_for_verification: {
         Args: {

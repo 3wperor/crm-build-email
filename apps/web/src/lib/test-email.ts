@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { TEST_EMAILS_PER_HOUR, buildTestEmail, isValidEmailSyntax, normalizeEmail, type MergeLead } from "@crm/core";
 import { createMailAdapter } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendBlockedMessage } from "@/lib/billing";
 import { publicEnv } from "@/lib/env";
 import { newMessageId } from "@/lib/scheduler/config";
 import { ACCOUNT_CONNECTION_COLUMNS, loadAccountPassword, mailAdapterOptions, toMailConfig } from "@/lib/sending-accounts";
@@ -60,6 +61,12 @@ export async function sendTestEmail(input: TestEmailInput): Promise<TestEmailRes
   if (org.sending_paused) {
     await log("blocked", input.subject, "sending_paused");
     return { ok: false, error: "All sending is paused (kill switch). Resume sending to send tests." };
+  }
+
+  const planBlock = await sendBlockedMessage(input.orgId);
+  if (planBlock) {
+    await log("blocked", input.subject, "plan");
+    return { ok: false, error: planBlock };
   }
 
   const since = new Date(Date.now() - 60 * 60_000).toISOString();

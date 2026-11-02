@@ -6,6 +6,8 @@ import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateApiKey } from "@/lib/agent/keys";
+import { getBillingStatus } from "@/lib/billing";
+import { hasProAccess } from "@crm/core/billing";
 import { executeApproval } from "@/lib/agent/run";
 
 export type KeyState = { error?: string; key?: string; name?: string } | undefined;
@@ -13,6 +15,7 @@ export type KeyState = { error?: string; key?: string; name?: string } | undefin
 export async function createApiKey(_prev: KeyState, formData: FormData): Promise<KeyState> {
   const ctx = await getOrgContext();
   if (!can(ctx.role, "api_keys.manage")) return { error: "Only owners and admins can create API keys." };
+  if (!hasProAccess(await getBillingStatus(ctx.org.id))) return { error: "The AI agent is part of the Pro plan. Upgrade under Billing." };
   const name = String(formData.get("name") ?? "").trim();
   if (!name || name.length > 100) return { error: "Give the key a name (1–100 characters)." };
   const { key, prefix, hash } = generateApiKey();

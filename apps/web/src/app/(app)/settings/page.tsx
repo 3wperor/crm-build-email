@@ -26,6 +26,9 @@ export default async function SettingsPage() {
         title="Settings"
         actions={
           <div className="flex gap-4">
+            <Link href="/billing" className="text-sm underline underline-offset-4">
+              Billing
+            </Link>
             <Link href="/settings/integrations" className="text-sm underline underline-offset-4">
               Integrations
             </Link>

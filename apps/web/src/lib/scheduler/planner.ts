@@ -1,4 +1,5 @@
 import "server-only";
+import { blockedOrgIds } from "@/lib/billing";
 import { randomUUID } from "node:crypto";
 import {
   buildEmail,
@@ -26,14 +27,17 @@ export async function planAll(now = new Date()): Promise<{ campaigns: number; re
   const admin = createAdminClient();
   const { data: campaigns, error } = await admin
     .from("campaigns")
-    .select("id, organizations!inner(sending_paused)")
+    .select("id, org_id, organizations!inner(sending_paused)")
     .eq("status", "active")
     .eq("organizations.sending_paused", false)
     .limit(200);
   if (error) throw new Error(error.message);
 
+  // No plan / trial over: nothing is planned (the sender also refuses, atomically).
+  const blocked = await blockedOrgIds((campaigns ?? []).map((c) => c.org_id));
   const requests: SendRequest[] = [];
   for (const c of campaigns ?? []) {
+    if (blocked.has(c.org_id)) continue;
     requests.push(...(await planCampaign(admin, c.id, now)));
   }
   return { campaigns: campaigns?.length ?? 0, requests };

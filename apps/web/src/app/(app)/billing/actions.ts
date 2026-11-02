@@ -1,0 +1,50 @@
+"use server";
+
+import { can } from "@crm/core";
+import type { BillingInterval, PaidPlan } from "@crm/core/billing";
+import { getOrgContext } from "@/lib/org";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createCheckoutUrl, createPortalUrl } from "@/lib/billing";
+
+export type BillingResult = { url?: string; error?: string };
+
+async function billingContext() {
+  const ctx = await getOrgContext();
+  if (!can(ctx.role, "org.update")) return { ctx: null, error: "Only the workspace owner or an admin can manage billing." } as const;
+  const { data: org } = await createAdminClient()
+    .from("organizations")
+    .select("plan, stripe_customer_id, subscription_status")
+    .eq("id", ctx.org.id)
+    .single();
+  return { ctx, org } as const;
+}
+
+/** Stripe-hosted checkout for a plan; the browser then goes to the returned URL. */
+export async function startCheckout(plan: PaidPlan, interval: BillingInterval): Promise<BillingResult> {
+  if (!["standard", "pro"].includes(plan) || !["month", "year"].includes(interval)) return { error: "Unknown plan." };
+  const b = await billingContext();
+  if (!b.ctx) return { error: b.error };
+  // Already subscribed: changes go through the billing portal so nobody pays twice.
+  if (b.org?.stripe_customer_id && ["active", "trialing", "past_due"].includes(b.org.subscription_status ?? "")) {
+    return { url: await createPortalUrl(b.org.stripe_customer_id) };
+  }
+  try {
+    return { url: await createCheckoutUrl({ orgId: b.ctx.org.id, email: b.ctx.user.email, customerId: b.org?.stripe_customer_id ?? null, plan, interval }) };
+  } catch (e) {
+    console.error("checkout failed", e);
+    return { error: "Couldn't open checkout. Please try again in a minute." };
+  }
+}
+
+/** Stripe's billing portal: switch plan, update card, download invoices, cancel. */
+export async function openBillingPortal(): Promise<BillingResult> {
+  const b = await billingContext();
+  if (!b.ctx) return { error: b.error };
+  if (!b.org?.stripe_customer_id) return { error: "No subscription yet. Choose a plan first." };
+  try {
+    return { url: await createPortalUrl(b.org.stripe_customer_id) };
+  } catch (e) {
+    console.error("portal failed", e);
+    return { error: "Couldn't open the billing portal. Please try again in a minute." };
+  }
+}

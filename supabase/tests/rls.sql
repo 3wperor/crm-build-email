@@ -796,12 +796,46 @@ select pg_temp.expect_eq((select count(*) from public.crm_connections) + (select
 reset role;
 select pg_temp.expect_eq((select count(*) from public.opportunities where updated_at is null), 0, 'crm: opportunities carry updated_at');
 
--- Paywall: users can read but never set their own is_paid.
+-- Billing: plans per workspace -------------------------------------------------
+select pg_temp.expect_eq((select count(*) from public.organizations where id = current_setting('test.org_a')::uuid and plan = 'trial'
+    and trial_ends_at > now() + interval '6 days' and trial_email_limit = 200), 1, 'billing: new workspaces start a 7-day / 200-email trial');
 set local role authenticated;
-select pg_temp.login('10000000-0000-4000-8000-00000000000a');
-select pg_temp.expect_eq((select count(*) from public.users where id = '10000000-0000-4000-8000-00000000000a' and not is_paid), 1, 'paywall: new users are unpaid and can read the flag');
-select pg_temp.expect_error($q$update public.users set is_paid = true where id = '10000000-0000-4000-8000-00000000000a'$q$, '42501', 'paywall: users cannot mark themselves paid');
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- owner
+select pg_temp.expect_error(format($q$update public.organizations set plan = 'pro' where id = %L$q$, current_setting('test.org_a')), '42501', 'billing: owners cannot set their own plan');
+select pg_temp.expect_error(format($q$update public.organizations set trial_ends_at = now() + interval '1 year' where id = %L$q$, current_setting('test.org_a')), '42501', 'billing: nor extend the trial');
+select pg_temp.expect_eq(((public.billing_status(current_setting('test.org_a')::uuid)) ->> 'plan' = 'trial')::int, 1, 'billing: members read their billing status');
+select pg_temp.expect_error(format('select public.apply_stripe_subscription(%L, %L, %L, %L, %L, %L, now(), false)', current_setting('test.org_a'), 'cus_1', 'sub_1', 'active', 'pro', 'month'), '42501', 'billing: only the webhook (service role) applies subscriptions');
+select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
+select pg_temp.expect_error(format('select public.billing_status(%L)', current_setting('test.org_a')), '42501', 'billing: other orgs cannot read it');
 reset role;
+
+-- Trial over → sending slots refused with reason plan; paying unblocks.
+update public.organizations set trial_ends_at = now() - interval '1 minute' where id = current_setting('test.org_a')::uuid;
+insert into public.leads (org_id, email) values (current_setting('test.org_a')::uuid, 'billing@bill.example');
+insert into public.campaign_leads (org_id, campaign_id, lead_id, status)
+select org_id, current_setting('test.camp')::uuid, id, 'active' from public.leads where email = 'billing@bill.example';
+insert into public.sends (org_id, campaign_id, campaign_lead_id, lead_id, sending_account_id, status, message_id)
+select cl.org_id, cl.campaign_id, cl.id, cl.lead_id, current_setting('test.acct')::uuid, 'scheduled', '<bill@x>'
+  from public.campaign_leads cl join public.leads l on l.id = cl.lead_id where l.email = 'billing@bill.example';
+update public.sending_accounts set next_available_at = null, daily_cap = 100 where id = current_setting('test.acct')::uuid;
+update public.campaigns set daily_limit = 100, daily_limit_per_inbox = 100 where id = current_setting('test.camp')::uuid;
+select set_config('test.bill_send', (select id::text from public.sends where message_id = '<bill@x>'), true);
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.bill_send')::uuid, 0, 0)) ->> 'detail' = 'trial_ended')::int, 1,
+  'billing: trial over → the sender refuses the slot');
+update public.organizations set trial_ends_at = now() + interval '1 day', trial_email_limit = 0 where id = current_setting('test.org_a')::uuid;
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.bill_send')::uuid, 0, 0)) ->> 'detail' = 'trial_limit')::int, 1,
+  'billing: trial email allowance used up → refused');
+select pg_temp.expect_eq((public.apply_stripe_subscription(current_setting('test.org_a')::uuid, 'cus_1', 'sub_1', 'active', 'standard', 'month', now() + interval '30 days', false) = 'standard')::int, 1,
+  'billing: an active subscription sets the plan');
+select pg_temp.expect_eq(((public.reserve_send_slot(current_setting('test.org_a')::uuid, current_setting('test.bill_send')::uuid, 0, 0)) ->> 'ok')::boolean::int, 1,
+  'billing: paid plan → sending allowed again');
+select pg_temp.expect_eq((public.apply_stripe_subscription(current_setting('test.org_a')::uuid, 'cus_1', 'sub_old', 'canceled', 'standard', 'month', now(), false) = 'ignored_old_subscription')::int, 1,
+  'billing: a replaced subscription ending does not downgrade');
+select public.apply_stripe_subscription(current_setting('test.org_a')::uuid, 'cus_1', 'sub_1', 'past_due', 'pro', 'year', now(), false);
+select pg_temp.expect_eq((select (plan = 'expired' and subscription_status = 'past_due')::int from public.organizations where id = current_setting('test.org_a')::uuid), 1,
+  'billing: failed payment → expired (sending pauses), data kept');
+select pg_temp.expect_eq((select count(*) from public.agent_audit_log where actor = 'system:stripe'), 2, 'billing: plan changes are audited');
+update public.organizations set plan = 'trial', trial_ends_at = now() + interval '7 days', trial_email_limit = 200, stripe_subscription_id = null where id = current_setting('test.org_a')::uuid;
 
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;

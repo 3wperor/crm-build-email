@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { decideApproval, revokeApiKey } from "./actions";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { getBillingStatus } from "@/lib/billing";
+import { hasProAccess } from "@crm/core/billing";
 import { CreateKeyForm } from "./key-form";
 
 export const metadata = { title: "AI agent" };
@@ -18,6 +21,8 @@ export default async function AgentSettingsPage() {
   const supabase = await createClient();
   const canKeys = can(role, "api_keys.manage");
   const canDecide = can(role, "campaigns.write");
+  const billing = await getBillingStatus(org.id);
+  const pro = hasProAccess(billing);
   const [{ data: keys }, { data: approvals }] = await Promise.all([
     canKeys ? supabase.from("api_keys").select("id, name, prefix, created_at, last_used_at, revoked_at").eq("org_id", org.id).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
     supabase
@@ -127,7 +132,20 @@ export default async function AgentSettingsPage() {
           </CardContent>
         </Card>
 
-        {canKeys && (
+        {!pro && (
+          <Alert data-testid="agent-pro-only">
+            <AlertDescription>
+              <span>
+                The AI agent is part of the <strong>Pro</strong> plan.{" "}
+                <Link href="/billing" className="font-medium underline underline-offset-4">
+                  Upgrade to Pro
+                </Link>{" "}
+                to connect Claude.
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
+        {canKeys && pro && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">API keys</CardTitle>

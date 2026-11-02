@@ -19,7 +19,8 @@ import { FileUp } from "lucide-react";
 import { PasteLeadsForm } from "@/components/leads/paste-leads-form";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 import { LifecycleButtons } from "./lifecycle-buttons";
-import { isCurrentUserPaid, upgradeUrl } from "@/lib/billing";
+import { getBillingStatus } from "@/lib/billing";
+import { blockMessage } from "@crm/core/billing";
 import { SequenceEditor } from "./sequence-editor";
 import { CampaignSettingsForm } from "./settings-form";
 import { ResultsTab } from "./results-tab";
@@ -49,7 +50,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
   const { org, role, user } = await getOrgContext();
   const supabase = await createClient();
   const canEdit = can(role, "campaigns.write");
-  const paid = await isCurrentUserPaid(user.id);
+  const sendBlock = blockMessage((await getBillingStatus(org.id)).block);
 
   const { data: c } = await supabase
     .from("campaigns")
@@ -146,12 +147,24 @@ export default async function CampaignPage({ params, searchParams }: { params: P
             {c.name} <CampaignStatusBadge status={c.status} />
           </h1>
         </div>
-        <LifecycleButtons campaignId={c.id} status={c.status} canEdit={canEdit} paid={paid} upgradeUrl={upgradeUrl(user)} />
+        <LifecycleButtons campaignId={c.id} status={c.status} canEdit={canEdit} blocked={sendBlock} />
       </div>
 
       {c.last_error && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription>{c.last_error}</AlertDescription>
+        </Alert>
+      )}
+      {sendBlock && c.status === "active" && (
+        <Alert variant="destructive" className="mb-4" data-testid="plan-paused">
+          <AlertDescription>
+            <span>
+              Sending is paused: {sendBlock}{" "}
+              <Link href="/billing" className="font-medium underline underline-offset-4">
+                Choose a plan
+              </Link>
+            </span>
+          </AlertDescription>
         </Alert>
       )}
       {org.sending_paused && c.status === "active" && (

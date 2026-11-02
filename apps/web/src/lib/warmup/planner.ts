@@ -1,4 +1,5 @@
 import "server-only";
+import { blockedOrgIds } from "@/lib/billing";
 import { randomUUID } from "node:crypto";
 import { composeWarmupEmail, pickWarmupPeer, warmupDay, warmupDueNow, warmupHealth, warmupQuota, zonedParts } from "@crm/core";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -41,6 +42,7 @@ export async function planWarmup(now = new Date()): Promise<{ planned: PlannedWa
   const byOrg = new Map<string, PoolAccount[]>();
   for (const a of (data ?? []) as unknown as PoolAccount[]) byOrg.set(a.org_id, [...(byOrg.get(a.org_id) ?? []), a]);
 
+  const blocked = await blockedOrgIds([...byOrg.keys()]);
   const planned: PlannedWarmup[] = [];
   const paused: string[] = [];
   for (const [orgId, accounts] of byOrg) {
@@ -58,7 +60,7 @@ export async function planWarmup(now = new Date()): Promise<{ planned: PlannedWa
         paused.push(a.id);
       } else healthy.push(a);
     }
-    if (healthy.length < 2 || accounts[0]!.organizations.sending_paused) continue;
+    if (healthy.length < 2 || accounts[0]!.organizations.sending_paused || blocked.has(orgId)) continue;
 
     for (const a of healthy) {
       const tz = a.timezone ?? a.organizations.default_timezone;

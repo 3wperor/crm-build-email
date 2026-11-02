@@ -7,13 +7,13 @@ import { KillSwitch } from "@/components/kill-switch";
 import { Badge } from "@/components/ui/badge";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/navigation-progress";
-import { UpgradeButton } from "@/components/upgrade-button";
-import { isCurrentUserPaid, upgradeUrl } from "@/lib/billing";
+import { PlanBadge } from "@/components/plan-badge";
+import { getBillingStatus } from "@/lib/billing";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getOrgContext();
   const { org, role, user } = ctx;
-  const paid = await isCurrentUserPaid(user.id);
+  const billing = await getBillingStatus(org.id);
 
   return (
     <div className="flex min-h-screen">
@@ -51,7 +51,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {org.approval_mode === "draft" && <Badge variant="outline">Agent: draft-only</Badge>}
           </div>
           <div className="flex items-center gap-2">
-            {!paid && <UpgradeButton href={upgradeUrl(user)} />}
+            <PlanBadge status={billing} />
             <KillSwitch
             paused={org.sending_paused}
             canPause={can(role, "sending.pause")}

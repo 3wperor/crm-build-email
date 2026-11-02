@@ -14,9 +14,10 @@ import { createClient } from "@/lib/supabase/server";
 import { fieldErrors, formToObject, type FieldErrors } from "@/lib/forms";
 import { sendTestEmail } from "@/lib/test-email";
 import { pauseCampaignFor, startCampaignFor } from "@/lib/campaigns/lifecycle";
+import { UPGRADE_MESSAGE, isCurrentUserPaid, upgradeUrl } from "@/lib/billing";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 
-export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[] } | undefined;
+export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[]; upgradeUrl?: string | null } | undefined;
 
 const FORBIDDEN = { error: "You don't have permission to change campaigns." };
 
@@ -288,6 +289,8 @@ export async function enrollLeads(_prev: CampaignState, formData: FormData): Pro
 export async function startCampaign(_prev: CampaignState, formData: FormData): Promise<CampaignState> {
   const ctx = await requireWriter();
   if (!ctx) return FORBIDDEN;
+  // Paywall: enforced here on the server, whatever the UI shows.
+  if (!(await isCurrentUserPaid(ctx.user.id))) return { error: UPGRADE_MESSAGE, upgradeUrl: upgradeUrl(ctx.user) };
   const id = String(formData.get("campaign_id"));
   const r = await startCampaignFor(ctx.org.id, id);
   if (!r.ok) return { error: r.error, problems: r.problems };

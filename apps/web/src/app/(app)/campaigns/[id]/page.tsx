@@ -19,6 +19,7 @@ import { FileUp } from "lucide-react";
 import { PasteLeadsForm } from "@/components/leads/paste-leads-form";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 import { LifecycleButtons } from "./lifecycle-buttons";
+import { isCurrentUserPaid, upgradeUrl } from "@/lib/billing";
 import { SequenceEditor } from "./sequence-editor";
 import { CampaignSettingsForm } from "./settings-form";
 import { ResultsTab } from "./results-tab";
@@ -48,6 +49,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
   const { org, role, user } = await getOrgContext();
   const supabase = await createClient();
   const canEdit = can(role, "campaigns.write");
+  const paid = await isCurrentUserPaid(user.id);
 
   const { data: c } = await supabase
     .from("campaigns")
@@ -144,7 +146,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
             {c.name} <CampaignStatusBadge status={c.status} />
           </h1>
         </div>
-        <LifecycleButtons campaignId={c.id} status={c.status} canEdit={canEdit} />
+        <LifecycleButtons campaignId={c.id} status={c.status} canEdit={canEdit} paid={paid} upgradeUrl={upgradeUrl(user)} />
       </div>
 
       {c.last_error && (

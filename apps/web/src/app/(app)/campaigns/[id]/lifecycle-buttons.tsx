@@ -4,9 +4,22 @@ import { useActionState } from "react";
 import { Pause, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { UpgradeButton } from "@/components/upgrade-button";
 import { pauseCampaign, startCampaign } from "../actions";
 
-export function LifecycleButtons({ campaignId, status, canEdit }: { campaignId: string; status: string; canEdit: boolean }) {
+export function LifecycleButtons({
+  campaignId,
+  status,
+  canEdit,
+  paid,
+  upgradeUrl,
+}: {
+  campaignId: string;
+  status: string;
+  canEdit: boolean;
+  paid: boolean;
+  upgradeUrl: string | null;
+}) {
   const [startState, start, starting] = useActionState(startCampaign, undefined);
   const [pauseState, pause, pausing] = useActionState(pauseCampaign, undefined);
   const state = startState?.error || startState?.message ? startState : pauseState;
@@ -22,19 +35,31 @@ export function LifecycleButtons({ campaignId, status, canEdit }: { campaignId: 
             </Button>
           </form>
         ) : (
-          (status === "draft" || status === "paused") && (
+          (status === "draft" || status === "paused") &&
+          (!paid ? (
+            // Display only: the server action refuses unpaid users too.
+            <div className="flex items-center gap-3" data-testid="paywall">
+              <span className="text-sm font-medium">Upgrade to start sending campaigns</span>
+              <UpgradeButton href={upgradeUrl} size="default" />
+            </div>
+          ) : (
             <form action={start}>
               <input type="hidden" name="campaign_id" value={campaignId} />
               <Button disabled={starting}>
                 <Play /> {status === "paused" ? "Resume" : "Start campaign"}
               </Button>
             </form>
-          )
+          ))
         )}
       </div>
       {state?.error && (
         <Alert variant="destructive" className="max-w-md text-left">
           <AlertTitle>{state.error}</AlertTitle>
+          {"upgradeUrl" in state && state.upgradeUrl && (
+            <div className="mt-2">
+              <UpgradeButton href={state.upgradeUrl} />
+            </div>
+          )}
           {state.problems && (
             <AlertDescription>
               <ul className="list-disc pl-4">

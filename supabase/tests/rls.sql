@@ -796,6 +796,13 @@ select pg_temp.expect_eq((select count(*) from public.crm_connections) + (select
 reset role;
 select pg_temp.expect_eq((select count(*) from public.opportunities where updated_at is null), 0, 'crm: opportunities carry updated_at');
 
+-- Paywall: users can read but never set their own is_paid.
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select pg_temp.expect_eq((select count(*) from public.users where id = '10000000-0000-4000-8000-00000000000a' and not is_paid), 1, 'paywall: new users are unpaid and can read the flag');
+select pg_temp.expect_error($q$update public.users set is_paid = true where id = '10000000-0000-4000-8000-00000000000a'$q$, '42501', 'paywall: users cannot mark themselves paid');
+reset role;
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

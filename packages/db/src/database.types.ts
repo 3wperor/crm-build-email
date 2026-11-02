@@ -1720,6 +1720,7 @@ export type Database = {
           full_name: string | null
           created_at: string
           updated_at: string
+          is_paid: boolean
         }
         Insert: {
           id: string
@@ -1727,6 +1728,7 @@ export type Database = {
           full_name?: string | null
           created_at?: string
           updated_at?: string
+          is_paid?: boolean
         }
         Update: {
           id?: string
@@ -1734,6 +1736,7 @@ export type Database = {
           full_name?: string | null
           created_at?: string
           updated_at?: string
+          is_paid?: boolean
         }
         Relationships: []
       }

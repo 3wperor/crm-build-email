@@ -8,6 +8,12 @@ import { createCheckoutUrl, createPortalUrl } from "@/lib/billing";
 
 export type BillingResult = { url?: string; error?: string };
 
+/** Stripe's own explanation (e.g. "No such price"), so setup problems are visible. Never contains the secret key. */
+function reason(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  return msg.replace(/sk_(test|live)_[A-Za-z0-9*]+/g, "sk_…").slice(0, 300);
+}
+
 async function billingContext() {
   const ctx = await getOrgContext();
   if (!can(ctx.role, "org.update")) return { ctx: null, error: "Only the workspace owner or an admin can manage billing." } as const;
@@ -32,7 +38,7 @@ export async function startCheckout(plan: PaidPlan, interval: BillingInterval): 
     return { url: await createCheckoutUrl({ orgId: b.ctx.org.id, email: b.ctx.user.email, customerId: b.org?.stripe_customer_id ?? null, plan, interval }) };
   } catch (e) {
     console.error("checkout failed", e);
-    return { error: "Couldn't open checkout. Please try again in a minute." };
+    return { error: `Couldn't open checkout: ${reason(e)}` };
   }
 }
 
@@ -45,6 +51,6 @@ export async function openBillingPortal(): Promise<BillingResult> {
     return { url: await createPortalUrl(b.org.stripe_customer_id) };
   } catch (e) {
     console.error("portal failed", e);
-    return { error: "Couldn't open the billing portal. Please try again in a minute." };
+    return { error: `Couldn't open the billing portal: ${reason(e)}` };
   }
 }

@@ -47,7 +47,12 @@ export default async function BillingPage() {
             <AlertDescription>Only the workspace owner or an admin can change the plan.</AlertDescription>
           </Alert>
         )}
-        <PlanPicker currentPlan={status.plan} canManage={canManage && stripeConfigured()} subscribed={subscribed} />
+        <PlanPicker
+          currentPlan={status.plan}
+          currentInterval={status.billing_interval}
+          canManage={canManage && stripeConfigured()}
+          subscribed={subscribed}
+        />
       </div>
     </>
   );

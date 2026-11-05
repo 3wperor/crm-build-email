@@ -11,19 +11,30 @@ type PaidPlan = "standard" | "pro";
 type Interval = "month" | "year";
 
 const PRICES: Record<PaidPlan, Record<Interval, number>> = { standard: { month: 20, year: 200 }, pro: { month: 25, year: 250 } };
-const FEATURES: { label: string; standard: boolean }[] = [
+// soon: shown as "coming soon" until step 2 (Claude features) ships.
+const FEATURES: { label: string; standard: boolean; soon?: boolean }[] = [
   { label: "Unlimited campaigns, follow-ups and A/B tests", standard: true },
   { label: "Your own inboxes, lead import (CSV/Excel) and verification", standard: true },
   { label: "Reply detection, pipeline, analytics, warmup", standard: true },
   { label: "HubSpot sync", standard: true },
-  { label: "Connect your own Claude (Anthropic) key", standard: false },
-  { label: "Claude writes your campaign emails", standard: false },
-  { label: "Claude reads replies and drafts answers for you", standard: false },
+  { label: "Connect your own Claude (Anthropic) key", standard: false, soon: true },
+  { label: "Claude writes your campaign emails", standard: false, soon: true },
+  { label: "Claude reads replies and drafts answers for you", standard: false, soon: true },
   { label: "AI agent: let Claude run campaigns for you", standard: false },
 ];
 
-export function PlanPicker({ currentPlan, canManage, subscribed }: { currentPlan: string; canManage: boolean; subscribed: boolean }) {
-  const [interval, setInterval] = useState<Interval>("month");
+export function PlanPicker({
+  currentPlan,
+  currentInterval,
+  canManage,
+  subscribed,
+}: {
+  currentPlan: string;
+  currentInterval: Interval | null;
+  canManage: boolean;
+  subscribed: boolean;
+}) {
+  const [interval, setInterval] = useState<Interval>(currentInterval ?? "month");
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +64,7 @@ export function PlanPicker({ currentPlan, canManage, subscribed }: { currentPlan
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {(["standard", "pro"] as const).map((plan) => {
-          const current = currentPlan === plan;
+          const current = currentPlan === plan && (currentInterval ?? "month") === interval;
           return (
             <Card key={plan} className={cn(plan === "pro" && "border-primary")} data-testid={`plan-${plan}`}>
               <CardHeader>
@@ -72,7 +83,10 @@ export function PlanPicker({ currentPlan, canManage, subscribed }: { currentPlan
                     return (
                       <li key={f.label} className={cn("flex items-start gap-2", !on && "text-muted-foreground")}>
                         {on ? <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" /> : <Minus className="mt-0.5 size-4 shrink-0" />}
-                        {f.label}
+                        <span>
+                          {f.label}
+                          {f.soon && plan === "pro" && <span className="text-muted-foreground ml-1 text-xs">(coming soon)</span>}
+                        </span>
                       </li>
                     );
                   })}
@@ -84,7 +98,11 @@ export function PlanPicker({ currentPlan, canManage, subscribed }: { currentPlan
                     </Button>
                   ) : (
                     <Button variant={plan === "pro" ? "default" : "outline"} disabled={pending} onClick={() => go(() => startCheckout(plan, interval))}>
-                      {pending ? "Opening…" : subscribed ? `Switch to ${plan === "pro" ? "Pro" : "Standard"}` : `Choose ${plan === "pro" ? "Pro" : "Standard"}`}
+                      {pending
+                        ? "Opening…"
+                        : subscribed
+                          ? `Switch to ${plan === "pro" ? "Pro" : "Standard"}${interval === "year" ? " (yearly)" : " (monthly)"}`
+                          : `Choose ${plan === "pro" ? "Pro" : "Standard"}`}
                     </Button>
                   ))}
               </CardContent>

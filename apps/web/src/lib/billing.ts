@@ -85,3 +85,27 @@ export async function createPortalUrl(customerId: string): Promise<string> {
   const session = await stripeRequest<{ url: string }>("POST", "/v1/billing_portal/sessions", { customer: customerId, return_url: `${publicEnv.appUrl}/billing` });
   return session.url;
 }
+
+/**
+ * Billing portal opened straight on "confirm switch to <price>" for an existing
+ * subscription (instead of the portal's home page). Stripe prorates the change.
+ * Needs "Switch plans" enabled in the portal settings with both products.
+ */
+export async function createSwitchPlanUrl(customerId: string, subscriptionId: string, priceId: string): Promise<string> {
+  const sub = await stripeRequest<{ items: { data: { id: string; price: { id: string } }[] } }>("GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
+  const item = sub.items.data[0];
+  if (!item) throw new Error("Subscription has no items");
+  if (item.price.id === priceId) return createPortalUrl(customerId);
+  const session = await stripeRequest<{ url: string }>("POST", "/v1/billing_portal/sessions", {
+    customer: customerId,
+    return_url: `${publicEnv.appUrl}/billing`,
+    "flow_data[type]": "subscription_update_confirm",
+    "flow_data[subscription_update_confirm][subscription]": subscriptionId,
+    "flow_data[subscription_update_confirm][items][0][id]": item.id,
+    "flow_data[subscription_update_confirm][items][0][price]": priceId,
+    "flow_data[subscription_update_confirm][items][0][quantity]": "1",
+    "flow_data[after_completion][type]": "redirect",
+    "flow_data[after_completion][redirect][return_url]": `${publicEnv.appUrl}/billing?switched=1`,
+  });
+  return session.url;
+}

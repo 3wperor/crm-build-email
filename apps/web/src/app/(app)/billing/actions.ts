@@ -4,7 +4,7 @@ import { can } from "@crm/core";
 import type { BillingInterval, PaidPlan } from "@crm/core/billing";
 import { getOrgContext } from "@/lib/org";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createCheckoutUrl, createPortalUrl } from "@/lib/billing";
+import { createCheckoutUrl, createPortalUrl, createSwitchPlanUrl, priceIdFor } from "@/lib/billing";
 
 export type BillingResult = { url?: string; error?: string };
 
@@ -19,7 +19,7 @@ async function billingContext() {
   if (!can(ctx.role, "org.update")) return { ctx: null, error: "Only the workspace owner or an admin can manage billing." } as const;
   const { data: org } = await createAdminClient()
     .from("organizations")
-    .select("plan, stripe_customer_id, subscription_status")
+    .select("plan, stripe_customer_id, stripe_subscription_id, subscription_status")
     .eq("id", ctx.org.id)
     .single();
   return { ctx, org } as const;
@@ -30,11 +30,13 @@ export async function startCheckout(plan: PaidPlan, interval: BillingInterval): 
   if (!["standard", "pro"].includes(plan) || !["month", "year"].includes(interval)) return { error: "Unknown plan." };
   const b = await billingContext();
   if (!b.ctx) return { error: b.error };
-  // Already subscribed: changes go through the billing portal so nobody pays twice.
-  if (b.org?.stripe_customer_id && ["active", "trialing", "past_due"].includes(b.org.subscription_status ?? "")) {
-    return { url: await createPortalUrl(b.org.stripe_customer_id) };
-  }
   try {
+    // Already subscribed: switch the existing subscription (Stripe's confirm screen), never a second one.
+    if (b.org?.stripe_customer_id && b.org.stripe_subscription_id && ["active", "trialing", "past_due"].includes(b.org.subscription_status ?? "")) {
+      const price = priceIdFor(plan, interval);
+      if (!price) throw new Error(`No Stripe price configured for ${plan} (${interval}ly)`);
+      return { url: await createSwitchPlanUrl(b.org.stripe_customer_id, b.org.stripe_subscription_id, price) };
+    }
     return { url: await createCheckoutUrl({ orgId: b.ctx.org.id, email: b.ctx.user.email, customerId: b.org?.stripe_customer_id ?? null, plan, interval }) };
   } catch (e) {
     console.error("checkout failed", e);

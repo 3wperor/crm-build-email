@@ -26,6 +26,8 @@ type Props = {
   testOptions: TestOptions;
   /** "on" = AI can write, "upgrade" = plan without AI, "off" = not set up. */
   ai?: "on" | "upgrade" | "off";
+  /** Pre-fill from the welcome questions. */
+  aiDefaults?: { offer: string; audience: string };
 };
 
 export function SequenceEditor(props: Props) {
@@ -33,7 +35,7 @@ export function SequenceEditor(props: Props) {
   return (
     <div className="grid gap-4">
       {props.canEdit && props.ai && props.ai !== "off" && (
-        <WriteWithAi campaignId={props.campaignId} ai={props.ai} locked={props.structureLocked} hasContent={props.steps.some((s) => s.variants.some((v) => v.body.trim()))} />
+        <WriteWithAi campaignId={props.campaignId} ai={props.ai} defaults={props.aiDefaults} locked={props.structureLocked} hasContent={props.steps.some((s) => s.variants.some((v) => v.body.trim()))} />
       )}
       <p className="text-muted-foreground text-sm">
         Merge tags:{" "}
@@ -59,7 +61,19 @@ export function SequenceEditor(props: Props) {
   );
 }
 
-function WriteWithAi({ campaignId, ai, locked, hasContent }: { campaignId: string; ai: "on" | "upgrade"; locked: boolean; hasContent: boolean }) {
+function WriteWithAi({
+  campaignId,
+  ai,
+  locked,
+  hasContent,
+  defaults,
+}: {
+  campaignId: string;
+  ai: "on" | "upgrade";
+  locked: boolean;
+  hasContent: boolean;
+  defaults?: { offer: string; audience: string };
+}) {
   const [state, action, pending] = useActionState(writeSequenceWithAi, undefined);
   const [open, setOpen] = useState(!hasContent);
   if (ai === "upgrade") {
@@ -112,13 +126,14 @@ function WriteWithAi({ campaignId, ai, locked, hasContent }: { campaignId: strin
                 minLength={10}
                 maxLength={2000}
                 rows={3}
+                defaultValue={defaults?.offer}
                 placeholder="e.g. We build fast websites for dental practices in Leeds. Most go live in 2 weeks and bring in more bookings."
                 className="border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
               />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="ai-audience">Who are you emailing?</Label>
-              <Input id="ai-audience" name="audience" maxLength={500} placeholder="e.g. Practice owners and managers" />
+              <Input id="ai-audience" name="audience" maxLength={500} defaultValue={defaults?.audience} placeholder="e.g. Practice owners and managers" />
             </div>
             <div className="flex flex-wrap gap-3">
               <div className="grid gap-1.5">

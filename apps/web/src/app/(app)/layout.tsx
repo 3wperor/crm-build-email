@@ -9,6 +9,9 @@ import { Suspense } from "react";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { PlanBadge } from "@/components/plan-badge";
 import { getBillingStatus } from "@/lib/billing";
+import Link from "next/link";
+import { billingBanner } from "@crm/core/onboarding";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +27,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .is("handled_at", null)
       .in("classification", ["positive", "neutral"]),
   ]);
+
+  const banner = billingBanner(billing);
 
   return (
     <div className="flex min-h-screen">
@@ -70,6 +75,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
+        {banner && (
+          <div
+            data-testid="billing-banner"
+            className={cn(
+              "flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-6 py-2 text-sm",
+              banner.tone === "danger" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-800 dark:text-amber-300",
+            )}
+          >
+            <span>{banner.message}</span>
+            <Link href="/billing" className="font-medium underline underline-offset-4">
+              {banner.cta}
+            </Link>
+          </div>
+        )}
         {org.sending_paused && (
           <div className="bg-destructive/10 text-destructive flex items-center gap-2 border-b px-6 py-2 text-sm">
             <AlertTriangle className="size-4" />

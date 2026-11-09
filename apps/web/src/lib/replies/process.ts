@@ -90,7 +90,7 @@ export async function processMessage(
     }
   }
   // Our own test emails never count as replies.
-  if (headers["x-ycareach-test"]) return "ignored_internal";
+  if (headers["x-ycareach-test"] || headers["x-ycareach-system"]) return "ignored_internal";
   if (!from || from.address === account.email) return "ignored_own";
 
   // --- Bounces (DSN) -------------------------------------------------------------

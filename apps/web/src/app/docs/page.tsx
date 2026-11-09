@@ -21,7 +21,7 @@ const SECTIONS: Section[] = [
             <strong>Add leads</strong>: upload a CSV or Excel file, or paste them in.
           </li>
           <li>
-            <strong>Create a campaign</strong>: write the first email and a follow-up or two.
+            <strong>Create a campaign</strong>: write the first email and a follow-up or two, or click &ldquo;Write with AI&rdquo; (Pro and trial).
           </li>
           <li>
             <strong>Send yourself a test email</strong> to check how it looks.
@@ -30,6 +30,7 @@ const SECTIONS: Section[] = [
             <strong>Add leads to the campaign and press Start.</strong> Replies show up under Replies and in the Pipeline.
           </li>
         </ol>
+        <p>The Dashboard has a &ldquo;Get started&rdquo; checklist that ticks these off as you go, with a button for each step.</p>
       </>
     ),
   },
@@ -313,7 +314,8 @@ const SECTIONS: Section[] = [
         </ul>
         <p>
           Choose or change a plan under <strong>Billing</strong>. Payments are handled by Stripe, and your plan switches on within seconds. If the trial ends
-          or a payment fails, sending pauses but nothing is deleted: pick a plan and it carries on where it left off.
+          or a payment fails, sending pauses but nothing is deleted: pick a plan and it carries on where it left off. We&apos;ll email the workspace owner 2 days
+          before the trial ends, and if a payment doesn&apos;t go through.
         </p>
       </>
     ),

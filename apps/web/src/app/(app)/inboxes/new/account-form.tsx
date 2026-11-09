@@ -21,9 +21,63 @@ const PROVIDERS: { id: Provider | "outlook"; label: string; description: string;
   { id: "outlook", label: "Microsoft 365 / Outlook", description: "Coming later", disabled: true },
 ];
 
-export function AccountForm() {
+function SetupGuide({ provider, answer }: { provider: Provider; answer: string | null }) {
+  if (provider === "google") {
+    return (
+      <details open className="bg-muted/40 rounded-md border p-4 text-sm" data-testid="setup-guide">
+        <summary className="cursor-pointer font-medium">Step by step: connect Gmail or Google Workspace (about 2 minutes)</summary>
+        <ol className="mt-3 grid list-decimal gap-2 pl-5">
+          <li>
+            Turn on <strong>2-Step Verification</strong> for the Google account you&apos;ll send from:{" "}
+            <a className="underline" href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noreferrer">
+              myaccount.google.com/signinoptions/twosv
+            </a>
+            . Skip this if it&apos;s already on.
+          </li>
+          <li>
+            Open{" "}
+            <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
+              myaccount.google.com/apppasswords
+            </a>
+            , type <strong>YCAReach</strong> as the name, and click <strong>Create</strong>.
+          </li>
+          <li>Google shows a 16-letter password. Copy it and paste it into &ldquo;App password&rdquo; below (spaces don&apos;t matter).</li>
+          <li>Enter the same email address, then click <strong>Test connection</strong>. When both checks are green, click <strong>Add inbox</strong>.</li>
+        </ol>
+        <p className="text-muted-foreground mt-3 text-xs">
+          Google says &ldquo;The setting you are looking for is not available&rdquo;? On a work (Google Workspace) account, your admin must allow 2-Step
+          Verification first. This is a one-off password just for YCAReach: your normal password is never shared, and you can delete it in Google at any
+          time.
+        </p>
+      </details>
+    );
+  }
+  return (
+    <details open className="bg-muted/40 rounded-md border p-4 text-sm" data-testid="setup-guide">
+      <summary className="cursor-pointer font-medium">Step by step: connect another provider</summary>
+      <ol className="mt-3 grid list-decimal gap-2 pl-5">
+        <li>
+          In your email provider&apos;s settings, create an <strong>app password</strong> (search your provider&apos;s help for &ldquo;app password&rdquo;).
+        </li>
+        <li>
+          Find its <strong>SMTP</strong> (sending) and <strong>IMAP</strong> (receiving) server names and ports: search &ldquo;[your provider] SMTP IMAP
+          settings&rdquo;. Usually SMTP port 465 or 587 and IMAP port 993.
+        </li>
+        <li>Fill them in below, click <strong>Test connection</strong>, then <strong>Add inbox</strong>.</li>
+      </ol>
+      {answer === "outlook" && (
+        <p className="text-muted-foreground mt-3 text-xs">
+          Outlook and Microsoft 365 aren&apos;t supported yet: Microsoft blocks app passwords for most accounts. The easiest route is a Google Workspace
+          address on your domain.
+        </p>
+      )}
+    </details>
+  );
+}
+
+export function AccountForm({ answer = null }: { answer?: string | null }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [provider, setProvider] = useState<Provider>("google");
+  const [provider, setProvider] = useState<Provider>(answer === "other" ? "smtp" : "google");
   const [smtpSecure, setSmtpSecure] = useState(true);
   const [imapSecure, setImapSecure] = useState(true);
   const [testState, testAction, testing] = useActionState(testNewAccount, undefined);
@@ -76,6 +130,8 @@ export function AccountForm() {
           ))}
         </div>
       </fieldset>
+
+      <SetupGuide provider={provider} answer={answer} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">

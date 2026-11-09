@@ -70,7 +70,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
 
   const [{ data: orgRow }, { data: inboxes }, { data: claimedToday }, { data: inflight }, { data: nextDue }, { data: statusRows }, { data: lists }] =
     await Promise.all([
-      supabase.from("organizations").select("physical_address").eq("id", org.id).single(),
+      supabase.from("organizations").select("physical_address, onboarding_offer, onboarding_audience").eq("id", org.id).single(),
       supabase.from("sending_accounts").select("id, email, display_name, status, health, daily_cap, sent_today, sent_today_date, timezone").eq("org_id", org.id).order("email"),
       supabase.from("sends").select("sending_account_id").eq("campaign_id", id).gte("claimed_at", dayStart),
       supabase.from("sends").select("id", { count: "exact" }).eq("campaign_id", id).in("status", ["scheduled", "sending"]),
@@ -227,6 +227,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
           sender={{ name: firstInbox?.display_name ?? null, email: firstInbox?.email ?? "you@example.com" }}
           physicalAddress={orgRow?.physical_address ?? null}
           ai={await aiModeFor(org.id)}
+          aiDefaults={{ offer: orgRow?.onboarding_offer ?? "", audience: orgRow?.onboarding_audience ?? "" }}
           testOptions={{
             defaultTo: user.email,
             inboxes: testInboxes.map((i) => ({ id: i.id, email: i.email })),

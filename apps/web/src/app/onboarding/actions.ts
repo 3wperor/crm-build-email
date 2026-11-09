@@ -16,5 +16,5 @@ export async function createOrganization(_prev: OnboardingState, formData: FormD
   if (error || !orgId) return { error: error?.message ?? "Could not create workspace." };
 
   (await cookies()).set(ORG_COOKIE, orgId, { path: "/", httpOnly: true, sameSite: "lax", secure: true, maxAge: 60 * 60 * 24 * 365 });
-  redirect("/dashboard");
+  redirect("/welcome");
 }

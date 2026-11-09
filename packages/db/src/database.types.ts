@@ -1151,6 +1151,47 @@ export type Database = {
           },
         ]
       }
+      org_notices: {
+        Row: {
+          id: string
+          org_id: string
+          kind: string
+          key: string
+          recipients: string[]
+          status: string
+          error: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          kind: string
+          key: string
+          recipients?: string[]
+          status?: string
+          error?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          kind?: string
+          key?: string
+          recipients?: string[]
+          status?: string
+          error?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_notices_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           id: string
@@ -1179,6 +1220,12 @@ export type Database = {
           ai_model: string | null
           ai_base_url: string | null
           ai_drafts_enabled: boolean
+          onboarding_offer: string | null
+          onboarding_audience: string | null
+          onboarding_provider: string | null
+          onboarding_has_list: boolean | null
+          onboarding_answered_at: string | null
+          checklist_dismissed_at: string | null
         }
         Insert: {
           id?: string
@@ -1207,6 +1254,12 @@ export type Database = {
           ai_model?: string | null
           ai_base_url?: string | null
           ai_drafts_enabled?: boolean
+          onboarding_offer?: string | null
+          onboarding_audience?: string | null
+          onboarding_provider?: string | null
+          onboarding_has_list?: boolean | null
+          onboarding_answered_at?: string | null
+          checklist_dismissed_at?: string | null
         }
         Update: {
           id?: string
@@ -1235,6 +1288,12 @@ export type Database = {
           ai_model?: string | null
           ai_base_url?: string | null
           ai_drafts_enabled?: boolean
+          onboarding_offer?: string | null
+          onboarding_audience?: string | null
+          onboarding_provider?: string | null
+          onboarding_has_list?: boolean | null
+          onboarding_answered_at?: string | null
+          checklist_dismissed_at?: string | null
         }
         Relationships: []
       }

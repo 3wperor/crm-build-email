@@ -431,6 +431,14 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 
 **Manual override:** `pnpm activate-user <owner-email> [pro|standard|trial|expired]`. It uses the service-role key, from your machine only.
 
+### Onboarding
+
+- **Welcome questions** (`/welcome`, right after naming the workspace; all skippable): what you sell, who you email, which email provider, whether you have a list. Saved on `organizations.onboarding_*`. They pre-fill Write with AI, pick the right inbox guide, and tailor checklist hints.
+- **Getting-started checklist** on the Dashboard (`onboardingChecklist` in `@crm/core/onboarding`): inbox → business address → leads → written campaign → test email → started campaign. Each step ticks itself off from real data. It hides when done or when dismissed.
+- **Inbox guide:** step-by-step app-password instructions on Add inbox (Gmail / Google Workspace, other providers; Outlook is explained as not supported yet).
+- **Billing banner** (`billingBanner`): 2 days left, 80% of trial emails used, trial ended or out of emails, payment failed, plan ended.
+- **Reminder emails** (Inngest `billing-reminders`, hourly): trial ends in 2 days, trial ended, trial emails used up, payment failed, plan ended. Each occurrence is claimed in `org_notices` (unique per org/kind/key) before sending, so it goes out once; a failed send releases the claim and retries. Only owners are emailed, and occurrences older than a week are skipped. They're sent from the owner's own inbox (`SYSTEM_EMAIL_*`, `lib/system-mail.ts`). Without it, nothing is sent.
+
 ### AI
 
 Pro workspaces and active trials get AI. Standard does not.

@@ -6,34 +6,44 @@ import { PageHeader } from "@/components/coming-soon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import { ReclassifySelect } from "./classification";
+
+const NEEDS_REPLY_CLASSES = ["positive", "neutral"] as const;
+const needsAnswer = (r: { classification: string | null; handled_at: string | null }) =>
+  !r.handled_at && (NEEDS_REPLY_CLASSES as readonly string[]).includes(r.classification ?? "");
 
 export const metadata = { title: "Replies" };
 
 export default async function RepliesPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const { c } = await searchParams;
-  const filter = REPLY_CLASSES.includes(c as never) ? c : null;
+  const needsReply = c === "needs_reply";
+  const filter = needsReply ? "needs_reply" : REPLY_CLASSES.includes(c as never) ? c : null;
   const { org, role } = await getOrgContext();
   const supabase = await createClient();
 
   let query = supabase
     .from("replies")
-    .select("id, from_email, subject, body_text, classification, classification_source, received_at, outcome, leads(first_name, last_name, company), sends(campaigns(id, name))")
+    .select("id, from_email, subject, body_text, classification, classification_source, received_at, outcome, handled_at, draft_status, leads(first_name, last_name, company), sends(campaigns(id, name))")
     .eq("org_id", org.id)
     .order("received_at", { ascending: false })
     .limit(100);
-  if (filter) query = query.eq("classification", filter);
-  const [{ data: replies }, { data: all }] = await Promise.all([query, supabase.from("replies").select("classification").eq("org_id", org.id)]);
+  if (needsReply) query = query.in("classification", NEEDS_REPLY_CLASSES).is("handled_at", null);
+  else if (filter) query = query.eq("classification", filter);
+  const [{ data: replies }, { data: all }] = await Promise.all([query, supabase.from("replies").select("classification, handled_at").eq("org_id", org.id)]);
 
   const counts = new Map<string, number>();
-  for (const r of all ?? []) counts.set(r.classification ?? "neutral", (counts.get(r.classification ?? "neutral") ?? 0) + 1);
+  for (const r of all ?? []) {
+    counts.set(r.classification ?? "neutral", (counts.get(r.classification ?? "neutral") ?? 0) + 1);
+    if (needsAnswer(r)) counts.set("needs_reply", (counts.get("needs_reply") ?? 0) + 1);
+  }
   const canEdit = can(role, "replies.classify");
 
   return (
     <>
       <PageHeader title="Replies" description="Detected across your inboxes every few minutes. Replying stops the sequence and adds the lead to the pipeline." />
       <nav className="mb-4 flex flex-wrap gap-1 text-sm">
-        {[null, ...REPLY_CLASSES].map((k) => (
+        {[null, "needs_reply", ...REPLY_CLASSES].map((k) => (
           <Link
             key={k ?? "all"}
             href={k ? `/replies?c=${k}` : "/replies"}
@@ -46,7 +56,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
       {!replies?.length ? (
         <Card className="border-dashed">
           <CardHeader>
-            <CardTitle className="text-base">No replies {filter ? `classified ${filter.replace(/_/g, " ")}` : "yet"}</CardTitle>
+            <CardTitle className="text-base">{needsReply ? "Nothing waiting for an answer" : `No replies ${filter ? `classified ${filter.replace(/_/g, " ")}` : "yet"}`}</CardTitle>
             <CardDescription>Replies to your campaigns show up here automatically.</CardDescription>
           </CardHeader>
         </Card>
@@ -75,7 +85,10 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
                     </TableCell>
                     <TableCell className="max-w-md whitespace-normal">
                       <Link href={`/replies/${r.id}`} className="hover:underline">
-                        <div className="truncate text-sm font-medium">{r.subject || "(no subject)"}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-sm font-medium">{r.subject || "(no subject)"}</span>
+                          {needsAnswer(r) && <Badge variant="secondary">{r.draft_status === "ready" ? "AI draft ready" : "Needs reply"}</Badge>}
+                        </div>
                         <div className="text-muted-foreground line-clamp-2 text-xs">{extractReplyText(r.body_text ?? "").slice(0, 200)}</div>
                       </Link>
                     </TableCell>

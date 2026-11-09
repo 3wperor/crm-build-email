@@ -33,7 +33,8 @@ const NAV = [
   { href: "/docs", label: "Docs", icon: BookOpen },
 ] as const;
 
-export function Nav() {
+/** counts: small number badges, e.g. { "/replies": 3 } replies waiting for an answer. */
+export function Nav({ counts = {} }: { counts?: Record<string, number> }) {
   const pathname = usePathname();
   const router = useRouter();
   // Highlight the clicked item immediately, before the page arrives.
@@ -62,6 +63,11 @@ export function Nav() {
           >
             <Icon className="size-4" />
             <span className="flex-1">{item.label}</span>
+            {!!counts[item.href] && (
+              <span className="bg-primary text-primary-foreground min-w-5 rounded-full px-1.5 text-center text-[10px] font-semibold" aria-label={`${counts[item.href]} waiting`}>
+                {counts[item.href]! > 99 ? "99+" : counts[item.href]}
+              </span>
+            )}
             {"badge" in item && (
               <span className="rounded bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-700 uppercase dark:text-amber-400">
                 {item.badge}

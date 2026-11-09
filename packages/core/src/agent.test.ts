@@ -34,6 +34,8 @@ describe("agent tool catalog", () => {
     expect(AGENT_TOOLS.start_campaign.risk).toBe("send");
     expect(AGENT_TOOLS.set_daily_volume.risk).toBe("send");
     expect(AGENT_TOOLS.send_test_email.risk).toBe("send");
+    expect(AGENT_TOOLS.send_reply.risk).toBe("send");
+    expect(AGENT_TOOLS.mark_reply_handled.risk).toBe("write");
     expect(AGENT_TOOLS.list_leads.risk).toBe("read");
   });
 

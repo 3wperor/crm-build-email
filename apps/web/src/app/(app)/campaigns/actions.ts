@@ -16,6 +16,8 @@ import { sendTestEmail } from "@/lib/test-email";
 import { pauseCampaignFor, startCampaignFor } from "@/lib/campaigns/lifecycle";
 import { sendBlockedMessage } from "@/lib/billing";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
+import { parseSequence, sequenceBriefSchema, sequencePrompt } from "@crm/core/ai";
+import { runAi } from "@/lib/ai/provider";
 
 export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[]; upgrade?: boolean } | undefined;
 
@@ -361,4 +363,67 @@ export async function setVariantWinner(formData: FormData) {
   });
   if (error) throw new Error(error.message);
   refresh(campaignId);
+}
+
+// ---------------------------------------------------------------------------
+// Write with AI
+// ---------------------------------------------------------------------------
+
+export type WriteWithAiState = { error?: string; message?: string } | undefined;
+
+/**
+ * Generates the whole sequence from a short brief and writes it into the
+ * campaign: step N's first variant gets email N; missing steps are created
+ * (3 days apart). Steps beyond the generated ones are left alone.
+ */
+export async function writeSequenceWithAi(_prev: WriteWithAiState, formData: FormData): Promise<WriteWithAiState> {
+  const ctx = await requireWriter();
+  if (!ctx) return FORBIDDEN;
+  const campaignId = String(formData.get("campaign_id"));
+  const c = await loadCampaign(ctx.org.id, campaignId);
+  const seqId = c?.sequences[0]?.id;
+  if (!c || !seqId) return { error: "Campaign not found." };
+  if (c.status === "active") return { error: "Pause the campaign before rewriting its emails." };
+
+  const brief = sequenceBriefSchema.safeParse(formToObject(formData));
+  if (!brief.success) return { error: brief.error.issues[0]?.message ?? "Check the form." };
+
+  const supabase = await createClient();
+  const { data: inbox } = await supabase
+    .from("campaign_sending_accounts")
+    .select("sending_accounts(display_name)")
+    .eq("campaign_id", campaignId)
+    .limit(1)
+    .maybeSingle();
+  const res = await runAi(ctx.org.id, "write_sequence", sequencePrompt(brief.data, { name: inbox?.sending_accounts?.display_name ?? null }), { timeoutMs: 90_000 });
+  if (!res.ok) return { error: res.error };
+  const emails = parseSequence(res.text, brief.data.steps);
+  if (!emails) return { error: "The AI's answer didn't come out right. Please try again." };
+
+  const { data: steps } = await supabase
+    .from("sequence_steps")
+    .select("id, step_order, email_variants(id, ab_group)")
+    .eq("sequence_id", seqId)
+    .order("step_order");
+  for (const [i, email] of emails.entries()) {
+    const step = steps?.[i];
+    if (step) {
+      const variant = [...step.email_variants].sort((a, b) => a.ab_group.localeCompare(b.ab_group))[0];
+      if (variant) {
+        await supabase.from("email_variants").update({ subject: email.subject, body: email.body }).eq("org_id", ctx.org.id).eq("id", variant.id);
+      } else {
+        await supabase.from("email_variants").insert({ org_id: ctx.org.id, step_id: step.id, ab_group: "A", subject: email.subject, body: email.body });
+      }
+    } else {
+      const { data: created, error } = await supabase
+        .from("sequence_steps")
+        .insert({ org_id: ctx.org.id, sequence_id: seqId, step_order: i + 1, delay_days: i === 0 ? 0 : 3 })
+        .select("id")
+        .single();
+      if (error || !created) return { error: error?.message ?? "Couldn't add a step." };
+      await supabase.from("email_variants").insert({ org_id: ctx.org.id, step_id: created.id, ab_group: "A", subject: email.subject, body: email.body });
+    }
+  }
+  refresh(campaignId);
+  return { message: `Wrote ${emails.length} email${emails.length === 1 ? "" : "s"}. Read them through, change anything you like, then send yourself a test.` };
 }

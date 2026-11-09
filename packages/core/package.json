@@ -16,7 +16,8 @@
     "./warmup": "./src/warmup.ts",
     "./agent": "./src/agent.ts",
     "./crm": "./src/crm.ts",
-    "./billing": "./src/billing.ts"
+    "./billing": "./src/billing.ts",
+    "./ai": "./src/ai.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

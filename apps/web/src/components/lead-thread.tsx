@@ -1,18 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-type ThreadItem = { kind: "sent" | "reply"; id: string; at: string; from: string; subject: string | null; body: string; meta?: string };
+type ThreadItem = { kind: "sent" | "reply" | "answer"; id: string; at: string; from: string; subject: string | null; body: string; meta?: string };
 
 /** Everything we sent to a lead and everything they sent back, oldest first. */
 export async function LeadThread({ leadId, highlightReplyId }: { leadId: string; highlightReplyId?: string }) {
   const supabase = await createClient();
-  const [{ data: sends }, { data: replies }] = await Promise.all([
+  const [{ data: sends }, { data: replies }, { data: answers }] = await Promise.all([
     supabase
       .from("sends")
       .select("id, subject, body_text, sent_at, status, sending_accounts(email), sequence_steps(step_order), campaigns(name)")
       .eq("lead_id", leadId)
       .in("status", ["sent", "bounced"]),
     supabase.from("replies").select("id, subject, body_text, received_at, from_email, classification").eq("lead_id", leadId),
+    supabase
+      .from("reply_messages")
+      .select("id, subject, body_text, sent_at, created_at, status, error, ai_drafted, sending_accounts(email)")
+      .eq("lead_id", leadId),
   ]);
   const thread: ThreadItem[] = [
     ...(sends ?? []).map((s) => ({
@@ -33,6 +37,15 @@ export async function LeadThread({ leadId, highlightReplyId }: { leadId: string;
       body: r.body_text ?? "",
       meta: r.classification?.replace(/_/g, " "),
     })),
+    ...(answers ?? []).map((m) => ({
+      kind: "answer" as const,
+      id: m.id,
+      at: m.sent_at ?? m.created_at,
+      from: m.sending_accounts?.email ?? "you",
+      subject: m.subject,
+      body: m.body_text,
+      meta: [m.status === "failed" ? `not sent: ${m.error ?? "error"}` : "sent from YCAReach", m.ai_drafted ? "AI draft" : null].filter(Boolean).join(" · "),
+    })),
   ].sort((a, b) => a.at.localeCompare(b.at));
 
   if (!thread.length) return <p className="text-muted-foreground text-sm">No emails yet.</p>;
@@ -45,7 +58,7 @@ export async function LeadThread({ leadId, highlightReplyId }: { leadId: string;
         >
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-sm">
-              {t.kind === "sent" ? "Sent" : "Reply"} · {t.from}
+              {t.kind === "reply" ? "Reply" : t.kind === "answer" ? "You replied" : "Sent"} · {t.from}
               {t.meta && <span className="text-muted-foreground font-normal"> · {t.meta}</span>}
             </CardTitle>
             <span className="text-muted-foreground text-xs">{t.at ? new Date(t.at).toLocaleString() : ""}</span>

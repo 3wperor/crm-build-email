@@ -11,16 +11,16 @@ type PaidPlan = "standard" | "pro";
 type Interval = "month" | "year";
 
 const PRICES: Record<PaidPlan, Record<Interval, number>> = { standard: { month: 20, year: 200 }, pro: { month: 25, year: 250 } };
-// soon: shown as "coming soon" until step 2 (Claude features) ships.
+// soon: shown as "coming soon" for features that aren't built yet.
 const FEATURES: { label: string; standard: boolean; soon?: boolean }[] = [
   { label: "Unlimited campaigns, follow-ups and A/B tests", standard: true },
   { label: "Your own inboxes, lead import (CSV/Excel) and verification", standard: true },
   { label: "Reply detection, pipeline, analytics, warmup", standard: true },
   { label: "HubSpot sync", standard: true },
-  { label: "Connect your own Claude (Anthropic) key", standard: false, soon: true },
-  { label: "Claude writes your campaign emails", standard: false, soon: true },
-  { label: "Claude reads replies and drafts answers for you", standard: false, soon: true },
-  { label: "AI agent: let Claude run campaigns for you", standard: false },
+  { label: "AI writes your campaign emails", standard: false },
+  { label: "AI sorts replies and drafts answers you send in one click", standard: false },
+  { label: "Use your own Claude or OpenAI key for a stronger model", standard: false },
+  { label: "Connect Claude (MCP) to run YCAReach from chat", standard: false },
 ];
 
 export function PlanPicker({

@@ -146,6 +146,88 @@ export type Database = {
           },
         ]
       }
+      ai_credentials: {
+        Row: {
+          org_id: string
+          ciphertext: string
+          key_version: number
+          key_hint: string | null
+          updated_at: string
+        }
+        Insert: {
+          org_id: string
+          ciphertext: string
+          key_version: number
+          key_hint?: string | null
+          updated_at?: string
+        }
+        Update: {
+          org_id?: string
+          ciphertext?: string
+          key_version?: number
+          key_hint?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_credentials_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage: {
+        Row: {
+          id: string
+          org_id: string
+          kind: string
+          provider: string
+          model: string
+          own_key: boolean
+          status: string
+          input_tokens: number
+          output_tokens: number
+          cost_usd_micros: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          kind: string
+          provider: string
+          model: string
+          own_key?: boolean
+          status?: string
+          input_tokens?: number
+          output_tokens?: number
+          cost_usd_micros?: number
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          kind?: string
+          provider?: string
+          model?: string
+          own_key?: boolean
+          status?: string
+          input_tokens?: number
+          output_tokens?: number
+          cost_usd_micros?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_keys: {
         Row: {
           id: string
@@ -1093,6 +1175,10 @@ export type Database = {
           subscription_status: string | null
           current_period_end: string | null
           cancel_at_period_end: boolean
+          ai_provider: string
+          ai_model: string | null
+          ai_base_url: string | null
+          ai_drafts_enabled: boolean
         }
         Insert: {
           id?: string
@@ -1117,6 +1203,10 @@ export type Database = {
           subscription_status?: string | null
           current_period_end?: string | null
           cancel_at_period_end?: boolean
+          ai_provider?: string
+          ai_model?: string | null
+          ai_base_url?: string | null
+          ai_drafts_enabled?: boolean
         }
         Update: {
           id?: string
@@ -1141,6 +1231,10 @@ export type Database = {
           subscription_status?: string | null
           current_period_end?: string | null
           cancel_at_period_end?: boolean
+          ai_provider?: string
+          ai_model?: string | null
+          ai_base_url?: string | null
+          ai_drafts_enabled?: boolean
         }
         Relationships: []
       }
@@ -1205,6 +1299,10 @@ export type Database = {
           ooo_until: string | null
           classification_reason: string | null
           outcome: string | null
+          draft_status: string | null
+          draft_body: string | null
+          draft_generated_at: string | null
+          handled_at: string | null
         }
         Insert: {
           id?: string
@@ -1228,6 +1326,10 @@ export type Database = {
           ooo_until?: string | null
           classification_reason?: string | null
           outcome?: string | null
+          draft_status?: string | null
+          draft_body?: string | null
+          draft_generated_at?: string | null
+          handled_at?: string | null
         }
         Update: {
           id?: string
@@ -1251,6 +1353,10 @@ export type Database = {
           ooo_until?: string | null
           classification_reason?: string | null
           outcome?: string | null
+          draft_status?: string | null
+          draft_body?: string | null
+          draft_generated_at?: string | null
+          handled_at?: string | null
         }
         Relationships: [
           {
@@ -1273,6 +1379,102 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "sending_accounts"
             referencedColumns: ["org_id", "id"]
+          },
+        ]
+      }
+      reply_messages: {
+        Row: {
+          id: string
+          org_id: string
+          reply_id: string
+          lead_id: string | null
+          sending_account_id: string | null
+          message_id: string
+          in_reply_to: string | null
+          references: string[]
+          to_email: string
+          subject: string
+          body_text: string
+          status: string
+          error: string | null
+          ai_drafted: boolean
+          sent_by: string | null
+          sent_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          reply_id: string
+          lead_id?: string | null
+          sending_account_id?: string | null
+          message_id: string
+          in_reply_to?: string | null
+          references?: string[]
+          to_email: string
+          subject: string
+          body_text: string
+          status: string
+          error?: string | null
+          ai_drafted?: boolean
+          sent_by?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          reply_id?: string
+          lead_id?: string | null
+          sending_account_id?: string | null
+          message_id?: string
+          in_reply_to?: string | null
+          references?: string[]
+          to_email?: string
+          subject?: string
+          body_text?: string
+          status?: string
+          error?: string | null
+          ai_drafted?: boolean
+          sent_by?: string | null
+          sent_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reply_messages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reply_messages_org_id_lead_id_fkey"
+            columns: ["org_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "reply_messages_org_id_reply_id_fkey"
+            columns: ["org_id", "reply_id"]
+            isOneToOne: false
+            referencedRelation: "replies"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "reply_messages_org_id_sending_account_id_fkey"
+            columns: ["org_id", "sending_account_id"]
+            isOneToOne: false
+            referencedRelation: "sending_accounts"
+            referencedColumns: ["org_id", "id"]
+          },
+          {
+            foreignKeyName: "reply_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2107,6 +2309,16 @@ export type Database = {
         }
         Returns: Json
       }
+      finish_ai_usage: {
+        Args: {
+          p_id: string
+          p_status: string
+          p_input_tokens: number
+          p_output_tokens: number
+          p_cost_micros: number
+        }
+        Returns: undefined
+      }
       finish_warmup_send: {
         Args: {
           p_message_id: string
@@ -2155,6 +2367,18 @@ export type Database = {
           p_stage_ids: string[]
         }
         Returns: undefined
+      }
+      reserve_ai_budget: {
+        Args: {
+          p_org_id: string
+          p_kind: string
+          p_provider: string
+          p_model: string
+          p_own_key: boolean
+          p_estimate_micros: number
+          p_cap_micros: number
+        }
+        Returns: string
       }
       reserve_send_slot: {
         Args: {

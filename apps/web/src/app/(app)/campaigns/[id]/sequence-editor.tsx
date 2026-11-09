@@ -1,14 +1,15 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Eye, Plus, Send, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Eye, Plus, Send, Sparkles, Trash2 } from "lucide-react";
 import { buildEmail, BUILTIN_TAGS, type MergeLead } from "@crm/core/templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { addStep, addVariant, deleteStep, deleteVariant, saveVariant, updateStep } from "../actions";
+import { addStep, addVariant, deleteStep, deleteVariant, saveVariant, updateStep, writeSequenceWithAi } from "../actions";
 import { TestEmailPanel, type TestOptions } from "./test-email-panel";
 
 export type EditorVariant = { id: string; ab_group: string; subject: string; body: string; weight: number; is_active: boolean };
@@ -23,12 +24,17 @@ type Props = {
   sender: { name: string | null; email: string };
   physicalAddress: string | null;
   testOptions: TestOptions;
+  /** "on" = AI can write, "upgrade" = plan without AI, "off" = not set up. */
+  ai?: "on" | "upgrade" | "off";
 };
 
 export function SequenceEditor(props: Props) {
   const firstSubject = props.steps[0]?.variants[0]?.subject ?? "";
   return (
     <div className="grid gap-4">
+      {props.canEdit && props.ai && props.ai !== "off" && (
+        <WriteWithAi campaignId={props.campaignId} ai={props.ai} locked={props.structureLocked} hasContent={props.steps.some((s) => s.variants.some((v) => v.body.trim()))} />
+      )}
       <p className="text-muted-foreground text-sm">
         Merge tags:{" "}
         {BUILTIN_TAGS.map((t) => (
@@ -50,6 +56,110 @@ export function SequenceEditor(props: Props) {
         </form>
       )}
     </div>
+  );
+}
+
+function WriteWithAi({ campaignId, ai, locked, hasContent }: { campaignId: string; ai: "on" | "upgrade"; locked: boolean; hasContent: boolean }) {
+  const [state, action, pending] = useActionState(writeSequenceWithAi, undefined);
+  const [open, setOpen] = useState(!hasContent);
+  if (ai === "upgrade") {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="flex flex-wrap items-center gap-2 py-4 text-sm">
+          <Sparkles className="size-4" /> Let AI write this sequence for you.
+          <Link href="/billing" className="underline">
+            Upgrade to Pro
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!open) {
+    return (
+      <div>
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          <Sparkles /> Write with AI
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <Card data-testid="write-with-ai">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="size-4" /> Write with AI
+        </CardTitle>
+        <p className="text-muted-foreground text-sm">Describe what you offer and who you&apos;re emailing. The AI writes the first email and the follow-ups, with merge tags filled in. You can edit everything after.</p>
+      </CardHeader>
+      <CardContent>
+        {locked ? (
+          <p className="text-muted-foreground text-sm">Pause the campaign to rewrite its emails with AI.</p>
+        ) : (
+          <form
+            action={action}
+            className="grid gap-3"
+            onSubmit={(e) => {
+              if (hasContent && !confirm("This replaces the text of your current emails (version A of each step). Continue?")) e.preventDefault();
+            }}
+          >
+            <input type="hidden" name="campaign_id" value={campaignId} />
+            <div className="grid gap-1.5">
+              <Label htmlFor="ai-offer">What do you offer?</Label>
+              <textarea
+                id="ai-offer"
+                name="offer"
+                required
+                minLength={10}
+                maxLength={2000}
+                rows={3}
+                placeholder="e.g. We build fast websites for dental practices in Leeds. Most go live in 2 weeks and bring in more bookings."
+                className="border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="ai-audience">Who are you emailing?</Label>
+              <Input id="ai-audience" name="audience" maxLength={500} placeholder="e.g. Practice owners and managers" />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <div className="grid gap-1.5">
+                <Label htmlFor="ai-tone">Tone</Label>
+                <select id="ai-tone" name="tone" defaultValue="friendly" className="border-input bg-background h-9 rounded-md border px-2 text-sm">
+                  <option value="friendly">Friendly</option>
+                  <option value="professional">Professional</option>
+                  <option value="direct">Short and direct</option>
+                </select>
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="ai-steps">Emails</Label>
+                <select id="ai-steps" name="steps" defaultValue="3" className="border-input bg-background h-9 rounded-md border px-2 text-sm">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <option key={n} value={n}>
+                      {n === 1 ? "1 email" : `1 email + ${n - 1} follow-up${n > 2 ? "s" : ""}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="ai-extra">Anything else? (optional)</Label>
+              <Input id="ai-extra" name="extra" maxLength={1000} placeholder="e.g. Mention our free audit. Ask for a 15-minute call." />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button disabled={pending}>
+                <Sparkles /> {pending ? "Writing… (about 20 seconds)" : "Write my emails"}
+              </Button>
+              {hasContent && (
+                <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+                  Close
+                </Button>
+              )}
+              {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+              {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
+            </div>
+          </form>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

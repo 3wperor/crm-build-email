@@ -16,18 +16,20 @@ import type { EngageAction, FetchedMessage, MailboxCursor } from "@crm/mail";
 import { createMailAdapter } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ACCOUNT_CONNECTION_COLUMNS, loadAccountPassword, mailAdapterOptions, toMailConfig } from "@/lib/sending-accounts";
-import { aiClassifierAvailable, classifyReplyWithAi } from "./ai-classifier";
+import { shouldAutoDraft } from "@crm/core/ai";
+import { classifyReplyWithAi } from "./ai-classifier";
+import { aiAvailableFor } from "@/lib/ai/provider";
 import { handleWarmupMessage } from "@/lib/warmup/engage";
 import type { PlannedWarmup } from "@/lib/warmup/planner";
 import { inngest } from "@/inngest/client";
-import { warmupSendRequested } from "@/inngest/events";
+import { replyDraftRequested, warmupSendRequested } from "@/inngest/events";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
 export type MessageOutcome = "reply" | "bounce" | "warmup" | "ignored_own" | "ignored_duplicate" | "ignored_unmatched" | "ignored_internal";
 
 /** Side effects collected while processing a batch (applied once per sync). */
-export type SyncEffects = { engage: EngageAction[]; warmupReplies: PlannedWarmup[] };
+export type SyncEffects = { engage: EngageAction[]; warmupReplies: PlannedWarmup[]; drafts?: string[] };
 
 const MAX_BODY = 50_000;
 
@@ -67,7 +69,7 @@ export async function processMessage(
   admin: Admin,
   account: { id: string; org_id: string; email: string },
   msg: FetchedMessage,
-  opts: { aiEnabled: boolean; effects?: SyncEffects },
+  opts: { aiEnabled: boolean; draftsEnabled?: boolean; effects?: SyncEffects },
 ): Promise<MessageOutcome> {
   const raw = msg.source.toString("utf8");
   const parsed = await simpleParser(msg.source, { skipImageLinks: true, skipTextToHtml: true });
@@ -150,8 +152,8 @@ export async function processMessage(
   let classification: ReplyClass = heuristic.classification;
   let source: "heuristic" | "ai" = "heuristic";
   let reason = heuristic.reason;
-  if (heuristic.confidence === "low" && opts.aiEnabled && aiClassifierAvailable()) {
-    const ai = await classifyReplyWithAi({ subject, replyText: extractReplyText(text) });
+  if (heuristic.confidence === "low" && opts.aiEnabled) {
+    const ai = await classifyReplyWithAi(account.org_id, { subject, replyText: extractReplyText(text) });
     if (ai) {
       classification = ai.classification;
       source = "ai";
@@ -179,6 +181,7 @@ export async function processMessage(
       match_method: match.method,
       mailbox: msg.mailbox,
       received_at: receivedAt.toISOString(),
+      draft_status: opts.draftsEnabled && shouldAutoDraft(classification) ? "pending" : null,
     })
     .select("id")
     .single();
@@ -194,6 +197,7 @@ export async function processMessage(
     ...(heuristic.oooUntil && classification === "out_of_office" ? { p_ooo_until: heuristic.oooUntil.toISOString() } : {}),
   });
   if (outcomeError) throw new Error(outcomeError.message);
+  if (opts.draftsEnabled && shouldAutoDraft(classification)) opts.effects?.drafts?.push(reply.id);
   return "reply";
 }
 
@@ -204,7 +208,7 @@ export async function syncAccount(orgId: string, accountId: string): Promise<Syn
   const admin = createAdminClient();
   const { data: account } = await admin
     .from("sending_accounts")
-    .select(`${ACCOUNT_CONNECTION_COLUMNS}, imap_cursors, status, organizations!inner(ai_classification_enabled)`)
+    .select(`${ACCOUNT_CONNECTION_COLUMNS}, imap_cursors, status, organizations!inner(ai_classification_enabled, ai_drafts_enabled, plan, trial_ends_at, ai_provider)`)
     .eq("org_id", orgId)
     .eq("id", accountId)
     .maybeSingle();
@@ -228,10 +232,13 @@ export async function syncAccount(orgId: string, accountId: string): Promise<Syn
   }
 
   const outcomes: SyncSummary["outcomes"] = {};
-  const effects: SyncEffects = { engage: [], warmupReplies: [] };
+  const effects: SyncEffects = { engage: [], warmupReplies: [], drafts: [] };
+  const org = account.organizations;
+  const aiOn = result.messages.length > 0 && (await aiAvailableFor(org));
   for (const msg of result.messages) {
     const o = await processMessage(admin, { id: account.id, org_id: orgId, email: account.email }, msg, {
-      aiEnabled: account.organizations.ai_classification_enabled,
+      aiEnabled: aiOn && org.ai_classification_enabled,
+      draftsEnabled: aiOn && org.ai_drafts_enabled,
       effects,
     });
     outcomes[o] = (outcomes[o] ?? 0) + 1;
@@ -247,6 +254,14 @@ export async function syncAccount(orgId: string, accountId: string): Promise<Syn
   }
   if (effects.warmupReplies.length) {
     await inngest.send(effects.warmupReplies.map((r) => warmupSendRequested.create(r)));
+  }
+  if (effects.drafts?.length) {
+    try {
+      await inngest.send(effects.drafts.map((replyId) => replyDraftRequested.create({ orgId, replyId })));
+    } catch (e) {
+      console.error("queueing reply drafts failed", e);
+      await admin.from("replies").update({ draft_status: "failed" }).in("id", effects.drafts);
+    }
   }
 
   // Cursors advance only after every message in the batch was processed.

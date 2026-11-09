@@ -40,3 +40,8 @@ export const warmupSendRequested = eventType("warmup/send.requested", {
 export const crmSyncRequested = eventType("crm/sync.requested", {
   schema: z.object({ connectionId: z.string().uuid() }),
 });
+
+/** Write an AI draft answer for a reply that just arrived. */
+export const replyDraftRequested = eventType("ai/reply-draft.requested", {
+  schema: z.object({ orgId: z.string().uuid(), replyId: z.string().uuid() }),
+});

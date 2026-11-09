@@ -18,6 +18,7 @@ export const PERMISSIONS = {
   "campaigns.write": ["owner", "admin", "sender"],
   "opportunities.write": ["owner", "admin", "sender"],
   "replies.classify": ["owner", "admin", "sender"],
+  "replies.send": ["owner", "admin", "sender"],
   "suppression.add": ["owner", "admin", "sender"],
   "suppression.remove": ["owner", "admin"],
   // Kill switch: pausing is a safety action anyone who can send may take;

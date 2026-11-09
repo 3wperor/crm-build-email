@@ -837,6 +837,43 @@ select pg_temp.expect_eq((select (plan = 'expired' and subscription_status = 'pa
 select pg_temp.expect_eq((select count(*) from public.agent_audit_log where actor = 'system:stripe'), 2, 'billing: plan changes are audited');
 update public.organizations set plan = 'trial', trial_ends_at = now() + interval '7 days', trial_email_limit = 200, stripe_subscription_id = null where id = current_setting('test.org_a')::uuid;
 
+-- AI: hidden monthly cap, own keys, reply drafts and answers ----------------------
+-- Cap 1000 micros: two reservations of 400 fit, the third is refused.
+select pg_temp.expect_eq((public.reserve_ai_budget(current_setting('test.org_a')::uuid, 'draft_reply', 'included', 'deepseek-flash', false, 400, 1000) is not null)::int, 1, 'ai: a call within the cap is reserved');
+select set_config('test.ai_use', (select id::text from public.ai_usage where org_id = current_setting('test.org_a')::uuid limit 1), true);
+select pg_temp.expect_eq((public.reserve_ai_budget(current_setting('test.org_a')::uuid, 'draft_reply', 'included', 'deepseek-flash', false, 400, 1000) is not null)::int, 1, 'ai: a second call fits');
+select pg_temp.expect_eq((public.reserve_ai_budget(current_setting('test.org_a')::uuid, 'draft_reply', 'included', 'deepseek-flash', false, 400, 1000) is null)::int, 1, 'ai: over the monthly cap → refused');
+select public.finish_ai_usage(current_setting('test.ai_use')::uuid, 'done', 100, 50, 100);
+select pg_temp.expect_eq((public.reserve_ai_budget(current_setting('test.org_a')::uuid, 'draft_reply', 'included', 'deepseek-flash', false, 400, 1000) is not null)::int, 1, 'ai: the real (lower) cost frees budget');
+select pg_temp.expect_eq((public.reserve_ai_budget(current_setting('test.org_a')::uuid, 'draft_reply', 'anthropic', 'claude-opus-5-5', true, 999999, 0) is not null)::int, 1, 'ai: own-key calls skip the cap');
+select pg_temp.expect_eq((select cost_usd_micros from public.ai_usage where own_key)::int, 0, 'ai: own-key calls cost us nothing');
+update public.ai_usage set created_at = date_trunc('month', now()) - interval '1 day' where org_id = current_setting('test.org_a')::uuid;
+select pg_temp.expect_eq((public.reserve_ai_budget(current_setting('test.org_a')::uuid, 'draft_reply', 'included', 'deepseek-flash', false, 900, 1000) is not null)::int, 1, 'ai: last month''s spend does not count');
+insert into public.ai_credentials (org_id, ciphertext, key_version, key_hint) values (current_setting('test.org_a')::uuid, 'v1:secret', 1, 'sk-…abcd');
+insert into public.replies (org_id, message_id, from_email, received_at, classification, sending_account_id)
+values (current_setting('test.org_a')::uuid, '<ai-reply@x>', 'lead1@a.example', now(), 'positive', current_setting('test.acct')::uuid);
+select set_config('test.ai_reply', (select id::text from public.replies where message_id = '<ai-reply@x>'), true);
+insert into public.reply_messages (org_id, reply_id, message_id, to_email, subject, body_text, status)
+values (current_setting('test.org_a')::uuid, current_setting('test.ai_reply')::uuid, '<ans@x>', 'lead1@a.example', 'Re: hi', 'Thanks!', 'sent');
+
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- owner
+select pg_temp.expect_error('select * from public.ai_usage', '42501', 'ai: owners cannot see AI spend');
+select pg_temp.expect_error('select * from public.ai_credentials', '42501', 'ai: nor read the stored key');
+select pg_temp.expect_error(format('select public.reserve_ai_budget(%L, %L, %L, %L, false, 1, 999999999)', current_setting('test.org_a'), 'test', 'included', 'x'), '42501', 'ai: clients cannot reserve budget');
+select pg_temp.expect_error(format($q$update public.organizations set ai_provider = 'anthropic' where id = %L$q$, current_setting('test.org_a')), '42501', 'ai: provider changes go through the server');
+update public.organizations set ai_drafts_enabled = false where id = current_setting('test.org_a')::uuid;
+select pg_temp.expect_eq((select count(*) from public.reply_messages), 1, 'ai: members see sent answers');
+select pg_temp.expect_error(format($q$insert into public.reply_messages (org_id, reply_id, message_id, to_email, subject, body_text, status) values (%L, %L, '<f@x>', 'a@b.c', 's', 'b', 'sent')$q$, current_setting('test.org_a'), current_setting('test.ai_reply')), '42501', 'ai: clients cannot record sent answers');
+select pg_temp.login('10000000-0000-4000-8000-00000000000d'); -- sender
+update public.replies set handled_at = now() where id = current_setting('test.ai_reply')::uuid;
+select pg_temp.expect_error(format($q$update public.replies set body_text = 'x' where id = %L$q$, current_setting('test.ai_reply')), '42501', 'ai: senders cannot rewrite the reply itself');
+select pg_temp.login('10000000-0000-4000-8000-00000000000b'); -- other org
+select pg_temp.expect_eq((select count(*) from public.reply_messages), 0, 'ai: other org sees no answers');
+reset role;
+select pg_temp.expect_eq((select (handled_at is not null)::int from public.replies where id = current_setting('test.ai_reply')::uuid), 1, 'ai: senders mark replies handled');
+select pg_temp.expect_eq((select (not ai_drafts_enabled)::int from public.organizations where id = current_setting('test.org_a')::uuid), 1, 'ai: admins toggle reply drafts');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

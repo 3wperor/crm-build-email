@@ -233,7 +233,7 @@ Every 3 minutes, `imap-sync-tick` fans out one `imap-sync-account` job per activ
 - Quoted history is stripped first.
 - Checks run in order: auto-reply headers/subject/wording → out of office (with a return date when one is given) → unsubscribe → negative → positive.
 - Anything else is a low-confidence neutral.
-- Optionally, only those low-confidence replies go to Claude (`@anthropic-ai/sdk`: structured JSON output, low effort, server-side refusal fallback). It's enabled per workspace in Settings and needs `ANTHROPIC_API_KEY`; the model is `AI_CLASSIFIER_MODEL`, default `claude-opus-5-5`. Any AI failure keeps the rule-based result.
+- On Pro (and trials), only those low-confidence replies go to the workspace's AI (see **AI** below). It can be turned off in Settings → AI. Any AI failure keeps the rule-based result.
 
 **Outcomes** (`apply_reply_outcome`, atomic and idempotent, re-run on manual reclassification):
 
@@ -421,8 +421,8 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 - The rule lives in one place, `private.send_block_reason`. It is enforced in `reserve_send_slot` and `reserve_warmup_slot` (atomically, at the moment of sending), by the planners, by test emails, and by "Start campaign".
 
 **What Pro adds:**
+- AI: writing sequences, sorting replies, drafting answers, the workspace's own AI key (see **AI**).
 - The AI agent (MCP).
-- Coming next: the customer's own Anthropic key, and Claude writing and replying.
 
 **Stripe, with no SDK:**
 - `/billing` opens Stripe-hosted Checkout (monthly or yearly), or the billing portal once subscribed.
@@ -430,6 +430,27 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 - Subscribe to these events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed`.
 
 **Manual override:** `pnpm activate-user <owner-email> [pro|standard|trial|expired]`. It uses the service-role key, from your machine only.
+
+### AI
+
+Pro workspaces and active trials get AI. Standard does not.
+
+**Which model:**
+- **Included:** DeepSeek Flash (`deepseek-flash`) through its OpenAI-compatible API, with our `DEEPSEEK_API_KEY`. No SDK, just `fetch` (`apps/web/src/lib/ai/provider.ts`).
+- **Own key (optional):** Settings → AI. Claude (Anthropic, via `@anthropic-ai/sdk`, default `claude-opus-5-5`) or any OpenAI-compatible endpoint (https only; private addresses refused). The key is tested with a tiny call, then stored AES-GCM-encrypted in `ai_credentials` with the org id as AAD. Own-key usage has no cap.
+
+**Hidden monthly cap (included AI only):**
+- £2.50 per workspace per calendar month on Pro, £0.25 on a trial (`AI_MONTHLY_CAP_GBP`, `AI_TRIAL_CAP_GBP`, converted at the cautious `AI_USD_PER_GBP`, default 1.25).
+- Before each call, `reserve_ai_budget` (service role only) reserves a worst-case cost (peak prices, full output) under a per-org advisory lock, so parallel calls can't overshoot. `finish_ai_usage` then records the real tokens and cost. A timeout keeps the reserved amount.
+- `ai_usage` has no client grants: customers never see spend. At the cap AI just says "AI is unavailable right now" until the 1st. A typical action costs a fraction of a penny, so £2.50 covers well over 1,000.
+- To see spend: `select org_id, sum(cost_usd_micros)/1e6 as usd from ai_usage where created_at >= date_trunc('month', now()) group by 1;`
+
+**Features:**
+- **Write with AI** (campaign → Sequence): a short brief → the first email plus follow-ups, as JSON, validated (`parseSequence`): only built-in merge tags survive, follow-ups get an empty subject so they thread.
+- **Reply drafts:** a positive or neutral reply gets `draft_status = 'pending'` during sync and an `ai/reply-draft.requested` event. The `reply-draft` function writes the draft from the original email, earlier messages and the reply (treated as untrusted data). The reply page shows it: **Send**, edit, **Write my own**, or **Redo with AI** with a note. Placeholders like `[calendar link]` trigger a warning before sending.
+- **Sending replies** (`sendReplyMessage`): from the inbox that received the reply, with `In-Reply-To` / `References`, their message quoted. It honors the kill switch, the plan, suppression, and 60 replies/hour per workspace, logs to `reply_messages` (shown in the thread), marks the reply handled, and audit-logs.
+- **Needs reply:** positive/neutral replies with `handled_at` null. Counted in the sidebar and filterable on /replies. Replies from before this feature start as handled.
+- **MCP:** `list_replies` (`needs_reply`, includes the AI draft), `send_reply` (risk `send`: needs approval unless full-auto), `mark_reply_handled`.
 
 ## Roadmap
 

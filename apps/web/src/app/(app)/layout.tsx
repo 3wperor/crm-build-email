@@ -9,11 +9,21 @@ import { Suspense } from "react";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { PlanBadge } from "@/components/plan-badge";
 import { getBillingStatus } from "@/lib/billing";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getOrgContext();
   const { org, role, user } = ctx;
-  const billing = await getBillingStatus(org.id);
+  const supabase = await createClient();
+  const [billing, { count: needsReply }] = await Promise.all([
+    getBillingStatus(org.id),
+    supabase
+      .from("replies")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", org.id)
+      .is("handled_at", null)
+      .in("classification", ["positive", "neutral"]),
+  ]);
 
   return (
     <div className="flex min-h-screen">
@@ -27,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
           <OrgSwitcher ctx={ctx} />
         </div>
-        <Nav />
+        <Nav counts={{ "/replies": needsReply ?? 0 }} />
         <div className="mt-auto grid gap-2 border-t pt-3">
           <div className="truncate px-2 text-xs">
             <div className="truncate font-medium">{user.email}</div>

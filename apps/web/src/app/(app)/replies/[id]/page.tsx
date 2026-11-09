@@ -5,7 +5,9 @@ import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { LeadThread } from "@/components/lead-thread";
+import { aiModeFor } from "@/lib/ai/provider";
 import { ReclassifySelect } from "../classification";
+import { ReplyComposer } from "./reply-composer";
 
 export const metadata = { title: "Reply" };
 
@@ -27,6 +29,9 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
     : { data: null };
 
   const lead = reply.leads;
+  const ai = await aiModeFor(org.id);
+  const leadName = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(" ") || reply.from_email : reply.from_email;
+  const canReply = can(role, "replies.send") && reply.classification !== "unsubscribe" && reply.classification !== "out_of_office";
   return (
     <>
       <Link href="/replies" className="text-muted-foreground text-sm hover:underline">
@@ -58,7 +63,21 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {leadId ? <LeadThread leadId={leadId} highlightReplyId={reply.id} /> : null}
+      <div className="grid gap-6">
+        <ReplyComposer
+          replyId={reply.id}
+          toName={leadName}
+          toEmail={reply.from_email}
+          fromEmail={reply.sending_accounts?.email ?? null}
+          draft={reply.draft_body}
+          draftStatus={reply.draft_status}
+          draftAt={reply.draft_generated_at}
+          handled={!!reply.handled_at}
+          canSend={canReply}
+          ai={ai}
+        />
+        {leadId ? <LeadThread leadId={leadId} highlightReplyId={reply.id} /> : null}
+      </div>
     </>
   );
 }

@@ -14,7 +14,7 @@ import { getBillingStatus } from "@/lib/billing";
 import { hasProAccess } from "@crm/core/billing";
 import { CreateKeyForm } from "./key-form";
 
-export const metadata = { title: "AI agent" };
+export const metadata = { title: "Claude & MCP" };
 
 export default async function AgentSettingsPage() {
   const { org, role } = await getOrgContext();
@@ -38,7 +38,7 @@ export default async function AgentSettingsPage() {
   return (
     <>
       <PageHeader
-        title="AI agent"
+        title="Claude &amp; MCP"
         description="Let an AI agent (Claude Desktop, Claude Code, any MCP client) run YCAReach through the MCP server, within guardrails."
         actions={
           <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">

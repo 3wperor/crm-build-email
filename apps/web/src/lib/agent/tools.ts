@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   AGENT_TOOLS,
   REPLY_CLASSES,
+  extractReplyText,
   isValidEmailSyntax,
   nextAbGroup,
   normalizeEmail,
@@ -16,6 +17,7 @@ import type { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkAccount, recordHealth, runConnectionTest, storeAccountPassword } from "@/lib/sending-accounts";
 import { sendTestEmail } from "@/lib/test-email";
+import { sendReplyMessage } from "@/lib/replies/send-reply";
 import { createVerificationRun } from "@/lib/verification/runs";
 import { importLeadsDirect } from "@/lib/leads/direct-import";
 import { prepareRows } from "@crm/core/imports";
@@ -45,6 +47,10 @@ async function campaignOf(orgId: string, id: string) {
 /** Which campaign (if any) a call affects, for the approval guardrail. */
 export async function campaignForCall(orgId: string, tool: AgentToolName, args: Record<string, unknown>): Promise<string | null> {
   if (typeof args.campaign_id === "string") return args.campaign_id;
+  if (tool === "send_reply" && typeof args.reply_id === "string") {
+    const { data } = await db().from("replies").select("sends(campaign_id)").eq("org_id", orgId).eq("id", args.reply_id).maybeSingle();
+    return data?.sends?.campaign_id ?? null;
+  }
   if (tool === "send_test_email" && typeof args.variant_id === "string") {
     const { data } = await db()
       .from("email_variants")
@@ -392,17 +398,38 @@ const tools: { [N in AgentToolName]: Impl<N> } = {
     return { kill_switch: org, active_campaigns: campaigns ?? [], inboxes: inboxes ?? [], queued_sends: queued ?? 0 };
   },
 
-  async list_replies(ctx, { classification, limit }) {
+  async list_replies(ctx, { classification, needs_reply, limit }) {
     let q = db()
       .from("replies")
-      .select("id, received_at, from_email, subject, classification, classification_reason, outcome, lead_id, leads(email, first_name, last_name), sends(campaigns(name))")
+      .select(
+        "id, received_at, from_email, subject, body_text, classification, classification_reason, outcome, lead_id, handled_at, draft_status, draft_body, leads(email, first_name, last_name, company), sends(campaigns(name))",
+      )
       .eq("org_id", ctx.orgId)
       .order("received_at", { ascending: false })
       .limit(limit);
     if (classification) q = q.eq("classification", classification);
+    if (needs_reply) q = q.in("classification", ["positive", "neutral"]).is("handled_at", null);
     const { data, error } = await q;
     if (error) fail(error.message);
-    return data ?? [];
+    return (data ?? []).map(({ body_text, ...r }) => ({ ...r, reply_text: extractReplyText(body_text ?? "").slice(0, 2000) }));
+  },
+
+  async send_reply(ctx, { reply_id, body }) {
+    const res = await sendReplyMessage({ orgId: ctx.orgId, replyId: reply_id, body, actor: ctx.actor, apiKeyId: ctx.apiKeyId });
+    if (!res.ok) fail(res.error);
+    return res;
+  },
+
+  async mark_reply_handled(ctx, { reply_id, handled }) {
+    const { data, error } = await db()
+      .from("replies")
+      .update({ handled_at: handled ? new Date().toISOString() : null })
+      .eq("org_id", ctx.orgId)
+      .eq("id", reply_id)
+      .select("id");
+    if (error) fail(error.message);
+    if (!data?.length) fail("Reply not found");
+    return { reply_id, handled };
   },
 
   async get_lead(ctx, { lead_id }) {
@@ -415,9 +442,11 @@ const tools: { [N in AgentToolName]: Impl<N> } = {
       admin.from("sends").select("id, status, subject, body_text, sent_at").eq("lead_id", lead_id).in("status", ["sent", "bounced"]).order("sent_at"),
       admin.from("replies").select("id, received_at, subject, body_text, classification").eq("lead_id", lead_id).order("received_at"),
     ]);
+    const { data: answers } = await admin.from("reply_messages").select("created_at, sent_at, subject, body_text, status").eq("org_id", ctx.orgId).eq("lead_id", lead_id);
     const thread = [
       ...(sends ?? []).map((s) => ({ at: s.sent_at, direction: "sent", subject: s.subject, text: (s.body_text ?? "").slice(0, 2000), status: s.status })),
       ...(replies ?? []).map((r) => ({ at: r.received_at, direction: "received", subject: r.subject, text: (r.body_text ?? "").slice(0, 2000), classification: r.classification, reply_id: r.id })),
+      ...(answers ?? []).map((m) => ({ at: m.sent_at ?? m.created_at, direction: "sent_reply", subject: m.subject, text: m.body_text.slice(0, 2000), status: m.status })),
     ].sort((a, b) => String(a.at).localeCompare(String(b.at)));
     return { lead, enrollments: enrollments ?? [], pipeline: opp ?? null, thread };
   },

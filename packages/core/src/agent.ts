@@ -171,8 +171,19 @@ export const AGENT_TOOLS = {
   },
   list_replies: {
     risk: "read",
-    description: "Recent replies with classification, lead and campaign.",
-    input: z.object({ classification: z.string().max(40).optional(), limit }),
+    description: "Recent replies with classification, lead, campaign and the AI draft answer (if any). needs_reply=true: only positive/neutral replies nobody has answered yet.",
+    input: z.object({ classification: z.string().max(40).optional(), needs_reply: z.boolean().optional(), limit }),
+  },
+  send_reply: {
+    risk: "send",
+    description:
+      "Answer a lead's reply from the inbox that received it, in the same email thread (plain text; their message is quoted below automatically). Use the AI draft from list_replies or write your own.",
+    input: z.object({ reply_id: uuid, body: z.string().trim().min(1).max(20000) }),
+  },
+  mark_reply_handled: {
+    risk: "write",
+    description: "Mark a reply as handled (no answer needed) or back to needs-reply.",
+    input: z.object({ reply_id: uuid, handled: z.boolean().default(true) }),
   },
   get_lead: { risk: "read", description: "A lead with enrollments, pipeline stage, and the sent/received thread.", input: z.object({ lead_id: uuid }) },
   classify_reply: {

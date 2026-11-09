@@ -6,7 +6,6 @@ import { PageHeader } from "@/components/coming-soon";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aiClassifierAvailable } from "@/lib/replies/ai-classifier";
 import { SettingsForm } from "./settings-form";
 
 export const metadata = { title: "Settings" };
@@ -16,7 +15,7 @@ export default async function SettingsPage() {
   const supabase = await createClient();
 
   const [{ data: settings }, { data: members }] = await Promise.all([
-    supabase.from("organizations").select("name, physical_address, default_timezone, approval_mode, auto_verify_imports, ai_classification_enabled").eq("id", org.id).single(),
+    supabase.from("organizations").select("name, physical_address, default_timezone, approval_mode, auto_verify_imports").eq("id", org.id).single(),
     supabase.from("memberships").select("id, role, created_at, users(email, full_name)").eq("org_id", org.id).order("created_at"),
   ]);
 
@@ -32,8 +31,11 @@ export default async function SettingsPage() {
             <Link href="/settings/integrations" className="text-sm underline underline-offset-4">
               Integrations
             </Link>
+            <Link href="/settings/ai" className="text-sm underline underline-offset-4">
+              AI
+            </Link>
             <Link href="/settings/agent" className="text-sm underline underline-offset-4">
-              AI agent
+              Claude &amp; MCP
             </Link>
             <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">
               Audit log
@@ -48,7 +50,7 @@ export default async function SettingsPage() {
             <CardDescription>Compliance footer, timezone and AI agent guardrails.</CardDescription>
           </CardHeader>
           <CardContent>
-            {settings && <SettingsForm org={settings} disabled={!can(role, "org.update")} aiAvailable={aiClassifierAvailable()} />}
+            {settings && <SettingsForm org={settings} disabled={!can(role, "org.update")} />}
           </CardContent>
         </Card>
 

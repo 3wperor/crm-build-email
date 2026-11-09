@@ -212,6 +212,42 @@ const SECTIONS: Section[] = [
           Drag cards between stages (or use the keyboard, or the &ldquo;Move to&rdquo; menu). Click a lead to see the whole conversation, add notes and edit
           their details. Owners and admins can rename and reorder stages.
         </p>
+        <p>
+          <strong>Answering replies:</strong> open a reply and write your answer at the top of the page. It&apos;s sent from the inbox that got the reply, in
+          the same email thread. Replies that still need an answer are counted next to <strong>Replies</strong> in the sidebar (filter:{" "}
+          <strong>Needs reply</strong>). If you answered from your own email app instead, click &ldquo;No reply needed&rdquo; to clear it.
+        </p>
+      </>
+    ),
+  },
+  {
+    id: "ai",
+    title: "AI (Pro)",
+    body: (
+      <>
+        <p>On Pro and during your trial, AI is built in. Nothing to set up.</p>
+        <ul>
+          <li>
+            <strong>Write with AI</strong>: on a campaign&apos;s Sequence tab, describe what you offer and who you&apos;re emailing. AI writes the first email
+            and the follow-ups, with merge tags like {"{{first_name|there}}"}. Read them through and change anything before you start.
+          </li>
+          <li>
+            <strong>Reply drafts</strong>: when someone replies with interest or a question, AI writes an answer for you. Open the reply: send it as is, edit
+            it, write your own, or click &ldquo;Redo with AI&rdquo; and say what to change. Anything in [square brackets] is for you to fill in.
+          </li>
+          <li>
+            <strong>Reply sorting</strong>: AI double-checks the replies the rules aren&apos;t sure about.
+          </li>
+        </ul>
+        <p>
+          <strong>Want a stronger model?</strong> In Settings → AI, paste your own Claude (Anthropic) or OpenAI-compatible API key. We test it, store it
+          encrypted, and use it for all AI in your workspace. Your provider bills you directly.
+        </p>
+        <p>
+          <strong>Control YCAReach from Claude</strong>: in Settings → Claude &amp; MCP, create an API key and connect Claude Desktop or Claude Code. Then just
+          ask: &ldquo;show me replies that need an answer&rdquo;, &ldquo;write a campaign for dentists in Leeds&rdquo;. Anything that sends email waits for
+          your approval.
+        </p>
       </>
     ),
   },
@@ -263,15 +299,16 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          Every new workspace starts with a <strong>free 7-day trial</strong> (up to 200 campaign emails) with everything unlocked, including the Claude
+          Every new workspace starts with a <strong>free 7-day trial</strong> (up to 200 campaign emails) with everything unlocked, including the AI
           features. No card needed.
         </p>
         <ul>
           <li>
-            <strong>Standard: £20/month</strong> (or £200/year): everything except the Claude features.
+            <strong>Standard: £20/month</strong> (or £200/year): everything except the AI features.
           </li>
           <li>
-            <strong>Pro: £25/month</strong> (or £250/year): everything, plus connecting your own Claude (Anthropic) key and the AI agent.
+            <strong>Pro: £25/month</strong> (or £250/year): everything, plus AI that writes emails and drafts replies, your own AI key, and Claude
+            (MCP).
           </li>
         </ul>
         <p>
@@ -311,7 +348,7 @@ const SECTIONS: Section[] = [
           deal in the matching stage. It syncs every 15 minutes.
         </p>
         <p>
-          <strong>AI agent</strong> (Settings → AI agent): create an API key to let Claude or another AI assistant work in YCAReach through the MCP server. By
+          <strong>AI agent</strong> (Settings → Claude &amp; MCP): create an API key to let Claude or another AI assistant work in YCAReach through the MCP server. By
           default, anything that would send email waits for your approval on that page. Every action the agent takes is in the audit log.
         </p>
       </>

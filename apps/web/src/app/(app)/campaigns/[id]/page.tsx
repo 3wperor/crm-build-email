@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { can, effectiveSentToday, estimateNextSend, startOfLocalDay, type NextSendEstimate } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
+import { aiModeFor } from "@/lib/ai/provider";
 import { createClient } from "@/lib/supabase/server";
 import { campaignWindow } from "@/lib/scheduler/config";
 import { AutoRefresh } from "@/components/auto-refresh";
@@ -225,6 +226,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
           sampleLead={sampleLead}
           sender={{ name: firstInbox?.display_name ?? null, email: firstInbox?.email ?? "you@example.com" }}
           physicalAddress={orgRow?.physical_address ?? null}
+          ai={await aiModeFor(org.id)}
           testOptions={{
             defaultTo: user.email,
             inboxes: testInboxes.map((i) => ({ id: i.id, email: i.email })),

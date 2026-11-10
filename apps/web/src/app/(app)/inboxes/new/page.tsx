@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { can } from "@crm/core";
+import { guessEmailProvider } from "@crm/core/growth";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/coming-soon";
@@ -11,7 +12,7 @@ export const metadata = { title: "Add inbox" };
 export const maxDuration = 60;
 
 export default async function NewInboxPage() {
-  const { org, role } = await getOrgContext();
+  const { org, role, user } = await getOrgContext();
   if (!can(role, "sending_accounts.manage")) redirect("/inboxes");
   const { data: answers } = await (await createClient()).from("organizations").select("onboarding_provider").eq("id", org.id).single();
 
@@ -20,7 +21,7 @@ export default async function NewInboxPage() {
       <PageHeader title="Add inbox" description="Connect a mailbox with an app password. We test SMTP and IMAP before you send." />
       <Card>
         <CardContent>
-          <AccountForm answer={answers?.onboarding_provider ?? null} />
+          <AccountForm answer={answers?.onboarding_provider ?? guessEmailProvider(user.email)} />
         </CardContent>
       </Card>
     </>

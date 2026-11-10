@@ -1,5 +1,6 @@
 "use server";
 
+import { welcomeAnswersSchema } from "@crm/core/growth";
 import { revalidatePath } from "next/cache";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
@@ -44,5 +45,26 @@ export async function updateOrgSettings(_prev: SettingsState, formData: FormData
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+export type GoalState = { error?: string; ok?: boolean } | undefined;
+
+/** The monthly goal shown on the Dashboard (any member can set it; blank = no goal). */
+export async function updateGoal(_prev: GoalState, formData: FormData): Promise<GoalState> {
+  const { org } = await getOrgContext();
+  const parsed = welcomeAnswersSchema.pick({ customerValue: true, customersPerMonth: true }).safeParse({
+    customerValue: String(formData.get("customer_value") ?? "").replace(/[£,\s]/g, ""),
+    customersPerMonth: formData.get("customers_per_month"),
+  });
+  if (!parsed.success) return { error: "Use whole numbers: customers 1–1,000, value £1–£10,000,000." };
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("organizations")
+    .update({ goal_customer_value: parsed.data.customerValue, goal_customers_per_month: parsed.data.customersPerMonth })
+    .eq("id", org.id);
+  if (error) return { error: error.message };
+  revalidatePath("/dashboard");
+  revalidatePath("/settings");
   return { ok: true };
 }

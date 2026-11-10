@@ -1,24 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { BillingStatus } from "./billing";
-import { billingBanner, dueNotice, noticeEmail, onboardingChecklist, welcomeAnswersSchema, type NoticeOrg } from "./onboarding";
+import { billingBanner, dueNotice, noticeEmail, onboardingChecklist, type NoticeOrg } from "./onboarding";
 
 const NOW = new Date("2026-11-09T12:00:00Z");
 const inDays = (d: number) => new Date(NOW.getTime() + d * 864e5).toISOString();
-
-describe("welcome answers", () => {
-  it("accepts partial answers and blanks", () => {
-    expect(welcomeAnswersSchema.parse({ offer: " Websites for dentists ", audience: "", provider: "gmail", hasList: "no" })).toEqual({
-      offer: "Websites for dentists",
-      audience: null,
-      provider: "gmail",
-      hasList: false,
-    });
-    expect(welcomeAnswersSchema.parse({})).toEqual({ offer: null, audience: null, provider: null, hasList: null });
-  });
-  it("rejects unknown providers", () => {
-    expect(welcomeAnswersSchema.safeParse({ provider: "yahoo" }).success).toBe(false);
-  });
-});
 
 describe("checklist", () => {
   const none = { inboxes: 0, hasAddress: false, leads: 0, writtenCampaigns: 0, testsSent: 0, startedCampaigns: 0 };

@@ -433,7 +433,15 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 
 ### Onboarding
 
-- **Welcome questions** (`/welcome`, right after naming the workspace; all skippable): what you sell, who you email, which email provider, whether you have a list. Saved on `organizations.onboarding_*`. They pre-fill Write with AI, pick the right inbox guide, and tailor checklist hints.
+- **Welcome flow** (`/welcome`, right after naming the workspace; every question skippable). One question per screen, each answer shown back as a fact worked out from it (`@crm/core/growth`, browser-safe):
+  1. What's one new customer worth? (£250 / £1,000 / £5,000 / £10,000+ or typed) → its yearly value.
+  2. How many new customers a month would make a difference? (1 / 3 / 5 / 10+) → the yearly total.
+  3. How do you find customers today? (multi-select) → a fact per channel.
+  4. What do you sell, to whom, and do you have a list? → pre-fills Write with AI.
+
+  Then **Your plan**: goal, roughly how many emails it takes, hours saved and the 200-email trial, with "Connect my inbox" as the next step. The numbers come only from the user's answers plus the openly stated `PLAN_ASSUMPTIONS` (3 in 100 reply, 1 in 5 replies becomes a customer, 3 minutes per email by hand). Change them there once real averages exist. Skipped answers use an example and say so.
+- **Goal tracker** on the Dashboard: "1 of 3 new customers in November", counting opportunities moved to a `won` stage this month. Edit it in Settings → Your goal.
+- The email provider is guessed from the sign-up address (gmail.com → Gmail guide; Outlook.com family → explains it isn't supported yet).
 - **Getting-started checklist** on the Dashboard (`onboardingChecklist` in `@crm/core/onboarding`): inbox → business address → leads → written campaign → test email → started campaign. Each step ticks itself off from real data. It hides when done or when dismissed.
 - **Inbox guide:** step-by-step app-password instructions on Add inbox (Gmail / Google Workspace, other providers; Outlook is explained as not supported yet).
 - **Billing banner** (`billingBanner`): 2 days left, 80% of trial emails used, trial ended or out of emails, payment failed, plan ended.

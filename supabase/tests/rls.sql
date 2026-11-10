@@ -874,6 +874,17 @@ reset role;
 select pg_temp.expect_eq((select (handled_at is not null)::int from public.replies where id = current_setting('test.ai_reply')::uuid), 1, 'ai: senders mark replies handled');
 select pg_temp.expect_eq((select (not ai_drafts_enabled)::int from public.organizations where id = current_setting('test.org_a')::uuid), 1, 'ai: admins toggle reply drafts');
 
+-- Welcome flow: members save their goal; nonsense is refused --------------------
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- owner
+update public.organizations set goal_customer_value = 1000, goal_customers_per_month = 3, acquisition_channels = array['ads', 'referrals']
+ where id = current_setting('test.org_a')::uuid;
+select pg_temp.expect_error(format($q$update public.organizations set acquisition_channels = array['telepathy'] where id = %L$q$, current_setting('test.org_a')), '23514', 'welcome: unknown channels are refused');
+select pg_temp.expect_error(format($q$update public.organizations set goal_customers_per_month = 0 where id = %L$q$, current_setting('test.org_a')), '23514', 'welcome: a goal of 0 is refused');
+reset role;
+select pg_temp.expect_eq((select (goal_customers_per_month = 3 and acquisition_channels = array['ads', 'referrals'])::int from public.organizations where id = current_setting('test.org_a')::uuid), 1,
+  'welcome: members save their goal');
+
 -- Bob (owner B) cannot see A's audit log or campaigns.
 set local role authenticated;
 select pg_temp.login('10000000-0000-4000-8000-00000000000b');

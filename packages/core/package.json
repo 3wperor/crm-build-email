@@ -18,7 +18,8 @@
     "./crm": "./src/crm.ts",
     "./billing": "./src/billing.ts",
     "./ai": "./src/ai.ts",
-    "./onboarding": "./src/onboarding.ts"
+    "./onboarding": "./src/onboarding.ts",
+    "./growth": "./src/growth.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

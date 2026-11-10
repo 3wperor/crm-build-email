@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SettingsForm } from "./settings-form";
+import { GoalForm } from "./goal-form";
 
 export const metadata = { title: "Settings" };
 
@@ -15,7 +16,11 @@ export default async function SettingsPage() {
   const supabase = await createClient();
 
   const [{ data: settings }, { data: members }] = await Promise.all([
-    supabase.from("organizations").select("name, physical_address, default_timezone, approval_mode, auto_verify_imports").eq("id", org.id).single(),
+    supabase
+      .from("organizations")
+      .select("name, physical_address, default_timezone, approval_mode, auto_verify_imports, goal_customers_per_month, goal_customer_value")
+      .eq("id", org.id)
+      .single(),
     supabase.from("memberships").select("id, role, created_at, users(email, full_name)").eq("org_id", org.id).order("created_at"),
   ]);
 
@@ -51,6 +56,16 @@ export default async function SettingsPage() {
           </CardHeader>
           <CardContent>
             {settings && <SettingsForm org={settings} disabled={!can(role, "org.update")} />}
+          </CardContent>
+        </Card>
+
+        <Card id="goal">
+          <CardHeader>
+            <CardTitle>Your goal</CardTitle>
+            <CardDescription>Shown on the Dashboard. Leads you move to Won in the Pipeline count toward it. Leave blank to hide it.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GoalForm customersPerMonth={settings?.goal_customers_per_month ?? null} customerValue={settings?.goal_customer_value ?? null} />
           </CardContent>
         </Card>
 

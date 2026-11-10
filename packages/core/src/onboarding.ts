@@ -2,7 +2,6 @@
  * Onboarding: welcome answers, the getting-started checklist, in-app trial
  * banners and the reminder emails. Pure: no I/O.
  */
-import { z } from "zod";
 import { trialDaysLeft, type BillingStatus } from "./billing";
 
 // ---------------------------------------------------------------------------
@@ -11,16 +10,6 @@ import { trialDaysLeft, type BillingStatus } from "./billing";
 
 export const EMAIL_PROVIDERS = ["gmail", "outlook", "other"] as const;
 export type EmailProviderAnswer = (typeof EMAIL_PROVIDERS)[number];
-
-const blankToNull = (v: unknown) => (typeof v === "string" && v.trim() === "" ? null : v);
-
-export const welcomeAnswersSchema = z.object({
-  offer: z.preprocess(blankToNull, z.string().trim().max(2000).nullable().default(null)),
-  audience: z.preprocess(blankToNull, z.string().trim().max(500).nullable().default(null)),
-  provider: z.preprocess(blankToNull, z.enum(EMAIL_PROVIDERS).nullable().default(null)),
-  hasList: z.preprocess((v) => (v === "yes" ? true : v === "no" ? false : null), z.boolean().nullable()),
-});
-export type WelcomeAnswers = z.infer<typeof welcomeAnswersSchema>;
 
 // ---------------------------------------------------------------------------
 // Checklist

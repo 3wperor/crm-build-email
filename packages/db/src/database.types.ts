@@ -1226,6 +1226,9 @@ export type Database = {
           onboarding_has_list: boolean | null
           onboarding_answered_at: string | null
           checklist_dismissed_at: string | null
+          goal_customer_value: number | null
+          goal_customers_per_month: number | null
+          acquisition_channels: string[]
         }
         Insert: {
           id?: string
@@ -1260,6 +1263,9 @@ export type Database = {
           onboarding_has_list?: boolean | null
           onboarding_answered_at?: string | null
           checklist_dismissed_at?: string | null
+          goal_customer_value?: number | null
+          goal_customers_per_month?: number | null
+          acquisition_channels?: string[]
         }
         Update: {
           id?: string
@@ -1294,6 +1300,9 @@ export type Database = {
           onboarding_has_list?: boolean | null
           onboarding_answered_at?: string | null
           checklist_dismissed_at?: string | null
+          goal_customer_value?: number | null
+          goal_customers_per_month?: number | null
+          acquisition_channels?: string[]
         }
         Relationships: []
       }

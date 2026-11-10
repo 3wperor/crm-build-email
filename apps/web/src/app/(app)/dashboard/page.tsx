@@ -3,6 +3,7 @@ import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/coming-soon";
 import { GettingStarted } from "@/components/onboarding/getting-started";
+import { GoalTracker } from "@/components/onboarding/goal-tracker";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata = { title: "Dashboard" };
@@ -34,6 +35,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader title="Dashboard" description={org.name} />
+      <GoalTracker orgId={org.id} />
       <GettingStarted orgId={org.id} />
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {stats.map((s) => (

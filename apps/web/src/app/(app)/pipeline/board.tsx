@@ -230,8 +230,9 @@ function CardBody({ card, handle, footer, dragging }: { card: BoardCard; handle?
           </Link>
           <div className="text-muted-foreground truncate text-xs">{card.company ?? card.email}</div>
         </div>
-        {card.booking_link && (
-          <a href={card.booking_link} target="_blank" rel="noreferrer" aria-label="Booking link" className="text-muted-foreground hover:text-foreground">
+        {/* Only real web links become clickable (the database enforces this too). */}
+        {card.booking_link && /^https?:\/\//i.test(card.booking_link) && (
+          <a href={card.booking_link} target="_blank" rel="noopener noreferrer" aria-label="Booking link" className="text-muted-foreground hover:text-foreground">
             <CalendarCheck className="size-4" />
           </a>
         )}

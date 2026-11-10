@@ -97,6 +97,14 @@ Suite totals at the last run: 208 core tests, 49 mail tests, 4 MCP tests, 167 da
   - The `CrmAdapter` interface and the HubSpot adapter are in `packages/core/src/crm.ts`; sync is in `apps/web/src/lib/crm`, the Inngest functions are `crm-sync-tick` and `crm-sync`, and the page is Settings → Integrations.
   - Decisions: HubSpot uses a private app token, stored encrypted.
 
+## Security audit (done)
+
+Full pass over the database, public routes, server actions, agent API and dependencies. Fixes are in migration `0020_security_hardening` plus app changes; `supabase/tests/rls.sql` covers the database ones.
+
+- **Database:** anon holds no privileges; internal definer helpers aren't client-callable; the "is this the server?" check no longer trusts `current_user`; one free trial per person (extra workspaces start `expired`, max 10 per person); only owners/admins can set a campaign to full-auto; booking links must be http(s); size limits on client-written text.
+- **App:** open redirect in the post-login `next` path closed; workspace-supplied AI addresses go through a DNS-pinned client (`packages/mail/src/pinned-http.ts`); the SSRF guard understands IPv6 forms that embed an IPv4 address; agent "write" tools that feed a running campaign need approval like `start_campaign`; agent API has a per-workspace rate limit and body cap; CSP, HSTS and related headers in `next.config.ts`.
+- **Still for the operator:** turn on leaked-password protection, CAPTCHA and email confirmations in Supabase Auth for production; set `INNGEST_SIGNING_KEY` (dev mode is ignored on Vercel production); keep `MAIL_ALLOW_*`, `AI_ALLOW_PRIVATE_URLS`, `STRIPE_API_BASE` and `HUBSPOT_API_BASE` unset outside local dev (they are only ignored when `VERCEL_ENV=production`, so preview deployments would honour them).
+
 ## Possible next steps
 
 - Deploy and test against real services. `docs/SETUP_PROMPT.md` walks through it.

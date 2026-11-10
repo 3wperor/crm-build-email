@@ -1,7 +1,7 @@
 import "server-only";
-import { AGENT_TOOLS, agentGuard, isAgentTool, type AgentToolName, type ApprovalMode } from "@crm/core";
+import { AGENT_TOOLS, agentGuard, isAgentTool, type AgentToolName, type ApprovalMode, type ToolRisk } from "@crm/core";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { campaignForCall, executeTool, isHarmlessCall, ToolError, type AgentCtx } from "./tools";
+import { campaignForCall, executeTool, isHarmlessCall, liveCampaignForWrite, ToolError, type AgentCtx } from "./tools";
 
 export type AgentCallResult =
   | { status: "ok"; result: unknown }
@@ -29,6 +29,12 @@ function summarize(tool: AgentToolName, args: Record<string, unknown>): string {
       return `Raise daily volume to ${args.daily_limit}${args.daily_limit_per_inbox !== undefined ? ` (${args.daily_limit_per_inbox} per inbox)` : ""}`;
     case "send_test_email":
       return `Send a test email to ${args.to}`;
+    case "enroll_leads":
+      return "Add leads to a campaign that is sending right now";
+    case "upload_leads":
+      return `Import ${Array.isArray(args.leads) ? args.leads.length : ""} leads into a campaign that is sending right now`.replace("  ", " ");
+    case "create_variant":
+      return "Add email copy to a campaign that is sending right now";
     default:
       return tool.replace(/_/g, " ");
   }
@@ -53,7 +59,16 @@ export async function runAgentTool(ctx: AgentCtx, tool: string, rawArgs: unknown
   const admin = createAdminClient();
 
   try {
-    const campaignId = await campaignForCall(ctx.orgId, tool, args);
+    let campaignId = await campaignForCall(ctx.orgId, tool, args);
+    let risk: ToolRisk = AGENT_TOOLS[tool].risk;
+    if (risk === "write") {
+      // Feeding a campaign that is already sending is a "send" action, whatever the tool is called.
+      const live = await liveCampaignForWrite(ctx.orgId, tool, args);
+      if (live) {
+        risk = "send";
+        campaignId = live;
+      }
+    }
     const target = campaignId ? `campaign:${campaignId}` : null;
     const { data: org } = await admin.from("organizations").select("approval_mode").eq("id", ctx.orgId).single();
     let campaignMode: ApprovalMode | null = null;
@@ -63,7 +78,7 @@ export async function runAgentTool(ctx: AgentCtx, tool: string, rawArgs: unknown
       campaignMode = c.approval_mode as ApprovalMode;
     }
     const decision = agentGuard({
-      risk: AGENT_TOOLS[tool].risk,
+      risk,
       orgMode: org!.approval_mode as ApprovalMode,
       campaignMode,
       harmless: AGENT_TOOLS[tool].risk === "send" ? await isHarmlessCall(ctx, tool, args) : false,

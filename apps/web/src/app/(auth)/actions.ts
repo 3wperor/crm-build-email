@@ -37,8 +37,13 @@ export async function signInWithMagicLink(_prev: AuthState, formData: FormData):
       emailRedirectTo: `${publicEnv.appUrl}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
-  if (error) return { error: error.message };
-  return { message: "Check your email for a sign-in link." };
+  // Same answer whether or not the address has an account, so this form can't be
+  // used to find out who is a customer. Rate limits are still reported.
+  if (error && (error.status === 429 || /rate limit|security purposes/i.test(error.message))) {
+    return { error: "Too many attempts. Please wait a minute and try again." };
+  }
+  if (error) console.warn(`magic link not sent: ${error.message}`);
+  return { message: "If that email has an account, a sign-in link is on its way." };
 }
 
 export async function signUp(_prev: AuthState, formData: FormData): Promise<AuthState> {
@@ -46,7 +51,10 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
   const fullName = str(formData, "full_name");
   const password = formData.get("password");
   if (!email || typeof password !== "string") return { error: "Email and password are required." };
+  if (email.length > 320 || fullName.length > 200) return { error: "That name or email is too long." };
   if (password.length < 10) return { error: "Password must be at least 10 characters." };
+  // bcrypt only reads the first 72 bytes; refuse longer input instead of silently truncating it.
+  if (Buffer.byteLength(password) > 72) return { error: "Password must be at most 72 characters." };
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({

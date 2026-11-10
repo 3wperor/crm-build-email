@@ -62,7 +62,7 @@ export const AGENT_TOOLS = {
   },
   create_variant: {
     risk: "write",
-    description: "Write copy for a step: fills the step's empty variant A, otherwise adds the next A/B variant. Merge tags like {{first_name|there}} work.",
+    description: "Write copy for a step: fills the step's empty variant A, otherwise adds the next A/B variant. Merge tags like {{first_name|there}} work. On a campaign that is already running this needs approval.",
     input: z.object({
       step_id: uuid,
       subject: z.string().max(300).default(""),
@@ -72,7 +72,7 @@ export const AGENT_TOOLS = {
   },
   upload_leads: {
     risk: "write",
-    description: "Import up to 1000 leads (deduped; suppressed addresses skipped), optionally into a named list and/or straight into a campaign (enrolled once verified); verification runs automatically.",
+    description: "Import up to 1000 leads (deduped; suppressed addresses skipped), optionally into a named list and/or straight into a campaign (enrolled once verified; into a campaign that is already running this needs approval); verification runs automatically.",
     input: z.object({
       leads: z
         .array(
@@ -109,7 +109,7 @@ export const AGENT_TOOLS = {
   },
   enroll_leads: {
     risk: "write",
-    description: "Add leads to a campaign (by ids or list). Invalid, suppressed, replied and busy leads are skipped. Nothing sends until the campaign runs.",
+    description: "Add leads to a campaign (by ids or list). Invalid, suppressed, replied and busy leads are skipped. Nothing sends until the campaign runs; if it is already running, this needs approval like starting it.",
     input: z.object({ campaign_id: uuid, lead_ids: z.array(uuid).min(1).max(5000).optional(), list_id: uuid.optional() }),
   },
   add_sending_account: {

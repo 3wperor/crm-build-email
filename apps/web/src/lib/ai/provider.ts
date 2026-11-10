@@ -15,7 +15,7 @@ import {
 } from "@crm/core/ai";
 import { hasProAccess, type Plan } from "@crm/core/billing";
 import { decryptSecret, encryptSecret, keyringFromEnv } from "@crm/core/crypto";
-import { resolvePublicHost } from "@crm/mail";
+import { HostNotAllowedError, PinnedRequestError, postJsonPinned } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -152,59 +152,88 @@ class AiCallError extends Error {
 
 type CallOutput = { text: string; usage: AiUsage };
 
-async function guardBaseUrl(config: AiConfig) {
-  if (!config.ownKey) return; // our own configured endpoint
-  const url = new URL(config.baseUrl);
-  const allowPrivate = !prod() && process.env.AI_ALLOW_PRIVATE_URLS === "true";
-  if (url.protocol !== "https:" && !allowPrivate) throw new AiCallError("The API address must use https.");
-  await resolvePublicHost(url.hostname, { allowPrivate });
-}
+type ChatCompletionBody = {
+  choices?: { message?: { content?: string | null }; finish_reason?: string }[];
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
+  error?: { message?: string };
+} | null;
 
-async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutMs: number): Promise<CallOutput> {
-  await guardBaseUrl(config);
-  const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-  // DeepSeek thinks by default: slower, pricier, and it can use up the output budget
-  // on short tasks. Turn it off there only (other providers reject the parameter).
-  const deepseek = config.source === "included" || /(^|\.)deepseek\.com$/i.test(new URL(config.baseUrl).hostname);
-  let res: Response;
+const parseJson = (text: string): ChatCompletionBody => {
   try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { authorization: `Bearer ${config.apiKey}`, "content-type": "application/json" },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: "system", content: prompt.system },
-          { role: "user", content: prompt.user },
-        ],
-        max_tokens: prompt.maxTokens,
-        temperature: prompt.temperature,
-        stream: false,
-        ...(deepseek ? { thinking: { type: "disabled" } } : {}),
-        ...(prompt.json ? { response_format: { type: "json_object" } } : {}),
-      }),
-      redirect: "error",
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    return JSON.parse(text) as ChatCompletionBody;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * POSTs the chat request. Our own configured endpoint uses fetch; a
+ * workspace-supplied address goes through the pinned client so the server
+ * can't be pointed at internal hosts (also not via DNS rebinding or redirects).
+ */
+async function postChat(config: AiConfig, url: string, payload: string, timeoutMs: number): Promise<{ status: number; body: ChatCompletionBody }> {
+  const headers = { authorization: `Bearer ${config.apiKey}`, "content-type": "application/json" };
+  if (config.ownKey) {
+    const allowInsecure = !prod() && process.env.AI_ALLOW_PRIVATE_URLS === "true";
+    try {
+      const res = await postJsonPinned(url, { headers, body: payload, timeoutMs, allowInsecure });
+      return { status: res.status, body: parseJson(res.text) };
+    } catch (e) {
+      if (e instanceof HostNotAllowedError) throw new AiCallError("That API address isn't allowed. Use the provider's public https address.");
+      if (e instanceof PinnedRequestError) {
+        throw new AiCallError(e.timedOut ? "The AI took too long to answer." : /https|username/.test(e.message) ? e.message.replace("The address", "The API address") : "Couldn't reach the AI provider.", e.timedOut);
+      }
+      throw new AiCallError("Couldn't reach the AI provider.");
+    }
+  }
+  try {
+    const res = await fetch(url, { method: "POST", headers, body: payload, redirect: "error", signal: AbortSignal.timeout(timeoutMs) });
+    return { status: res.status, body: (await res.json().catch(() => null)) as ChatCompletionBody };
   } catch (e) {
     const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
     throw new AiCallError(timedOut ? "The AI took too long to answer." : "Couldn't reach the AI provider.", timedOut);
   }
-  const body = (await res.json().catch(() => null)) as {
-    choices?: { message?: { content?: string | null }; finish_reason?: string }[];
-    usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_cache_hit_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
-    error?: { message?: string };
-  } | null;
-  if (!res.ok) {
-    const detail = body?.error?.message ? `: ${body.error.message.slice(0, 200)}` : "";
-    throw new AiCallError(res.status === 401 || res.status === 403 ? "The AI provider rejected the API key." : `The AI provider returned an error (${res.status})${detail}`);
+}
+
+async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutMs: number): Promise<CallOutput> {
+  let base: URL;
+  try {
+    base = new URL(config.baseUrl);
+  } catch {
+    throw new AiCallError("The API address isn't a valid URL.");
+  }
+  const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+  // DeepSeek thinks by default: slower, pricier, and it can use up the output budget
+  // on short tasks. Turn it off there only (other providers reject the parameter).
+  const deepseek = config.source === "included" || /(^|\.)deepseek\.com$/i.test(base.hostname);
+  const { status, body } = await postChat(
+    config,
+    url,
+    JSON.stringify({
+      model: config.model,
+      messages: [
+        { role: "system", content: prompt.system },
+        { role: "user", content: prompt.user },
+      ],
+      max_tokens: prompt.maxTokens,
+      temperature: prompt.temperature,
+      stream: false,
+      ...(deepseek ? { thinking: { type: "disabled" } } : {}),
+      ...(prompt.json ? { response_format: { type: "json_object" } } : {}),
+    }),
+    timeoutMs,
+  );
+  if (status < 200 || status >= 300) {
+    const detail = typeof body?.error?.message === "string" ? `: ${body.error.message.slice(0, 200)}` : "";
+    throw new AiCallError(status === 401 || status === 403 ? "The AI provider rejected the API key." : `The AI provider returned an error (${status})${detail}`);
   }
   const usage: AiUsage = {
     inputTokens: body?.usage?.prompt_tokens ?? 0,
     cachedInputTokens: body?.usage?.prompt_cache_hit_tokens ?? body?.usage?.prompt_tokens_details?.cached_tokens ?? 0,
     outputTokens: body?.usage?.completion_tokens ?? 0,
   };
-  const text = body?.choices?.[0]?.message?.content ?? "";
+  const content = body?.choices?.[0]?.message?.content;
+  const text = typeof content === "string" ? content : "";
   if (!text.trim()) throw Object.assign(new AiCallError("The AI returned an empty answer."), { usage });
   return { text, usage };
 }

@@ -23,6 +23,16 @@
     "typescript": "5.9.3"
   },
   "pnpm": {
+    "overrides": {
+      "postcss@<8.5.23": "8.5.23",
+      "source-map-js@<1.2.2": "1.2.2",
+      "body-parser@>=2.0.0 <2.4.0": "2.4.0",
+      "systeminformation@<5.33.16": "5.33.16",
+      "fast-uri@>=3.0.0 <3.1.9": "3.1.9",
+      "ip-address@>=10.0.0 <10.7.4": "10.7.4",
+      "qs@>=6.0.0 <6.16.1": "6.16.1",
+      "nodemailer@>=10.0.0 <10.1.4": "10.1.4"
+    },
     "onlyBuiltDependencies": [
       "supabase",
       "esbuild",

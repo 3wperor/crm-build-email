@@ -80,6 +80,16 @@ export async function sendTestEmail(input: TestEmailInput): Promise<TestEmailRes
   if ((count ?? 0) >= TEST_EMAILS_PER_HOUR) {
     return { ok: false, error: `Test email limit reached (${TEST_EMAILS_PER_HOUR} per hour). Try again later.` };
   }
+  // A workspace-wide ceiling too, so extra members or API keys can't multiply the per-person limit.
+  const { count: orgCount } = await admin
+    .from("test_sends")
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", input.orgId)
+    .neq("status", "blocked")
+    .gte("created_at", since);
+  if ((orgCount ?? 0) >= TEST_EMAILS_PER_HOUR * 3) {
+    return { ok: false, error: "Your workspace has sent a lot of test emails this hour. Try again later." };
+  }
 
   const { data: account } = await admin
     .from("sending_accounts")

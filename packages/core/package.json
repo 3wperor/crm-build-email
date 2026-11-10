@@ -32,7 +32,7 @@
     "@types/papaparse": "5.5.2"
   },
   "dependencies": {
-    "zod": "4.6.5",
+    "zod": "4.6.6",
     "papaparse": "5.7.0"
   }
 }

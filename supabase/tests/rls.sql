@@ -892,4 +892,93 @@ select pg_temp.expect_eq((select count(*) from public.agent_audit_log), 0, 'othe
 select pg_temp.expect_eq((select count(*) from public.campaigns), 0, 'other org cannot read campaigns');
 reset role;
 
+-- Security hardening (0020) ---------------------------------------------------
+-- Anonymous users hold no privileges at all; signed-in users can't TRUNCATE.
+select pg_temp.expect_eq(
+  (select count(*) from information_schema.table_privileges where grantee = 'anon' and table_schema = 'public'), 0,
+  'hardening: anon has no table privileges');
+select pg_temp.expect_eq(
+  (select count(*) from information_schema.table_privileges
+    where grantee = 'authenticated' and table_schema = 'public' and privilege_type in ('TRUNCATE', 'REFERENCES', 'TRIGGER')), 0,
+  'hardening: authenticated cannot truncate');
+select pg_temp.expect_eq(
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('public', 'private') and has_function_privilege('anon', p.oid, 'execute')), 0,
+  'hardening: anon cannot execute any function');
+select pg_temp.expect_eq(
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'private' and p.prosecdef and has_function_privilege('authenticated', p.oid, 'execute')
+      and p.proname not in ('user_org_ids', 'user_org_ids_with_role', 'has_org_role')), 0,
+  'hardening: internal definer helpers are not callable by clients');
+select pg_temp.expect_eq(
+  (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity), 0,
+  'hardening: every public table has RLS enabled');
+
+-- A signed-in role without a user id is not "the server".
+set local role authenticated;
+select set_config('request.jwt.claims', '{"role":"authenticated"}', true);
+select pg_temp.expect_error(format('select public.set_sending_paused(%L, true)', current_setting('test.org_a')), '42501',
+  'hardening: kill switch refuses a caller with no user id');
+select pg_temp.expect_error(format('select public.billing_status(%L)', current_setting('test.org_a')), '42501',
+  'hardening: billing_status refuses a caller with no user id');
+reset role;
+-- The real server still can.
+set local role service_role;
+select set_config('request.jwt.claims', '{"role":"service_role"}', true);
+select public.set_sending_paused(current_setting('test.org_b')::uuid, true, 'server pause', 'agent:test');
+select public.set_sending_paused(current_setting('test.org_b')::uuid, false);
+reset role;
+select pg_temp.expect_eq((select sending_paused::int from public.organizations where id = current_setting('test.org_b')::uuid), 0,
+  'hardening: the server can still pause and resume');
+
+-- One trial per person: Alice's second workspace starts without one.
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+select set_config('test.org_a2', public.create_organization('Org A2')::text, true);
+reset role;
+select pg_temp.expect_eq((select (plan = 'expired')::int from public.organizations where id = current_setting('test.org_a2')::uuid), 1,
+  'hardening: a second workspace gets no new trial');
+select pg_temp.expect_eq((select (plan = 'trial')::int from public.organizations where id = current_setting('test.org_a')::uuid), 1,
+  'hardening: the first workspace keeps its trial');
+-- ...even after deleting the first one, and never more than 10 workspaces.
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000a');
+do $$ begin for i in 1..8 loop perform public.create_organization('Org A extra ' || i); end loop; end $$;
+select pg_temp.expect_error($q$select public.create_organization('One too many')$q$, '23514', 'hardening: workspace limit per person');
+select pg_temp.expect_error($q$update public.users set trial_started_at = null where id = auth.uid()$q$, '42501',
+  'hardening: users cannot reset their own trial marker');
+reset role;
+
+-- Full-auto is an owner/admin decision, also for direct API writes.
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000d'); -- Sam, sender
+select pg_temp.expect_error($q$update public.campaigns set approval_mode = 'auto' where name = 'A campaign'$q$, '42501',
+  'hardening: senders cannot switch a campaign to full-auto');
+select pg_temp.expect_error(
+  format($q$insert into public.campaigns (org_id, name, approval_mode) values (%L, 'sneaky', 'auto')$q$, current_setting('test.org_a')), '42501',
+  'hardening: senders cannot create a full-auto campaign');
+update public.campaigns set name = 'A campaign' where name = 'A campaign'; -- other edits still work
+select pg_temp.login('10000000-0000-4000-8000-00000000000a'); -- Alice, owner
+update public.campaigns set approval_mode = 'auto' where name = 'A campaign';
+reset role;
+select pg_temp.expect_eq((select (approval_mode = 'auto')::int from public.campaigns where name = 'A campaign'), 1,
+  'hardening: owners can enable full-auto');
+
+-- Booking links must be http(s); oversized text is refused.
+insert into public.opportunities (org_id, lead_id, stage_id, source)
+select l.org_id, l.id, s.id, 'manual' from public.leads l join public.pipeline_stages s on s.org_id = l.org_id and s.is_entry
+ where l.email = 'lead1@a.example'
+on conflict do nothing;
+set local role authenticated;
+select pg_temp.login('10000000-0000-4000-8000-00000000000d'); -- Sam, sender
+select pg_temp.expect_error($q$update public.opportunities set booking_link = 'javascript:alert(1)'$q$, '23514',
+  'hardening: javascript: booking links are refused');
+update public.opportunities set booking_link = 'https://cal.example/sam';
+select pg_temp.expect_error(
+  format($q$insert into public.lead_notes (org_id, lead_id, user_id, body) select org_id, id, auth.uid(), repeat('x', 10001) from public.leads where org_id = %L limit 1$q$,
+         current_setting('test.org_a')), '23514',
+  'hardening: oversized notes are refused');
+reset role;
+
 rollback;

@@ -63,6 +63,29 @@ export async function campaignForCall(orgId: string, tool: AgentToolName, args: 
   return null;
 }
 
+/**
+ * "Write" tools are drafts and configuration, but on a campaign that is
+ * sending right now they decide who gets email and what it says: enrolling
+ * leads (directly or through an upload) and adding copy. Returns that running
+ * campaign so the call is held to the same approval rule as starting it.
+ */
+export async function liveCampaignForWrite(orgId: string, tool: AgentToolName, args: Record<string, unknown>): Promise<string | null> {
+  let campaignId: string | null = null;
+  if ((tool === "enroll_leads" || tool === "upload_leads") && typeof args.campaign_id === "string") {
+    campaignId = args.campaign_id;
+  } else if (tool === "create_variant" && typeof args.step_id === "string") {
+    const { data } = await db()
+      .from("sequence_steps")
+      .select("sequences!inner(campaign_id)")
+      .eq("org_id", orgId)
+      .eq("id", args.step_id)
+      .maybeSingle();
+    campaignId = (data as unknown as { sequences: { campaign_id: string } } | null)?.sequences.campaign_id ?? null;
+  }
+  if (!campaignId) return null;
+  const { data: c } = await db().from("campaigns").select("id, status").eq("org_id", orgId).eq("id", campaignId).maybeSingle();
+  return c?.status === "active" ? c.id : null;
+}
 /** Instances of "send" tools that cannot increase sending run without approval. */
 export async function isHarmlessCall(ctx: AgentCtx, tool: AgentToolName, args: Record<string, unknown>): Promise<boolean> {
   if (tool === "set_daily_volume") {
@@ -224,8 +247,9 @@ const tools: { [N in AgentToolName]: Impl<N> } = {
     if (verification_status) q = q.eq("verification_status", verification_status);
     if (list_id) q = q.eq("lead_list_members.list_id", list_id);
     if (search) {
-      const s = search.replace(/[%,()]/g, " ").trim();
-      q = q.or(`email.ilike.%${s}%,first_name.ilike.%${s}%,last_name.ilike.%${s}%,company.ilike.%${s}%`);
+      // Strip characters that are meaningful in PostgREST filter syntax.
+      const s = search.replace(/[,()*%\\"]/g, " ").trim().slice(0, 100);
+      if (s) q = q.or(`email.ilike.%${s}%,first_name.ilike.%${s}%,last_name.ilike.%${s}%,company.ilike.%${s}%`);
     }
     const { data, error } = await q;
     if (error) fail(error.message);

@@ -9,10 +9,21 @@ export default function SignupPage() {
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Create your account</CardTitle>
-        <CardDescription>You&apos;ll set up your workspace next.</CardDescription>
+        <CardDescription>Free for 7 days, 200 emails included, no card needed.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <SignupForm />
+        <p className="text-muted-foreground text-center text-xs">
+          By creating an account you agree to our{" "}
+          <Link href="/terms" className="underline underline-offset-4">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline underline-offset-4">
+            Privacy Policy
+          </Link>
+          .
+        </p>
         <p className="text-muted-foreground text-center text-sm">
           Already have an account?{" "}
           <Link href="/login" className="text-foreground underline underline-offset-4">

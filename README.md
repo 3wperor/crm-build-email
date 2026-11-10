@@ -431,6 +431,12 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 
 **Manual override:** `pnpm activate-user <owner-email> [pro|standard|trial|expired]`. It uses the service-role key, from your machine only.
 
+### Public pages
+
+- `/` is the homepage: hero, a "what's a customer worth to you" calculator (the same maths as the welcome flow), how it works, features, pricing from `lib/plans.ts` (shared with Billing), FAQ. Signed-in users are sent to `/dashboard`.
+- `/privacy` and `/terms`: UK GDPR-style Privacy Policy (controller for account data, processor for leads, sub-processors including DeepSeek in China) and B2B Terms (acceptable sending rules, England and Wales law). The business name and contact email come from `LEGAL_ENTITY_NAME` and `LEGAL_CONTACT_EMAIL`. Have a solicitor review both before relying on them.
+- Public pages are indexable; the app itself stays `noindex`.
+
 ### Onboarding
 
 - **Welcome flow** (`/welcome`, right after naming the workspace; every question skippable). One question per screen, each answer shown back as a fact worked out from it (`@crm/core/growth`, browser-safe):

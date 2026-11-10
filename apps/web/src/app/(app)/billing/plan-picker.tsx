@@ -6,22 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { openBillingPortal, startCheckout, type BillingResult } from "./actions";
+import { PLAN_FEATURES, PRICES, type Interval } from "@/lib/plans";
 
-type PaidPlan = "standard" | "pro";
-type Interval = "month" | "year";
-
-const PRICES: Record<PaidPlan, Record<Interval, number>> = { standard: { month: 20, year: 200 }, pro: { month: 25, year: 250 } };
-// soon: shown as "coming soon" for features that aren't built yet.
-const FEATURES: { label: string; standard: boolean; soon?: boolean }[] = [
-  { label: "Unlimited campaigns, follow-ups and A/B tests", standard: true },
-  { label: "Your own inboxes, lead import (CSV/Excel) and verification", standard: true },
-  { label: "Reply detection, pipeline, analytics, warmup", standard: true },
-  { label: "HubSpot sync", standard: true },
-  { label: "AI writes your campaign emails", standard: false },
-  { label: "AI sorts replies and drafts answers you send in one click", standard: false },
-  { label: "Use your own Claude or OpenAI key for a stronger model", standard: false },
-  { label: "Connect Claude (MCP) to run YCAReach from chat", standard: false },
-];
+const FEATURES = PLAN_FEATURES;
 
 export function PlanPicker({
   currentPlan,

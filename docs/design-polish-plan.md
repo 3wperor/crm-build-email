@@ -11,9 +11,9 @@
 - **Ask the owner before adding any dependency.** The ones this plan expects are listed in [Dependencies to approve](#dependencies-to-approve). Don't add anything else without asking.
 - **Behaviour must not change.** Keep every server action, route, permission check and `data-testid` attribute. Before finishing each phase, all of these must pass:
   - `pnpm -r test`
-  - `pnpm --filter web exec tsc --noEmit`
-  - `pnpm --filter web lint`
-  - `pnpm --filter web build`
+  - `pnpm --filter @crm/web exec tsc --noEmit`
+  - `pnpm --filter @crm/web lint`
+  - `pnpm --filter @crm/web build`
 - **Do not add an app-wide `loading.tsx`.** In Next 15 it stopped the URL from updating after server actions that call `redirect()`, which was a real bug here. Use `<Suspense>` with skeletons *inside* pages instead. If you do add a section-level `loading.tsx`, check that every form in that section still redirects correctly.
 - **Keep navigation fast.** `components/nav.tsx` loads pages in advance on hover, and `next.config.ts` sets `staleTimes`. Don't undo either.
 - **Keep it restrained:**

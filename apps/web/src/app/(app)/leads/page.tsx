@@ -78,7 +78,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
         title="Leads"
         description={plural(total, "lead")}
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
               <Link href="/leads/imports">Import history</Link>
             </Button>

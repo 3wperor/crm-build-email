@@ -29,14 +29,14 @@ function SetupGuide({ provider, answer }: { provider: Provider; answer: string |
         <ol className="mt-3 grid list-decimal gap-2 pl-5">
           <li>
             Turn on <strong>2-Step Verification</strong> for the Google account you&apos;ll send from:{" "}
-            <a className="underline" href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noreferrer">
+            <a className="underline break-all" href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noreferrer">
               myaccount.google.com/signinoptions/twosv
             </a>
             . Skip this if it&apos;s already on.
           </li>
           <li>
             Open{" "}
-            <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
+            <a className="underline break-all" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
               myaccount.google.com/apppasswords
             </a>
             , type <strong>YCAReach</strong> as the name, and click <strong>Create</strong>.
@@ -159,7 +159,7 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
             {provider === "google" ? (
               <>
                 Requires 2-Step Verification. Create one at{" "}
-                <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
+                <a className="underline break-all" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
                   myaccount.google.com/apppasswords
                 </a>
                 . Encrypted at rest; never shown again.

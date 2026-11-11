@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowRight, CheckCircle2, Mail, Sparkles } from "lucide-react";
 import { effectiveSentToday, extractReplyText } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
@@ -49,9 +47,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader title="Dashboard" description={`What needs you today at ${org.name}.`} />
-      <Suspense fallback={<Skeleton className="mb-6 h-40 w-full" />}>
-        <GettingStarted orgId={org.id} />
-      </Suspense>
+      <GettingStarted orgId={org.id} />
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card data-testid="waiting-replies">
@@ -131,9 +127,7 @@ export default async function DashboardPage() {
               )}
             </CardContent>
           </Card>
-          <Suspense fallback={<Skeleton className="h-32 w-full" />}>
-            <GoalTracker orgId={org.id} />
-          </Suspense>
+          <GoalTracker orgId={org.id} />
         </div>
       </div>
     </>

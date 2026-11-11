@@ -32,10 +32,10 @@ export function PlanBadge({ status }: { status: BillingStatus }) {
       <Link
         href="/billing"
         data-testid="trial-badge"
-        className="group bg-background hover:bg-accent/60 focus-visible:ring-ring/50 flex h-8 items-center gap-2.5 rounded-full border pr-1 pl-3 text-sm whitespace-nowrap outline-none focus-visible:ring-[3px]"
+        className="group bg-background hover:bg-accent/60 focus-visible:ring-ring/50 flex h-8 items-center gap-2.5 rounded-full border pr-1 pl-3 text-sm max-[359px]:gap-0 max-[359px]:pl-1 whitespace-nowrap outline-none focus-visible:ring-[3px]"
       >
         <span className="flex items-center gap-2">
-          <span className="font-medium">
+          <span className="font-medium max-[359px]:hidden">
             <span className="hidden sm:inline">Free trial · </span>
             <span className={cn(ending && "text-warning")}>
               {days} day{days === 1 ? "" : "s"} left

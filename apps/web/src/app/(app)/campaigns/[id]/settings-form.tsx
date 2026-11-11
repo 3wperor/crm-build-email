@@ -106,11 +106,11 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
             <p className="text-muted-foreground text-sm">No inboxes connected yet.</p>
           ) : (
             inboxes.map((i) => (
-              <label key={i.id} className="flex items-center gap-2 text-sm">
+              <label key={i.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                 <input type="checkbox" name="accountIds" value={i.id} defaultChecked={attached.includes(i.id)} />
-                {i.email} <HealthBadge health={i.health} />
+                <span className="min-w-0 break-all">{i.email}</span> <HealthBadge health={i.health} />
                 <span className="text-muted-foreground text-xs">
-                  cap {i.daily_cap}/day{i.status !== "active" ? ` · ${i.status}` : ""}
+                  up to {i.daily_cap} a day{i.status !== "active" ? ` · ${i.status}` : ""}
                 </span>
               </label>
             ))

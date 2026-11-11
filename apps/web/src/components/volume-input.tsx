@@ -36,7 +36,7 @@ export function VolumeInput({
         value={Number.isFinite(numeric) ? Math.min(Math.max(numeric, min), rangeMax) : min}
         onChange={(e) => setValue(e.target.value)}
         disabled={disabled}
-        className="accent-primary flex-1"
+        className="accent-primary min-w-0 flex-1"
       />
       <Input
         id={id}
@@ -48,7 +48,7 @@ export function VolumeInput({
         value={value}
         onChange={(e) => setValue(e.target.value)}
         disabled={disabled}
-        className="w-24"
+        className="w-20 shrink-0 sm:w-24"
         required
       />
     </div>

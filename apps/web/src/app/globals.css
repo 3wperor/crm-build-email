@@ -175,6 +175,15 @@
 
 /* Native controls, styled once so every select, tick box and radio matches. */
 @layer base {
+  /* Browsers stop a fieldset shrinking below its content; let forms fit small phones. */
+  fieldset {
+    min-width: 0;
+  }
+  /* A plain one-column grid shares the width it's given, instead of growing to fit its widest child
+     (which pushed forms off the side of small phones). grid-cols-* utilities still win. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   select {
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c8493' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");

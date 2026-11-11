@@ -25,9 +25,9 @@ export default function OpengraphImage() {
         <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
           <svg width="88" height="88" viewBox="0 0 32 32">
             <rect width="32" height="32" rx="8" fill={BLUE} />
-            <path d="M9.5 9 16 17v7" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M16 17 22 9.6" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" opacity="0.55" />
-            <circle cx="23" cy="8.6" r="2.6" fill="#fff" />
+            <path d="M9 9.5 15.5 17.5V24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M15.5 17.5 23 8.5" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" />
+            <path d="M17.2 8.5H23v5.8" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div style={{ display: "flex", fontSize: 56, fontWeight: 700, letterSpacing: -2 }}>
             YCA<span style={{ color: BLUE }}>Reach</span>

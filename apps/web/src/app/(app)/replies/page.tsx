@@ -3,12 +3,12 @@ import { can, extractReplyText, REPLY_CLASSES } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ReclassifySelect } from "./classification";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircle2, MessageSquareReply } from "lucide-react";
+import { CheckCircle2, MessageSquareReply, Sparkles } from "lucide-react";
 import { LinkTabs } from "@/components/ui/link-tabs";
 import { Time } from "@/components/time";
 import { statusLabel } from "@/lib/labels";
@@ -62,56 +62,44 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
           description="Replies to your campaigns show up here automatically."
         />
       ) : (
-        <Card>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>From</TableHead>
-                  <TableHead>Reply</TableHead>
-                  <TableHead>Campaign</TableHead>
-                  <TableHead>Reply type</TableHead>
-                  <TableHead>Received</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {replies.map((r) => (
-                  <TableRow key={r.id} data-testid="reply-row">
-                    <TableCell>
-                      <div className="font-medium">{[r.leads?.first_name, r.leads?.last_name].filter(Boolean).join(" ") || r.from_email}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {r.from_email}
-                        {r.leads?.company ? ` · ${r.leads.company}` : ""}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-md whitespace-normal">
-                      <Link href={`/replies/${r.id}`} className="hover:underline">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium">{r.subject || "(no subject)"}</span>
-                          {needsAnswer(r) && <Badge variant="secondary">{r.draft_status === "ready" ? "AI draft ready" : "Needs reply"}</Badge>}
-                        </div>
-                        <div className="text-muted-foreground line-clamp-2 text-xs">{extractReplyText(r.body_text ?? "").slice(0, 200)}</div>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {r.sends?.campaigns ? (
-                        <Link href={`/campaigns/${r.sends.campaigns.id}`} className="hover:underline">
-                          {r.sends.campaigns.name}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
-                    <TableCell>
+        <Card className="overflow-hidden py-0">
+          <ul className="divide-y">
+            {replies.map((r) => {
+              const waiting = needsAnswer(r);
+              return (
+                <li key={r.id} data-testid="reply-row" className="hover:bg-muted/40 relative grid gap-x-4 gap-y-2 px-4 py-3.5 sm:grid-cols-[13rem_minmax(0,1fr)_auto] sm:px-5">
+                  {waiting && <span aria-hidden="true" className="bg-primary absolute inset-y-0 left-0 w-0.5" />}
+                  <div className="min-w-0">
+                    <div className={cn("truncate text-sm", waiting ? "font-semibold" : "font-medium")}>
+                      {[r.leads?.first_name, r.leads?.last_name].filter(Boolean).join(" ") || r.from_email}
+                    </div>
+                    <div className="text-muted-foreground text-caption truncate">{r.leads?.company || r.from_email}</div>
+                  </div>
+                  <Link href={`/replies/${r.id}`} className="focus-visible:ring-ring/50 min-w-0 rounded-sm outline-none after:absolute after:inset-0 focus-visible:ring-[3px]">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className={cn("truncate text-sm", waiting && "font-medium")}>{r.subject || "(no subject)"}</span>
+                      {waiting &&
+                        (r.draft_status === "ready" ? (
+                          <span className="text-primary text-caption inline-flex items-center gap-1 font-medium">
+                            <Sparkles className="size-3" /> AI draft ready
+                          </span>
+                        ) : (
+                          <Badge variant="info">Needs reply</Badge>
+                        ))}
+                    </div>
+                    <p className="text-muted-foreground text-small mt-0.5 line-clamp-1">{extractReplyText(r.body_text ?? "").slice(0, 200)}</p>
+                    {r.sends?.campaigns && <p className="text-muted-foreground text-caption mt-1">From {r.sends.campaigns.name}</p>}
+                  </Link>
+                  <div className="relative z-[1] flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1.5">
+                    <Time value={r.received_at} className="text-muted-foreground text-caption order-last whitespace-nowrap sm:order-none" />
+                    <div title={r.classification_source ? statusLabel("replySource", r.classification_source) : undefined}>
                       <ReclassifySelect replyId={r.id} value={r.classification} canEdit={canEdit} />
-                      {r.classification_source && <div className="text-muted-foreground text-caption mt-1">{statusLabel("replySource", r.classification_source)}</div>}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs"><Time value={r.received_at} /></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </Card>
       )}
     </>

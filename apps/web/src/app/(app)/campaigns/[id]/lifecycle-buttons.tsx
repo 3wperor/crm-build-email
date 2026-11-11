@@ -30,7 +30,7 @@ export function LifecycleButtons({
         {status === "active" ? (
           <form action={pause}>
             <input type="hidden" name="campaign_id" value={campaignId} />
-            <Button variant="outline" disabled={pausing}>
+            <Button variant="outline" loading={pausing}>
               <Pause /> Pause campaign
             </Button>
           </form>
@@ -47,8 +47,8 @@ export function LifecycleButtons({
           ) : (
             <form action={start}>
               <input type="hidden" name="campaign_id" value={campaignId} />
-              <Button disabled={starting}>
-                <Play /> {status === "paused" ? "Resume" : "Start campaign"}
+              <Button loading={starting}>
+                <Play /> {status === "paused" ? "Resume campaign" : "Start campaign"}
               </Button>
             </form>
           ))

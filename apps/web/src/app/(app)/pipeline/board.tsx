@@ -120,6 +120,7 @@ export function Board({ stages, cards: initial, canEdit }: { stages: BoardStage[
     <div className="grid gap-3">
       {error && <p className="text-destructive text-sm">{error}</p>}
       <DndContext
+        id="pipeline-board"
         sensors={sensors}
         accessibility={{ announcements }}
         onDragStart={onDragStart}

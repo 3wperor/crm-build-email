@@ -23,7 +23,7 @@ export async function GoalTracker({ orgId }: { orgId: string }) {
   const month = now.toLocaleString("en-GB", { month: "long", timeZone: "UTC" });
 
   return (
-    <Card className="mb-6" data-testid="goal-tracker">
+    <Card data-testid="goal-tracker">
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <div className="grid gap-1">
           <CardTitle className="flex items-center gap-2 text-base">

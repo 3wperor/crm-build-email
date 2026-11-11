@@ -10,10 +10,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { next, error, notice } = await searchParams;
   const linkNotice = authLinkMessage(notice);
   return (
-    <Card>
+    <Card className="border-0 bg-transparent py-0 shadow-none [&>*]:px-0">
       <CardHeader>
-        <CardTitle className="text-xl">Sign in</CardTitle>
-        <CardDescription>YCAReach</CardDescription>
+        <CardTitle className="text-page-title">Sign in</CardTitle>
+        <CardDescription>Welcome back.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {linkNotice && (

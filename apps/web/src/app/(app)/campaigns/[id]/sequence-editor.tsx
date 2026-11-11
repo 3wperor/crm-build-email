@@ -33,6 +33,11 @@ type Props = {
   aiDefaults?: { offer: string; audience: string };
 };
 
+function waitText(days: number, hours: number): string {
+  const parts = [days ? `${days} ${days === 1 ? "day" : "days"}` : "", hours ? `${hours} ${hours === 1 ? "hour" : "hours"}` : ""].filter(Boolean);
+  return parts.join(" and ") || "straight away";
+}
+
 export function SequenceEditor(props: Props) {
   const firstSubject = props.steps[0]?.variants[0]?.subject ?? "";
   return (
@@ -40,23 +45,44 @@ export function SequenceEditor(props: Props) {
       {props.canEdit && props.ai && props.ai !== "off" && (
         <WriteWithAi campaignId={props.campaignId} ai={props.ai} defaults={props.aiDefaults} locked={props.structureLocked} hasContent={props.steps.some((s) => s.variants.some((v) => v.body.trim()))} />
       )}
-      <p className="text-muted-foreground text-sm">
-        Merge tags:{" "}
-        {BUILTIN_TAGS.map((t) => (
-          <code key={t} className="bg-muted mr-1 rounded px-1 text-xs">{`{{${t}}}`}</code>
+      <details className="group text-sm">
+        <summary className="text-muted-foreground hover:text-foreground w-fit cursor-pointer list-none rounded-sm underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+          Personalise with merge tags <span className="group-open:hidden">(show)</span>
+          <span className="hidden group-open:inline">(hide)</span>
+        </summary>
+        <p className="text-muted-foreground mt-2 leading-7">
+          {BUILTIN_TAGS.map((t) => (
+            <code key={t} className="bg-muted mr-1 rounded px-1 py-0.5 text-xs">{`{{${t}}}`}</code>
+          ))}
+          <code className="bg-muted mr-1 rounded px-1 py-0.5 text-xs">{"{{custom_field}}"}</code>
+          <br />
+          Add a fallback for missing details like this: <code className="bg-muted rounded px-1 py-0.5 text-xs">{"{{first_name|there}}"}</code>. Leave a
+          follow-up&apos;s subject empty to reply in the same thread.
+        </p>
+      </details>
+      <ol className="grid">
+        {props.steps.map((step, i) => (
+          <li key={step.id} className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 pb-6 last:pb-0 sm:gap-x-4">
+            <div aria-hidden="true" className="flex flex-col items-center">
+              <span className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums">
+                {i + 1}
+              </span>
+              {i < props.steps.length - 1 && <span className="bg-border -mb-6 mt-1 w-px flex-1" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-small mt-1 mb-2">
+                {i === 0 ? "First email" : `Follow-up, sent ${waitText(step.delay_days, step.delay_hours)} after the previous email if they haven't replied`}
+              </p>
+              <StepCard {...props} step={step} index={i} threadSubject={firstSubject} />
+            </div>
+          </li>
         ))}
-        <code className="bg-muted mr-1 rounded px-1 text-xs">{"{{custom_field}}"}</code>
-        <code className="bg-muted rounded px-1 text-xs">{"{{first_name|there}}"}</code> (fallback). Leave a follow-up&apos;s subject empty to reply
-        in the same thread.
-      </p>
-      {props.steps.map((step, i) => (
-        <StepCard key={step.id} {...props} step={step} index={i} threadSubject={firstSubject} />
-      ))}
+      </ol>
       {props.canEdit && (
         <form action={addStep}>
           <input type="hidden" name="campaign_id" value={props.campaignId} />
           <Button variant="outline">
-            <Plus /> Add follow-up step
+            <Plus /> Add a follow-up
           </Button>
         </form>
       )}
@@ -197,7 +223,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">Step {step.step_order}</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <form action={action} className="flex items-center gap-2 text-sm">
+          <form action={action} className="flex flex-wrap items-center justify-end gap-2 text-sm">
             <input type="hidden" name="campaign_id" value={campaignId} />
             <input type="hidden" name="step_id" value={step.id} />
             <span className="text-muted-foreground">{index === 0 ? "Send after" : "Wait"}</span>

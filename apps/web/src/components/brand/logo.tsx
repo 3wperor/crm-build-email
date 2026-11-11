@@ -1,19 +1,18 @@
 import { cn } from "@/lib/utils";
 
 /**
- * The YCAReach mark: a "Y" whose right arm reaches out to a dot (the person
- * you're writing to). Drawn on a 32px grid so it stays crisp as a 16px favicon;
+ * The YCAReach mark: a "Y" whose right arm is an arrow reaching up and out. Drawn on a 32px grid so it stays crisp as a 16px favicon;
  * `app/icon.svg` is the same drawing with fixed colours.
  */
 export function LogoMark({ className, ...props }: React.ComponentProps<"svg">) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden="true" className={cn("size-6 shrink-0", className)} {...props}>
       <rect width="32" height="32" rx="8" className="fill-primary" />
-      <g className="stroke-primary-foreground" fill="none" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9.5 9 16 17v7" />
-        <path d="M16 17 22 9.6" opacity="0.55" />
+      <g className="stroke-primary-foreground" fill="none" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 9.5 15.5 17.5V24" />
+        <path d="M15.5 17.5 23 8.5" />
+        <path d="M17.2 8.5H23v5.8" />
       </g>
-      <circle cx="23" cy="8.6" r="2.6" className="fill-primary-foreground" />
     </svg>
   );
 }

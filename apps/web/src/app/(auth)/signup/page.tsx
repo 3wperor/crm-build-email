@@ -6,9 +6,9 @@ export const metadata = { title: "Sign up" };
 
 export default function SignupPage() {
   return (
-    <Card>
+    <Card className="border-0 bg-transparent py-0 shadow-none [&>*]:px-0">
       <CardHeader>
-        <CardTitle className="text-xl">Create your account</CardTitle>
+        <CardTitle className="text-page-title">Create your account</CardTitle>
         <CardDescription>Free for 7 days, 200 emails included, no card needed.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">

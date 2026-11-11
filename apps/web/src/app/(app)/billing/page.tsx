@@ -40,7 +40,7 @@ export default async function BillingPage() {
         )}
         {!stripeConfigured() && (
           <Alert>
-            <AlertDescription>Payments aren&apos;t set up yet (STRIPE_SECRET_KEY is missing).</AlertDescription>
+            <AlertDescription>Payments aren&apos;t switched on yet, so plans can&apos;t be changed here. (Site owner: STRIPE_SECRET_KEY is missing.)</AlertDescription>
           </Alert>
         )}
         {!canManage && (

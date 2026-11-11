@@ -69,7 +69,7 @@ export function PlanPicker({
                     const on = plan === "pro" || f.standard;
                     return (
                       <li key={f.label} className={cn("flex items-start gap-2", !on && "text-muted-foreground")}>
-                        {on ? <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" /> : <Minus className="mt-0.5 size-4 shrink-0" />}
+                        {on ? <Check className="mt-0.5 size-4 shrink-0 text-success" /> : <Minus className="mt-0.5 size-4 shrink-0" />}
                         <span>
                           {f.label}
                           {f.soon && plan === "pro" && <span className="text-muted-foreground ml-1 text-xs">(coming soon)</span>}

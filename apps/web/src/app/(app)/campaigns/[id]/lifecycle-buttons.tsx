@@ -74,7 +74,7 @@ export function LifecycleButtons({
           )}
         </Alert>
       )}
-      {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+      {state?.message && <span className="text-sm text-success">{state.message}</span>}
     </div>
   );
 }

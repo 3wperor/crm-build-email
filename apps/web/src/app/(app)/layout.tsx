@@ -13,6 +13,7 @@ import Link from "next/link";
 import { billingBanner } from "@crm/core/onboarding";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { Logo } from "@/components/brand/logo";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getOrgContext();
@@ -37,9 +38,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </Suspense>
       <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-3 md:flex">
         <div className="mb-4 grid gap-2 pt-1">
-          <div className="px-2 text-base font-bold tracking-tight">
-            YCA<span className="text-primary/60">Reach</span>
-          </div>
+          <Link href="/dashboard" className="w-fit px-2">
+            <Logo />
+          </Link>
           <OrgSwitcher ctx={ctx} />
         </div>
         <Nav counts={{ "/replies": needsReply ?? 0 }} />
@@ -80,7 +81,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             data-testid="billing-banner"
             className={cn(
               "flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-6 py-2 text-sm",
-              banner.tone === "danger" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-800 dark:text-amber-300",
+              banner.tone === "danger" ? "bg-destructive/10 text-destructive" : "bg-warning-subtle text-warning",
             )}
           >
             <span>{banner.message}</span>

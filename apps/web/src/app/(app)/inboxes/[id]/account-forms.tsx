@@ -72,7 +72,7 @@ export function SettingsForm({ account, disabled }: { account: Settings; disable
         </div>
       </fieldset>
       <ErrorAlert error={state?.error} />
-      {state?.saved && <p className="text-sm text-emerald-600">Saved.</p>}
+      {state?.saved && <p className="text-sm text-success">Saved.</p>}
       <div>
         <Button disabled={disabled || pending}>{pending ? "Saving…" : "Save changes"}</Button>
       </div>
@@ -91,7 +91,7 @@ export function RotatePasswordForm({ accountId, disabled }: { accountId: string;
         <FieldError messages={state?.fieldErrors?.password} />
       </div>
       <ErrorAlert error={state?.error} />
-      {state?.saved && <p className="text-sm text-emerald-600">Password updated.</p>}
+      {state?.saved && <p className="text-sm text-success">Password updated.</p>}
       {state?.test && <ConnectionResult result={state.test} />}
       <div>
         <Button variant="outline" disabled={disabled || pending}>

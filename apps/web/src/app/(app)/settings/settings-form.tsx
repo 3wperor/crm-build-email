@@ -65,7 +65,7 @@ export function SettingsForm({ org, disabled }: Props) {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       )}
-      {state?.ok && <p className="text-sm text-emerald-600">Saved.</p>}
+      {state?.ok && <p className="text-sm text-success">Saved.</p>}
       <div>
         <Button type="submit" disabled={disabled || pending}>
           {pending ? "Saving…" : "Save settings"}

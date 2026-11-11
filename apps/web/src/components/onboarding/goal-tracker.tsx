@@ -44,7 +44,7 @@ export async function GoalTracker({ orgId }: { orgId: string }) {
       </CardHeader>
       <CardContent>
         <div className="bg-muted h-2 overflow-hidden rounded-full" aria-hidden>
-          <div className={p.reached ? "h-full rounded-full bg-emerald-600" : "bg-primary h-full rounded-full"} style={{ width: `${Math.max(p.pct, 2)}%` }} />
+          <div className={p.reached ? "h-full rounded-full bg-success" : "bg-primary h-full rounded-full"} style={{ width: `${Math.max(p.pct, 2)}%` }} />
         </div>
       </CardContent>
     </Card>

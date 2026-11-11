@@ -39,10 +39,10 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
 
   if (sendState?.sent) {
     return (
-      <Card className="border-emerald-300">
+      <Card className="border-success/40">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <CheckCircle2 className="size-4 text-emerald-600" /> Reply sent
+            <CheckCircle2 className="size-4 text-success" /> Reply sent
           </CardTitle>
           <CardDescription>{sendState.message} It&apos;s in the conversation below.</CardDescription>
         </CardHeader>

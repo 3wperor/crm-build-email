@@ -21,7 +21,7 @@ export function GoalForm({ customersPerMonth, customerValue }: { customersPerMon
       <Button size="sm" disabled={pending}>
         Save goal
       </Button>
-      {state?.ok && <span className="text-sm text-emerald-600">Saved.</span>}
+      {state?.ok && <span className="text-sm text-success">Saved.</span>}
       {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
     </form>
   );

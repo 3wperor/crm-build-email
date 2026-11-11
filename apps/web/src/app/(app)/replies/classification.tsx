@@ -33,7 +33,7 @@ export function ReclassifySelect({ replyId, value, canEdit }: { replyId: string;
         ))}
       </select>
       {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-      {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+      {state?.message && <span className="text-xs text-success">{state.message}</span>}
     </form>
   );
 }

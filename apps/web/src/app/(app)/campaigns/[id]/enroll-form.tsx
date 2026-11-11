@@ -24,7 +24,7 @@ export function EnrollForm({ campaignId, lists }: { campaignId: string; lists: {
           <UserPlus /> {pending ? "Adding…" : "Add existing leads"}
         </Button>
       </div>
-      {state?.message && <p className="text-sm text-emerald-600">{state.message}</p>}
+      {state?.message && <p className="text-sm text-success">{state.message}</p>}
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
     </form>
   );

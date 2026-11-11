@@ -12,7 +12,7 @@ export function VerifyAllButton({ count }: { count: number }) {
       <Button variant="outline" size="sm" disabled={pending}>
         <MailCheck /> Verify {count.toLocaleString()} unverified lead{count === 1 ? "" : "s"}
       </Button>
-      {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+      {state?.message && <span className="text-sm text-success">{state.message}</span>}
       {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
     </form>
   );

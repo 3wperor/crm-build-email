@@ -166,7 +166,7 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
       )}
       <div className="flex items-center gap-3">
         {canEdit && <Button disabled={pending}>{pending ? "Saving…" : "Save settings"}</Button>}
-        {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+        {state?.message && <span className="text-sm text-success">{state.message}</span>}
       </div>
     </form>
   );

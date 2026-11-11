@@ -21,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { saveWelcome } from "./actions";
+import { Logo } from "@/components/brand/logo";
 
 const STEPS = 4; // questions; the plan comes after
 
@@ -70,9 +71,7 @@ export function WelcomeFlow({ workspace }: { workspace: string }) {
     <Card className="w-full max-w-xl">
       <CardContent className="grid gap-6 pt-6">
         <div className="flex items-center justify-between gap-4">
-          <div className="text-sm font-bold tracking-tight">
-            YCA<span className="text-primary/60">Reach</span>
-          </div>
+          <Logo size="sm" />
           {step < STEPS && (
             <form action={action}>
               <input type="hidden" name="skip" value="1" />

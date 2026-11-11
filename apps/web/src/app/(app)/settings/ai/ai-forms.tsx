@@ -31,7 +31,7 @@ export function AiTogglesForm({ classify, drafts, disabled }: { classify: boolea
           <Button size="sm" disabled={pending}>
             Save
           </Button>
-          {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+          {state?.message && <span className="text-sm text-success">{state.message}</span>}
           {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
         </div>
       )}
@@ -74,7 +74,7 @@ export function OwnKeyForm({ current }: { current: string }) {
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={pending}>{pending ? "Testing the key…" : "Test and connect"}</Button>
-        {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+        {state?.message && <span className="text-sm text-success">{state.message}</span>}
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

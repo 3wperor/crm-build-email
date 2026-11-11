@@ -56,7 +56,7 @@ export function TestEmailPanel({
         </Button>
       </div>
       {options.inboxes.length === 0 && <p className="text-muted-foreground text-xs">Connect an inbox to send tests.</p>}
-      {state?.ok === true && <p className="text-sm text-emerald-600">{state.message}</p>}
+      {state?.ok === true && <p className="text-sm text-success">{state.message}</p>}
       {state?.ok === false && (
         <div className="text-destructive text-sm" role="alert">
           {state.error}

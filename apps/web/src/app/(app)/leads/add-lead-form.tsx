@@ -21,7 +21,7 @@ export function AddLeadForm() {
         <Button size="sm" disabled={pending}>
           {pending ? "Adding…" : "Add lead"}
         </Button>
-        {state?.ok && <span className="text-sm text-emerald-600">Lead added.</span>}
+        {state?.ok && <span className="text-sm text-success">Lead added.</span>}
       </div>
       {state?.error && (
         <Alert variant="destructive">

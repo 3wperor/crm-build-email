@@ -46,7 +46,7 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
         </form>
         <span className="text-muted-foreground text-xs">{stage.cards} card(s)</span>
         {stage.is_entry ? (
-          <span className="rounded bg-emerald-600/15 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">Replies land here</span>
+          <span className="bg-success-subtle text-success rounded px-2 py-0.5 text-xs">Replies land here</span>
         ) : (
           stage.kind === "open" && (
             <form action={setEntryStage}>
@@ -65,7 +65,7 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
         </form>
       </div>
       {msg && <p className="text-destructive text-xs">{msg}</p>}
-      {state?.message && <p className="text-xs text-emerald-600">{state.message}</p>}
+      {state?.message && <p className="text-xs text-success">{state.message}</p>}
     </div>
   );
 }
@@ -84,7 +84,7 @@ export function AddStageForm() {
         Add stage
       </Button>
       {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-      {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+      {state?.message && <span className="text-xs text-success">{state.message}</span>}
     </form>
   );
 }

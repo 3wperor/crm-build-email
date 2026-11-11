@@ -57,7 +57,7 @@ export function SuppressionUploadForm() {
           if (f) onFile(f);
         }}
       />
-      {status?.ok && <p className="text-sm text-emerald-600">{status.ok}</p>}
+      {status?.ok && <p className="text-sm text-success">{status.ok}</p>}
       {status?.error && <p className="text-destructive text-sm">{status.error}</p>}
     </div>
   );

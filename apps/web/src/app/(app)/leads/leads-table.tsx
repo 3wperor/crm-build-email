@@ -104,7 +104,7 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
           <Button size="sm" variant={action === "add_to_list" || action === "verify" ? "outline" : "destructive"} disabled={selected.size === 0 || pending}>
             Apply
           </Button>
-          {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+          {state?.message && <span className="text-sm text-success">{state.message}</span>}
         </div>
       )}
       {state?.error && (

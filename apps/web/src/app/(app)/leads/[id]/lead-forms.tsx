@@ -25,7 +25,7 @@ export function LeadFieldsForm({ lead, canEdit, version }: { lead: Lead; canEdit
       {canEdit && (
         <div className="flex items-center gap-3">
           <Button disabled={pending}>{pending ? "Saving…" : "Save lead"}</Button>
-          {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+          {state?.message && <span className="text-sm text-success">{state.message}</span>}
           {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
         </div>
       )}
@@ -134,7 +134,7 @@ export function PipelineControl({
             <Button size="sm" disabled={pending}>
               Save
             </Button>
-            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            {state?.message && <span className="text-xs text-success">{state.message}</span>}
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </div>
         )}

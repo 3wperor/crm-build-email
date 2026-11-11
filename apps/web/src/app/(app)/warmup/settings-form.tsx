@@ -40,7 +40,7 @@ export function WarmupSettingsForm(props: { accountId: string; email: string; ta
         <Button size="sm" variant="outline" disabled={pending}>
           {pending ? "Saving…" : "Save warmup settings"}
         </Button>
-        {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+        {state?.message && <span className="text-sm text-success">{state.message}</span>}
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

@@ -168,7 +168,7 @@ function WriteWithAi({
                   Close
                 </Button>
               )}
-              {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+              {state?.message && <span className="text-sm text-success">{state.message}</span>}
               {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
             </div>
           </form>
@@ -198,7 +198,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
                 Save
               </Button>
             )}
-            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            {state?.message && <span className="text-xs text-success">{state.message}</span>}
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </form>
           {canEdit && !structureLocked && index > 0 && (
@@ -318,7 +318,7 @@ function VariantEditor({
             </div>
             <pre className="font-sans whitespace-pre-wrap">{rendered.text}</pre>
             {rendered.missing.length > 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-warning">
                 No value for {rendered.missing.map((m) => `{{${m}}}`).join(", ")} on this sample lead — add a fallback like {"{{tag|text}}"}.
               </p>
             )}
@@ -363,7 +363,7 @@ function VariantEditor({
             <Button size="sm" disabled={pending}>
               {pending ? "Saving…" : "Save variant"}
             </Button>
-            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            {state?.message && <span className="text-xs text-success">{state.message}</span>}
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </div>
         )}

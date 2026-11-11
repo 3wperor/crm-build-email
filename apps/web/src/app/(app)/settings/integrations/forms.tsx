@@ -17,7 +17,7 @@ export function ConnectForm({ reconnect }: { reconnect: boolean }) {
         <Button disabled={pending}>{pending ? "Checking…" : reconnect ? "Reconnect" : "Connect HubSpot"}</Button>
       </div>
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
-      {state?.message && <p className="text-sm text-emerald-600">{state.message}</p>}
+      {state?.message && <p className="text-sm text-success">{state.message}</p>}
     </form>
   );
 }
@@ -60,7 +60,7 @@ export function MappingForm(props: {
         <Button size="sm" variant="outline" disabled={pending}>
           {pending ? "Saving…" : "Save mapping"}
         </Button>
-        {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+        {state?.message && <span className="text-sm text-success">{state.message}</span>}
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

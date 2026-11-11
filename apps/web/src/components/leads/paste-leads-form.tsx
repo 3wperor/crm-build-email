@@ -28,7 +28,7 @@ export function PasteLeadsForm({ campaignId }: { campaignId?: string }) {
         <Button disabled={pending} variant="outline">
           {pending ? "Saving…" : campaignId ? "Add to campaign" : "Save leads"}
         </Button>
-        {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+        {state?.message && <span className="text-sm text-success">{state.message}</span>}
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

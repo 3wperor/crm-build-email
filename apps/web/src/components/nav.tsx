@@ -69,7 +69,7 @@ export function Nav({ counts = {} }: { counts?: Record<string, number> }) {
               </span>
             )}
             {"badge" in item && (
-              <span className="rounded bg-amber-500/15 px-1.5 text-[10px] font-medium text-amber-700 uppercase dark:text-amber-400">
+              <span className="rounded bg-warning-subtle text-warning px-1.5 text-[10px] font-medium uppercase">
                 {item.badge}
               </span>
             )}

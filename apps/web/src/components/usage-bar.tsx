@@ -15,7 +15,7 @@ export function UsageBar({ used, cap, className }: { used: number; cap: number; 
         aria-valuemin={0}
         aria-valuemax={cap}
       >
-        <div className={cn("h-full rounded-full", pct >= 100 ? "bg-amber-500" : "bg-primary")} style={{ width: `${pct}%` }} />
+        <div className={cn("h-full rounded-full", pct >= 100 ? "bg-warning" : "bg-primary")} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );

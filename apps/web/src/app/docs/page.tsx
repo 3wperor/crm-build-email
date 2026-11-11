@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/brand/logo";
 
 export const metadata = { title: "Docs", description: "How to use YCAReach: inboxes, leads, campaigns, replies, analytics and more." };
 
@@ -393,8 +394,8 @@ export default function DocsPage() {
     <div className="bg-background min-h-screen">
       <header className="bg-background/80 sticky top-0 z-10 border-b backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <Link href="/docs" className="text-base font-bold tracking-tight">
-            YCA<span className="text-primary/60">Reach</span> <span className="text-muted-foreground font-normal">Docs</span>
+          <Link href="/docs" className="flex items-center gap-2">
+            <Logo /> <span className="text-muted-foreground">Docs</span>
           </Link>
           <Link href="/dashboard" className="text-sm underline underline-offset-4">
             Open the app →

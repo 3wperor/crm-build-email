@@ -61,7 +61,7 @@ function daysAgo(iso: string): string {
   return d <= 0 ? "today" : d === 1 ? "1 day" : `${d} days`;
 }
 
-const KIND_ACCENT = { open: "border-t-primary/30", won: "border-t-emerald-500", lost: "border-t-destructive/60" } as const;
+const KIND_ACCENT = { open: "border-t-primary/30", won: "border-t-success", lost: "border-t-destructive/60" } as const;
 
 export function Board({ stages, cards: initial, canEdit }: { stages: BoardStage[]; cards: BoardCard[]; canEdit: boolean }) {
   const [cards, setCards] = useState(initial);

@@ -19,7 +19,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         {linkNotice && (
           <p
             data-testid="link-notice"
-            className={linkNotice.tone === "info" ? "rounded-md border border-emerald-300 bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200" : "text-destructive text-sm"}
+            className={linkNotice.tone === "info" ? "border-success/30 bg-success-subtle text-success rounded-md border p-3 text-sm" : "text-destructive text-sm"}
           >
             {linkNotice.text}
           </p>

@@ -33,11 +33,11 @@ export function LoginForm({ next }: { next: string }) {
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       )}
-      <Button formAction={pwAction} disabled={pwPending || mlPending}>
-        {pwPending ? "Signing in…" : "Sign in"}
+      <Button loading={pwPending} formAction={pwAction} disabled={pwPending || mlPending}>
+        Sign in
       </Button>
-      <Button formAction={mlAction} variant="outline" disabled={pwPending || mlPending}>
-        {mlPending ? "Sending link…" : "Email me a sign-in link"}
+      <Button loading={mlPending} formAction={mlAction} variant="outline" disabled={pwPending || mlPending}>
+        Email me a sign-in link
       </Button>
     </form>
   );

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { verifyAllUnverified } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function VerifyAllButton({ count }: { count: number }) {
   const [state, action, pending] = useActionState(verifyAllUnverified, undefined);
@@ -12,7 +13,7 @@ export function VerifyAllButton({ count }: { count: number }) {
       <Button variant="outline" size="sm" disabled={pending}>
         <MailCheck /> Verify {count.toLocaleString()} unverified lead{count === 1 ? "" : "s"}
       </Button>
-      {state?.message && <span className="text-sm text-success">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
       {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
     </form>
   );

@@ -39,13 +39,7 @@ export default async function AgentSettingsPage() {
     <>
       <PageHeader
         title="Claude &amp; MCP"
-        breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Claude & MCP" }]}
         description="Let an AI agent (Claude Desktop, Claude Code, any MCP client) run YCAReach through the MCP server, within guardrails."
-        actions={
-          <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">
-            Audit log
-          </Link>
-        }
       />
       <div className="grid gap-6">
         <Card>

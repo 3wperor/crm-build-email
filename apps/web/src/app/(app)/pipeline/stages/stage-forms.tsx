@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select-native";
 import { addStage, deleteStage, moveStage, setEntryStage, updateStage } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
 
 type Stage = { id: string; name: string; kind: string; is_entry: boolean; cards: number };
 
@@ -65,7 +66,7 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
         </form>
       </div>
       {msg && <p className="text-destructive text-xs">{msg}</p>}
-      {state?.message && <p className="text-xs text-success">{state.message}</p>}
+      <ActionToast state={state} message={state?.message} />
     </div>
   );
 }
@@ -84,7 +85,7 @@ export function AddStageForm() {
         Add stage
       </Button>
       {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-      {state?.message && <span className="text-xs text-success">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
     </form>
   );
 }

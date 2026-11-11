@@ -36,7 +36,6 @@ export default async function IntegrationsPage() {
       <PageHeader
         title="Integrations"
         description="YCAReach stays your source of truth. Connected CRMs receive a contact and a deal for every lead in your pipeline."
-        breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Integrations" }]}
       />
       <Card data-testid="hubspot">
         <CardHeader>

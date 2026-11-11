@@ -3,17 +3,21 @@ import { can, extractReplyText, REPLY_CLASSES } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ReclassifySelect } from "./classification";
+import { EmptyState } from "@/components/ui/empty-state";
+import { CheckCircle2, MessageSquareReply } from "lucide-react";
+import { LinkTabs } from "@/components/ui/link-tabs";
 
 const NEEDS_REPLY_CLASSES = ["positive", "neutral"] as const;
 const needsAnswer = (r: { classification: string | null; handled_at: string | null }) =>
   !r.handled_at && (NEEDS_REPLY_CLASSES as readonly string[]).includes(r.classification ?? "");
 
 export const metadata = { title: "Replies" };
+
+const tabLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
 export default async function RepliesPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const { c } = await searchParams;
@@ -42,24 +46,21 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Replies" description="Detected across your inboxes every few minutes. Replying stops the sequence and adds the lead to the pipeline." />
-      <nav className="mb-4 flex flex-wrap gap-1 text-sm">
-        {[null, "needs_reply", ...REPLY_CLASSES].map((k) => (
-          <Link
-            key={k ?? "all"}
-            href={k ? `/replies?c=${k}` : "/replies"}
-            className={cn("rounded-md border px-3 py-1 capitalize", filter === k ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
-          >
-            {(k ?? "all").replace(/_/g, " ")} <span className="opacity-70">{k ? (counts.get(k) ?? 0) : (all?.length ?? 0)}</span>
-          </Link>
-        ))}
-      </nav>
+      <LinkTabs
+        label="Filter replies"
+        items={[null, "needs_reply", ...REPLY_CLASSES].map((k) => ({
+          href: k ? `/replies?c=${k}` : "/replies",
+          label: tabLabel(k ?? "all"),
+          active: filter === k,
+          count: k ? (counts.get(k) ?? 0) : (all?.length ?? 0),
+        }))}
+      />
       {!replies?.length ? (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-base">{needsReply ? "Nothing waiting for an answer" : `No replies ${filter ? `classified ${filter.replace(/_/g, " ")}` : "yet"}`}</CardTitle>
-            <CardDescription>Replies to your campaigns show up here automatically.</CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={needsReply ? CheckCircle2 : MessageSquareReply}
+          title={needsReply ? "Nothing waiting for an answer" : `No replies ${filter ? `classified ${filter.replace(/_/g, " ")}` : "yet"}`}
+          description="Replies to your campaigns show up here automatically."
+        />
       ) : (
         <Card>
           <CardContent>

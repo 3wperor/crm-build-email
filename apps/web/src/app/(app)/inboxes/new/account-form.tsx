@@ -255,11 +255,11 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
       {last === "test" && testState?.test && <ConnectionResult result={testState.test} />}
 
       <div className="flex gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={() => run("test")}>
-          {testing ? "Testing…" : "Test connection"}
+        <Button loading={testing} type="button" variant="outline" disabled={busy} onClick={() => run("test")}>
+          Test connection
         </Button>
-        <Button type="submit" disabled={busy}>
-          {saving ? "Saving & testing…" : "Save inbox"}
+        <Button loading={saving} type="submit" disabled={busy}>
+          Save inbox
         </Button>
       </div>
     </form>

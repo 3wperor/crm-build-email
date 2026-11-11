@@ -22,11 +22,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { saveWelcome } from "./actions";
 import { Logo } from "@/components/brand/logo";
+import { Textarea } from "@/components/ui/textarea";
 
 const STEPS = 4; // questions; the plan comes after
-
-const textarea =
-  "border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none";
 
 function Option({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -171,14 +169,13 @@ export function WelcomeFlow({ workspace }: { workspace: string }) {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="offer">What you sell</Label>
-              <textarea
+              <Textarea
                 id="offer"
                 rows={3}
                 maxLength={2000}
                 value={offer}
                 onChange={(e) => setOffer(e.target.value)}
                 placeholder="e.g. We build fast websites for dental practices. Most go live in two weeks."
-                className={textarea}
               />
             </div>
             <div className="grid gap-1.5">
@@ -264,8 +261,8 @@ export function WelcomeFlow({ workspace }: { workspace: string }) {
             <input type="hidden" name="offer" value={offer} />
             <input type="hidden" name="audience" value={audience} />
             <input type="hidden" name="has_list" value={hasList} />
-            <Button name="next" value="inbox" size="lg" disabled={pending}>
-              {pending ? "Saving…" : "Connect my inbox (2 minutes)"} <ArrowRight />
+            <Button loading={pending} name="next" value="inbox" size="lg" disabled={pending}>
+              Connect my inbox (2 minutes) <ArrowRight />
             </Button>
             <div className="flex items-center justify-between">
               <Button type="button" variant="ghost" size="sm" onClick={() => setStep(STEPS - 1)}>

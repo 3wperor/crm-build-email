@@ -19,7 +19,7 @@ export default async function AuditLogPage() {
 
   return (
     <>
-      <PageHeader title="Audit log" breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Audit log" }]} description="Every agent action, plus kill-switch changes. Most recent 200." />
+      <PageHeader title="Audit log" description="Every agent action, plus kill-switch changes. Most recent 200." />
       <Card>
         <CardContent>
           {error && <p className="text-destructive text-sm">{error.message}</p>}

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select-native";
 import { connectHubspot, saveMapping } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function ConnectForm({ reconnect }: { reconnect: boolean }) {
   const [state, action, pending] = useActionState(connectHubspot, undefined);
@@ -14,10 +15,10 @@ export function ConnectForm({ reconnect }: { reconnect: boolean }) {
       <Label htmlFor="token">{reconnect ? "Replace access token" : "Private app access token"}</Label>
       <div className="flex gap-2">
         <Input id="token" name="token" type="password" autoComplete="off" placeholder="pat-na1-…" />
-        <Button disabled={pending}>{pending ? "Checking…" : reconnect ? "Reconnect" : "Connect HubSpot"}</Button>
+        <Button loading={pending} disabled={pending}>{reconnect ? "Reconnect" : "Connect HubSpot"}</Button>
       </div>
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
-      {state?.message && <p className="text-sm text-success">{state.message}</p>}
+      <ActionToast state={state} message={state?.message} />
     </form>
   );
 }
@@ -57,10 +58,10 @@ export function MappingForm(props: {
         </div>
       ))}
       <div className="flex items-center gap-3">
-        <Button size="sm" variant="outline" disabled={pending}>
-          {pending ? "Saving…" : "Save mapping"}
+        <Button loading={pending} size="sm" variant="outline" disabled={pending}>
+          Save mapping
         </Button>
-        {state?.message && <span className="text-sm text-success">{state.message}</span>}
+        <ActionToast state={state} message={state?.message} />
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

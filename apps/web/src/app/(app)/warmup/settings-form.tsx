@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FieldError } from "@/components/field-error";
 import { saveWarmupSettings } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function WarmupSettingsForm(props: { accountId: string; email: string; target: number; rampStep: number; replyRate: number; dailyCap: number; updatedAt: string }) {
   const [state, action, pending] = useActionState(saveWarmupSettings, undefined);
@@ -37,10 +38,10 @@ export function WarmupSettingsForm(props: { accountId: string; email: string; ta
         target of {props.target} leaves {Math.max(0, props.dailyCap - props.target)} for campaigns at full ramp.
       </p>
       <div className="flex items-center gap-3">
-        <Button size="sm" variant="outline" disabled={pending}>
-          {pending ? "Saving…" : "Save warmup settings"}
+        <Button loading={pending} size="sm" variant="outline" disabled={pending}>
+          Save warmup settings
         </Button>
-        {state?.message && <span className="text-sm text-success">{state.message}</span>}
+        <ActionToast state={state} message={state?.message} />
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

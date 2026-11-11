@@ -154,6 +154,79 @@
   }
 }
 
+/* Native controls, styled once so every select, tick box and radio matches. */
+@layer base {
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c8493' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.55rem center;
+    background-size: 1rem;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: none;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+    background-color: var(--background);
+    background-repeat: no-repeat;
+    background-position: center;
+    box-shadow: var(--shadow-xs);
+    vertical-align: middle;
+    outline: none;
+    transition: background-color 120ms, border-color 120ms;
+  }
+  input[type="checkbox"] {
+    border-radius: 0.25rem;
+  }
+  input[type="radio"] {
+    border-radius: 9999px;
+  }
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-color: var(--primary);
+    background-color: var(--primary);
+  }
+  input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.8 8.4 2.7 2.7 5.7-6'/%3E%3C/svg%3E");
+  }
+  input[type="checkbox"]:indeterminate {
+    border-color: var(--primary);
+    background-color: var(--primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+  }
+  input[type="radio"]:checked {
+    background-image: radial-gradient(circle, #fff 0 32%, transparent 36%);
+  }
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  @media (prefers-color-scheme: dark) {
+    input[type="checkbox"]:checked {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230b1430' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.8 8.4 2.7 2.7 5.7-6'/%3E%3C/svg%3E");
+    }
+    input[type="checkbox"]:indeterminate {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230b1430' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+    }
+    input[type="radio"]:checked {
+      background-image: radial-gradient(circle, #0b1430 0 32%, transparent 36%);
+    }
+  }
+}
+/* Room for the arrow, whatever padding a select was given. */
+select {
+  padding-right: 2rem;
+}
+
 /* Type scale: use these instead of picking sizes per page. */
 @utility text-page-title {
   font-size: 1.5rem;

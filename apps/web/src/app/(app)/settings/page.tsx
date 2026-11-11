@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { SettingsForm } from "./settings-form";
 import { GoalForm } from "./goal-form";
+import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "Settings" };
 
@@ -28,24 +29,11 @@ export default async function SettingsPage() {
     <>
       <PageHeader
         title="Settings"
+        description="Your workspace details, team and goal."
         actions={
-          <div className="flex gap-4">
-            <Link href="/billing" className="text-sm underline underline-offset-4">
-              Billing
-            </Link>
-            <Link href="/settings/integrations" className="text-sm underline underline-offset-4">
-              Integrations
-            </Link>
-            <Link href="/settings/ai" className="text-sm underline underline-offset-4">
-              AI
-            </Link>
-            <Link href="/settings/agent" className="text-sm underline underline-offset-4">
-              Claude &amp; MCP
-            </Link>
-            <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">
-              Audit log
-            </Link>
-          </div>
+          <Button asChild variant="outline">
+            <Link href="/billing">Billing</Link>
+          </Button>
         }
       />
       <div className="grid gap-6">

@@ -13,6 +13,8 @@ import { HealthBadge } from "@/components/health-badge";
 import { TimezoneInput } from "@/components/timezone-input";
 import { VolumeInput } from "@/components/volume-input";
 import { updateCampaignSettings } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
+import { Switch } from "@/components/ui/switch";
 
 type Props = {
   campaign: {
@@ -118,14 +120,14 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
 
         <div className="grid gap-3">
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="includeRisky" defaultChecked={campaign.include_risky} className="mt-0.5" />
+            <Switch name="includeRisky" defaultChecked={campaign.include_risky} className="mt-0.5" />
             <span>
               <span className="font-medium">Include risky leads</span>
               <span className="text-muted-foreground block text-xs">Role addresses and domains without MX. Off by default. Invalid and suppressed leads are never emailed.</span>
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="trackOpens" defaultChecked={campaign.track_opens} className="mt-0.5" />
+            <Switch name="trackOpens" defaultChecked={campaign.track_opens} className="mt-0.5" />
             <span>
               <span className="font-medium">Track opens</span>
               <span className="text-muted-foreground block text-xs">
@@ -134,14 +136,14 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="trackClicks" defaultChecked={campaign.track_clicks} className="mt-0.5" />
+            <Switch name="trackClicks" defaultChecked={campaign.track_clicks} className="mt-0.5" />
             <span>
               <span className="font-medium">Track link clicks</span>
               <span className="text-muted-foreground block text-xs">Routes links through this app. The unsubscribe link is never tracked.</span>
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="autoPromoteWinner" defaultChecked={campaign.auto_promote_winner} className="mt-0.5" />
+            <Switch name="autoPromoteWinner" defaultChecked={campaign.auto_promote_winner} className="mt-0.5" />
             <span>
               <span className="font-medium">Auto-promote A/B winners</span>
               <span className="text-muted-foreground block text-xs">
@@ -165,8 +167,8 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
         </Alert>
       )}
       <div className="flex items-center gap-3">
-        {canEdit && <Button disabled={pending}>{pending ? "Saving…" : "Save settings"}</Button>}
-        {state?.message && <span className="text-sm text-success">{state.message}</span>}
+        {canEdit && <Button loading={pending} disabled={pending}>Save settings</Button>}
+        <ActionToast state={state} message={state?.message} />
       </div>
     </form>
   );

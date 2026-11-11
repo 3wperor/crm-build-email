@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { REPLY_CLASSES } from "@crm/core/replies";
 import { Badge } from "@/components/ui/badge";
 import { reclassifyReply } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 const VARIANT = { positive: "success", negative: "destructive", out_of_office: "secondary", unsubscribe: "warning", neutral: "outline" } as const;
 
@@ -33,7 +34,7 @@ export function ReclassifySelect({ replyId, value, canEdit }: { replyId: string;
         ))}
       </select>
       {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-      {state?.message && <span className="text-xs text-success">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
     </form>
   );
 }

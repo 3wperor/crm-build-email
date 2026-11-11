@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { saveAiToggles, saveOwnAiKey } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
+import { Switch } from "@/components/ui/switch";
 
 export function AiTogglesForm({ classify, drafts, disabled }: { classify: boolean; drafts: boolean; disabled: boolean }) {
   const [state, action, pending] = useActionState(saveAiToggles, undefined);
   return (
     <form action={action} className="grid gap-3">
       <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" name="ai_drafts_enabled" defaultChecked={drafts} disabled={disabled} className="mt-0.5" />
+        <Switch name="ai_drafts_enabled" defaultChecked={drafts} disabled={disabled} className="mt-0.5" />
         <span>
           <span className="font-medium">Draft answers to new replies</span>
           <span className="text-muted-foreground block text-xs">
@@ -20,7 +22,7 @@ export function AiTogglesForm({ classify, drafts, disabled }: { classify: boolea
         </span>
       </label>
       <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" name="ai_classification_enabled" defaultChecked={classify} disabled={disabled} className="mt-0.5" />
+        <Switch name="ai_classification_enabled" defaultChecked={classify} disabled={disabled} className="mt-0.5" />
         <span>
           <span className="font-medium">Sort unclear replies with AI</span>
           <span className="text-muted-foreground block text-xs">Rules sort most replies; AI only looks at the ones the rules aren&apos;t sure about.</span>
@@ -31,7 +33,7 @@ export function AiTogglesForm({ classify, drafts, disabled }: { classify: boolea
           <Button size="sm" disabled={pending}>
             Save
           </Button>
-          {state?.message && <span className="text-sm text-success">{state.message}</span>}
+          <ActionToast state={state} message={state?.message} />
           {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
         </div>
       )}
@@ -73,8 +75,8 @@ export function OwnKeyForm({ current }: { current: string }) {
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
-        <Button disabled={pending}>{pending ? "Testing the key…" : "Test and connect"}</Button>
-        {state?.message && <span className="text-sm text-success">{state.message}</span>}
+        <Button loading={pending} disabled={pending}>Test and connect</Button>
+        <ActionToast state={state} message={state?.message} />
         {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
       </div>
     </form>

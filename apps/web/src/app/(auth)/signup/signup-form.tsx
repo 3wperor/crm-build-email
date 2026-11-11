@@ -33,8 +33,8 @@ export function SignupForm() {
           <AlertDescription>{state.message}</AlertDescription>
         </Alert>
       )}
-      <Button type="submit" disabled={pending}>
-        {pending ? "Creating account…" : "Create account"}
+      <Button loading={pending} type="submit" disabled={pending}>
+        Create account
       </Button>
     </form>
   );

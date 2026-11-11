@@ -6,6 +6,7 @@ import { SPREADSHEET_ACCEPT, emailsFromParsed } from "@crm/core/imports";
 import { Button } from "@/components/ui/button";
 import { readSpreadsheetFile } from "@/lib/spreadsheet";
 import { addSuppressionBatch } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 const BATCH = 5000;
 
@@ -41,8 +42,8 @@ export function SuppressionUploadForm() {
   return (
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" variant="outline" disabled={pending} onClick={() => input.current?.click()}>
-          <FileUp /> {pending ? "Reading…" : "Upload CSV or Excel"}
+        <Button loading={pending} type="button" variant="outline" disabled={pending} onClick={() => input.current?.click()}>
+          <FileUp /> Upload CSV or Excel
         </Button>
         <span className="text-muted-foreground text-xs">The column with email addresses is found automatically; other columns are ignored.</span>
       </div>
@@ -57,7 +58,7 @@ export function SuppressionUploadForm() {
           if (f) onFile(f);
         }}
       />
-      {status?.ok && <p className="text-sm text-success">{status.ok}</p>}
+      <ActionToast state={status} message={status?.ok} />
       {status?.error && <p className="text-destructive text-sm">{status.error}</p>}
     </div>
   );

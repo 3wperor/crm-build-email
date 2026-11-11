@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { Upload, Users } from "lucide-react";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
@@ -14,6 +14,7 @@ import { AddLeadForm } from "./add-lead-form";
 import { PasteLeadsForm } from "@/components/leads/paste-leads-form";
 import { VerifyAllButton } from "./verify-all-button";
 import { LeadsTable, type LeadRow } from "./leads-table";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Leads" };
 
@@ -157,9 +158,25 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <CardContent>
             {error && <p className="text-destructive text-sm">{error.message}</p>}
             {rows.length === 0 ? (
-              <p className="text-muted-foreground py-6 text-center text-sm">
-                {total === 0 && !q && !sp.status && !sp.verification && !listId ? "No leads yet — import a CSV to get started." : "No leads match these filters."}
-              </p>
+              total === 0 && !q && !sp.status && !sp.verification && !listId ? (
+                <EmptyState
+                  className="border-0 py-8"
+                  icon={Users}
+                  title="No leads yet"
+                  description="Leads are the people you want to email. Upload a spreadsheet, or add a few by hand above."
+                  action={
+                    canWrite && (
+                      <Button asChild>
+                        <Link href="/leads/import">
+                          <Upload /> Import CSV or Excel
+                        </Link>
+                      </Button>
+                    )
+                  }
+                />
+              ) : (
+                <p className="text-muted-foreground py-6 text-center text-sm">No leads match these filters.</p>
+              )
             ) : (
               <LeadsTable rows={rows} lists={lists ?? []} canWrite={canWrite} />
             )}

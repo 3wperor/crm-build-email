@@ -3,10 +3,12 @@ import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NewCampaignForm } from "./new-campaign-form";
 import { CampaignStatusBadge } from "./status-badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Send } from "lucide-react";
 
 export const metadata = { title: "Campaigns" };
 
@@ -35,12 +37,11 @@ export default async function CampaignsPage() {
         actions={can(role, "campaigns.write") && <NewCampaignForm />}
       />
       {!campaigns?.length ? (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-base">No campaigns yet</CardTitle>
-            <CardDescription>Create one, write your steps, add leads and an inbox, then start it.</CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={Send}
+          title="No campaigns yet"
+          description="Name your first campaign above, write the emails (or let AI write them), add the people you want to reach, then press Start."
+        />
       ) : (
         <Card>
           <CardContent>

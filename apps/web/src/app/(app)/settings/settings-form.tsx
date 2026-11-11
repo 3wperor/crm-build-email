@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { updateOrgSettings } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
+import { Switch } from "@/components/ui/switch";
 
 type Props = {
   disabled: boolean;
@@ -43,7 +45,7 @@ export function SettingsForm({ org, disabled }: Props) {
           <Input id="default_timezone" name="default_timezone" defaultValue={org.default_timezone} placeholder="America/New_York" />
         </div>
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="auto_verify_imports" defaultChecked={org.auto_verify_imports} className="mt-0.5" />
+          <Switch name="auto_verify_imports" defaultChecked={org.auto_verify_imports} className="mt-0.5" />
           <span>
             <span className="font-medium">Verify emails automatically after each import</span>
             <span className="text-muted-foreground block text-xs">MX / DNS check, disposable-domain and role-address detection.</span>
@@ -65,10 +67,10 @@ export function SettingsForm({ org, disabled }: Props) {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       )}
-      {state?.ok && <p className="text-sm text-success">Saved.</p>}
+      <ActionToast state={state} message={state?.ok && "Saved."} />
       <div>
-        <Button type="submit" disabled={disabled || pending}>
-          {pending ? "Saving…" : "Save settings"}
+        <Button loading={pending} type="submit" disabled={disabled || pending}>
+          Save settings
         </Button>
       </div>
     </form>

@@ -9,6 +9,8 @@ import { NativeSelect } from "@/components/ui/select-native";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bulkLeadAction } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
+import { useConfirmSubmit } from "@/components/ui/confirm";
 
 export type LeadRow = {
   id: string;
@@ -64,20 +66,35 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
       return next;
     });
 
+  const guard = useConfirmSubmit();
+  const count = `${selected.size} ${selected.size === 1 ? "lead" : "leads"}`;
+
   return (
     <form
       action={(fd) => {
         formAction(fd);
         setSelected(new Set());
       }}
-      onSubmit={(e) => {
-        if (action === "delete" && !window.confirm(`Delete ${selected.size} lead(s)? This also removes their campaign history.`)) {
-          e.preventDefault();
-        }
-        if (action === "suppress" && !window.confirm(`Suppress ${selected.size} lead(s)? They will never be emailed.`)) {
-          e.preventDefault();
-        }
-      }}
+      onSubmit={(e) =>
+        guard(
+          e,
+          action === "delete"
+            ? {
+                title: `Delete ${count}?`,
+                description: "This also removes their campaign history. It can't be undone.",
+                confirmLabel: `Delete ${count}`,
+                destructive: true,
+              }
+            : action === "suppress"
+              ? {
+                  title: `Stop emailing ${count}?`,
+                  description: "They go on your suppression list and will never be emailed from this workspace.",
+                  confirmLabel: `Suppress ${count}`,
+                  destructive: true,
+                }
+              : null,
+        )
+      }
       className="grid gap-3"
     >
       {canWrite && (
@@ -104,7 +121,7 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
           <Button size="sm" variant={action === "add_to_list" || action === "verify" ? "outline" : "destructive"} disabled={selected.size === 0 || pending}>
             Apply
           </Button>
-          {state?.message && <span className="text-sm text-success">{state.message}</span>}
+          <ActionToast state={state} message={state?.message} />
         </div>
       )}
       {state?.error && (

@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addStep, addVariant, deleteStep, deleteVariant, saveVariant, updateStep, writeSequenceWithAi } from "../actions";
 import { TestEmailPanel, type TestOptions } from "./test-email-panel";
+import { ActionToast } from "@/components/ui/toast";
+import { useConfirmSubmit } from "@/components/ui/confirm";
+import { Textarea } from "@/components/ui/textarea";
 
 export type EditorVariant = { id: string; ab_group: string; subject: string; body: string; weight: number; is_active: boolean };
 export type EditorStep = { id: string; step_order: number; delay_days: number; delay_hours: number; variants: EditorVariant[] };
@@ -74,11 +77,12 @@ function WriteWithAi({
   hasContent: boolean;
   defaults?: { offer: string; audience: string };
 }) {
+  const guard = useConfirmSubmit();
   const [state, action, pending] = useActionState(writeSequenceWithAi, undefined);
   const [open, setOpen] = useState(!hasContent);
   if (ai === "upgrade") {
     return (
-      <Card className="border-dashed">
+      <Card className="bg-accent/40 py-0">
         <CardContent className="flex flex-wrap items-center gap-2 py-4 text-sm">
           <Sparkles className="size-4" /> Let AI write this sequence for you.
           <Link href="/billing" className="underline">
@@ -112,14 +116,23 @@ function WriteWithAi({
           <form
             action={action}
             className="grid gap-3"
-            onSubmit={(e) => {
-              if (hasContent && !confirm("This replaces the text of your current emails (version A of each step). Continue?")) e.preventDefault();
-            }}
+            onSubmit={(e) =>
+              guard(
+                e,
+                hasContent
+                  ? {
+                      title: "Replace your current emails?",
+                      description: "The AI writes new text over your current emails (version A of each step). Other versions are left alone.",
+                      confirmLabel: "Replace emails",
+                    }
+                  : null,
+              )
+            }
           >
             <input type="hidden" name="campaign_id" value={campaignId} />
             <div className="grid gap-1.5">
               <Label htmlFor="ai-offer">What do you offer?</Label>
-              <textarea
+              <Textarea
                 id="ai-offer"
                 name="offer"
                 required
@@ -128,7 +141,6 @@ function WriteWithAi({
                 rows={3}
                 defaultValue={defaults?.offer}
                 placeholder="e.g. We build fast websites for dental practices in Leeds. Most go live in 2 weeks and bring in more bookings."
-                className="border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
               />
             </div>
             <div className="grid gap-1.5">
@@ -168,7 +180,7 @@ function WriteWithAi({
                   Close
                 </Button>
               )}
-              {state?.message && <span className="text-sm text-success">{state.message}</span>}
+              <ActionToast state={state} message={state?.message} />
               {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
             </div>
           </form>
@@ -198,7 +210,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
                 Save
               </Button>
             )}
-            {state?.message && <span className="text-xs text-success">{state.message}</span>}
+            <ActionToast state={state} message={state?.message} />
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </form>
           {canEdit && !structureLocked && index > 0 && (
@@ -339,7 +351,7 @@ function VariantEditor({
             </div>
             <div className="grid gap-1">
               <Label htmlFor={`body-${variant.id}`}>Body</Label>
-              <textarea
+              <Textarea
                 id={`body-${variant.id}`}
                 name="body"
                 rows={7}
@@ -347,7 +359,6 @@ function VariantEditor({
                 onChange={(e) => setBody(e.target.value)}
                 disabled={!canEdit}
                 placeholder={"Hi {{first_name|there}},\n\n…\n\n{{sender_first_name}}"}
-                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
               />
             </div>
           </>
@@ -360,10 +371,10 @@ function VariantEditor({
         )}
         {canEdit && (
           <div className="flex items-center gap-3">
-            <Button size="sm" disabled={pending}>
-              {pending ? "Saving…" : "Save variant"}
+            <Button loading={pending} size="sm" disabled={pending}>
+              Save variant
             </Button>
-            {state?.message && <span className="text-xs text-success">{state.message}</span>}
+            <ActionToast state={state} message={state?.message} />
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </div>
         )}

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ConfirmHost } from "@/components/ui/confirm";
+import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 
 // Downloaded at build time and served from our own origin (nothing loads from Google in the browser).
@@ -34,7 +36,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen font-sans">{children}</body>
+      <body className="min-h-screen font-sans">
+        {children}
+        <ConfirmHost />
+        <Toaster />
+      </body>
     </html>
   );
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { pauseCampaign, startCampaign } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function LifecycleButtons({
   campaignId,
@@ -74,7 +75,7 @@ export function LifecycleButtons({
           )}
         </Alert>
       )}
-      {state?.message && <span className="text-sm text-success">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
     </div>
   );
 }

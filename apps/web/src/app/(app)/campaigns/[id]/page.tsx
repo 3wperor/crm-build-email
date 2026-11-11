@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 import { deleteCampaign } from "../actions";
 import { CampaignStatusBadge } from "../status-badge";
 import { EnrollForm } from "./enroll-form";
@@ -26,6 +25,7 @@ import { SequenceEditor } from "./sequence-editor";
 import { CampaignSettingsForm } from "./settings-form";
 import { ResultsTab } from "./results-tab";
 import { Breadcrumbs } from "@/components/page-header";
+import { LinkTabs } from "@/components/ui/link-tabs";
 
 export const metadata = { title: "Campaign" };
 
@@ -204,17 +204,11 @@ export default async function CampaignPage({ params, searchParams }: { params: P
         </Card>
       </div>
 
-      <nav className="mb-4 flex gap-1 overflow-x-auto border-b">
-        {TABS.map((t) => (
-          <Link
-            key={t}
-            href={`/campaigns/${c.id}?tab=${t}`}
-            className={cn("-mb-px border-b-2 px-3 py-2 text-sm capitalize", tab === t ? "border-primary font-medium" : "text-muted-foreground border-transparent")}
-          >
-            {t}
-          </Link>
-        ))}
-      </nav>
+      <LinkTabs
+        label="Campaign sections"
+        className="mb-4"
+        items={TABS.map((t) => ({ href: `/campaigns/${c.id}?tab=${t}`, label: t.charAt(0).toUpperCase() + t.slice(1), active: tab === t }))}
+      />
 
       {tab === "sequence" && (
         <SequenceEditor

@@ -21,10 +21,10 @@ export default async function AuditLogPage() {
 
   return (
     <>
-      <PageHeader title="Audit log" description="Every agent action, plus kill-switch changes. Most recent 200." />
+      <PageHeader title="Audit log" description="Everything an AI assistant has done here, plus each time sending was paused or resumed. Most recent 200." />
       <Card>
         <CardContent>
-          {error && <p className="text-destructive text-sm">{error.message}</p>}
+          {error && <p className="text-destructive text-sm">We couldn&apos;t load the log. Refresh the page to try again.</p>}
           {rows && rows.length === 0 && <p className="text-muted-foreground text-sm">No entries yet.</p>}
           {rows && rows.length > 0 && (
             <Table>

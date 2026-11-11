@@ -16,7 +16,7 @@ import { CreateKeyForm } from "./key-form";
 import { Time } from "@/components/time";
 import { StatusBadge } from "@/components/status-badge";
 
-export const metadata = { title: "Claude & MCP" };
+export const metadata = { title: "Connect Claude" };
 
 export default async function AgentSettingsPage() {
   const { org, role } = await getOrgContext();
@@ -40,8 +40,8 @@ export default async function AgentSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Claude &amp; MCP"
-        description="Let an AI agent (Claude Desktop, Claude Code, any MCP client) run YCAReach through the MCP server, within guardrails."
+        title="Connect Claude"
+        description="Let Claude (or another AI assistant) work in YCAReach for you: write campaigns, add leads and draft replies, within the limits below."
       />
       <div className="grid gap-6">
         <Card>
@@ -53,12 +53,12 @@ export default async function AgentSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-muted-foreground grid gap-1 text-sm">
-            <p>• Reads, drafts and configuration run right away. Pausing a campaign, suppressing addresses and the kill switch are always allowed.</p>
+            <p>• Reads, drafts and configuration run right away. Pausing a campaign, adding addresses to the do-not-email list and pausing all sending are always allowed.</p>
             <p>
               • Anything that sends (start/resume a campaign, raising volume, test emails to non-members) waits here for approval unless both the workspace and
               the campaign are full-auto.
             </p>
-            <p>• The agent can never resume sending, change approval modes, remove suppressions or activate an inbox it added. Caps and suppression always apply.</p>
+            <p>• The agent can never resume sending, change approval modes, take anyone off the do-not-email list or switch on an inbox it added. Daily limits and the do-not-email list always apply.</p>
             <p>• Every call, allowed or not, is written to the audit log.</p>
           </CardContent>
         </Card>
@@ -146,7 +146,7 @@ export default async function AgentSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">API keys</CardTitle>
-              <CardDescription>The MCP server authenticates with one of these. Keys act on this workspace only; only a hash is stored.</CardDescription>
+              <CardDescription>Claude signs in with one of these (technical name: MCP server key). Keys act on this workspace only; only a hash is stored.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <CreateKeyForm appUrl={publicEnv.appUrl} />

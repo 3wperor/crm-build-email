@@ -15,12 +15,12 @@ export function AddSuppressionForm() {
         name="emails"
         rows={4}
         required
-        aria-label="Emails to suppress"
+        aria-label="Email addresses to add"
         placeholder={"someone@example.com\nother@example.com"}
         className="font-mono"
       />
       <div className="flex items-center gap-3">
-        <Button loading={pending} disabled={pending}>Suppress</Button>
+        <Button loading={pending} disabled={pending}>Add to list</Button>
         <ActionToast state={state} message={state?.message} />
       </div>
       {state?.error && (

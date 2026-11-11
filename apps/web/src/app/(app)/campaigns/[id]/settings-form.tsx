@@ -145,9 +145,9 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
           <label className="flex items-start gap-2 text-sm">
             <Switch name="autoPromoteWinner" defaultChecked={campaign.auto_promote_winner} className="mt-0.5" />
             <span>
-              <span className="font-medium">Auto-promote A/B winners</span>
+              <span className="font-medium">Switch to the winning version automatically</span>
               <span className="text-muted-foreground block text-xs">
-                When a variant&apos;s reply rate beats every other variant of its step with statistical significance, it gets all new sends.
+                When one version of an email clearly gets more replies than the others, it&apos;s used for all new sends.
               </span>
             </span>
           </label>

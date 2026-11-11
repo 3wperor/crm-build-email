@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { can, isValidEmailSyntax, normalizeEmail } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyError } from "@/lib/errors";
 
 export type SuppressionState = { error?: string; message?: string; added?: number; already?: number; invalid?: number } | undefined;
 
@@ -38,7 +39,7 @@ async function suppress(tokens: string[]): Promise<SuppressionState> {
       { onConflict: "org_id,email", ignoreDuplicates: true },
     )
     .select("id");
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath("/suppression");
   revalidatePath("/leads");

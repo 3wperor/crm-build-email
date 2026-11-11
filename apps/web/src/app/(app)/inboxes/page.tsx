@@ -51,7 +51,7 @@ export default async function InboxesPage() {
     <>
       <PageHeader
         title="Inboxes"
-        description="Connected sending accounts. Replies are detected over IMAP."
+        description="The email addresses you send from. We also watch them for replies."
         actions={
           canManage && (
             <Button asChild>
@@ -63,7 +63,7 @@ export default async function InboxesPage() {
         }
       />
 
-      {error && <p className="text-destructive text-sm">{error.message}</p>}
+      {error && <p className="text-destructive text-sm">We couldn&apos;t load your inboxes. Refresh the page to try again.</p>}
 
       {accounts && accounts.length === 0 && (
         <EmptyState

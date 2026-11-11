@@ -57,7 +57,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
         <div className="mt-2 flex flex-wrap gap-2">
           <StatusBadge kind="lead" value={lead.status} data-testid="lead-status" />
           <StatusBadge kind="verification" value={lead.verification_status} />
-          {suppression && <Badge variant="danger">On the suppression list: {statusLabel("suppression", suppression.reason)}</Badge>}
+          {suppression && <Badge variant="danger">On the do-not-email list: {statusLabel("suppression", suppression.reason)}</Badge>}
           {opp?.pipeline_stages && <Badge variant="secondary">pipeline: {opp.pipeline_stages.name}</Badge>}
           {(lists ?? []).map((l) =>
             l.lead_lists ? (

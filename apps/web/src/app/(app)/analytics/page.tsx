@@ -172,12 +172,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <Breakdown title="By campaign" rows={byCampaign} tracking={hasTracking} href={(r) => (r.key ? `/campaigns/${r.key}?tab=results` : null)} testId="by-campaign" />
         <Breakdown title="By inbox" rows={byInbox} tracking={hasTracking} href={() => null} testId="by-inbox" />
         <Breakdown
-          title="By variant"
+          title="By email version"
           rows={byVariant}
           tracking={hasTracking}
           href={() => null}
           testId="by-variant"
-          note="Open a campaign's Results tab to compare variants with confidence intervals and promote a winner."
+          note="Open a campaign's Results tab to compare versions and pick a winner."
         />
       </div>
     </>

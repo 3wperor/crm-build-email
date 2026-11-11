@@ -47,7 +47,7 @@ function StepCard({ step, campaignId, canEdit, showOpens, showClicks }: { step: 
         <CardDescription data-testid="ab-verdict">
           {winner ? (
             <>
-              <Badge variant="success">Winner: {winner.ab_group}</Badge> <span className="ml-1">receives every new send for this step.</span>
+              <Badge variant="success">Winner: version {winner.ab_group}</Badge> <span className="ml-1">receives every new send for this step.</span>
             </>
           ) : v.status === "winner" ? (
             <>
@@ -62,7 +62,7 @@ function StepCard({ step, campaignId, canEdit, showOpens, showClicks }: { step: 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Variant</TableHead>
+              <TableHead>Version</TableHead>
               <TableHead className="text-right">Sent</TableHead>
               <TableHead className="text-right">Reply rate</TableHead>
               <TableHead className="text-right">Positive</TableHead>
@@ -122,7 +122,7 @@ function StepCard({ step, campaignId, canEdit, showOpens, showClicks }: { step: 
                           campaignId={campaignId}
                           stepId={step.stepId}
                           variantId={variant.id}
-                          label={`Promote ${variant.ab_group}`}
+                          label={`Use version ${variant.ab_group}`}
                           reason={suggested ? v.message : "manual"}
                           primary={suggested}
                         />

@@ -51,7 +51,7 @@ export async function sendReplyMessage(input: SendReplyInput): Promise<SendReply
 
   const { data: org } = await admin.from("organizations").select("sending_paused").eq("id", input.orgId).single();
   if (!org) return { ok: false, error: "Workspace not found." };
-  if (org.sending_paused) return { ok: false, error: "All sending is paused (kill switch). Resume sending to reply." };
+  if (org.sending_paused) return { ok: false, error: "All sending is paused. Resume sending (top of the page) to reply." };
   const planBlock = await sendBlockedMessage(input.orgId);
   if (planBlock) return { ok: false, error: planBlock };
 

@@ -13,7 +13,7 @@ import { Time } from "@/components/time";
 import { StatusBadge } from "@/components/status-badge";
 import { formatNumber } from "@/lib/format";
 
-export const metadata = { title: "Suppression list" };
+export const metadata = { title: "Do-not-email list" };
 
 export default async function SuppressionPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q: rawQ } = await searchParams;
@@ -33,8 +33,8 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
   return (
     <>
       <PageHeader
-        title="Suppression list"
-        description="These addresses are never emailed — checked on import and again at send time. Unsubscribes and hard bounces are added automatically."
+        title="Do-not-email list"
+        description="People on this list are never emailed (it's also called a suppression list). We check it when you import leads and again before every send. Anyone who unsubscribes or whose email bounces is added automatically."
       />
       <div className="grid gap-6">
         {can(role, "suppression.add") && (
@@ -53,7 +53,7 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
         )}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{formatNumber(count)} suppressed</CardTitle>
+            <CardTitle className="text-base">{formatNumber(count)} on the list</CardTitle>
             <form className="flex max-w-sm gap-2" role="search">
               <Input name="q" defaultValue={rawQ ?? ""} placeholder="Search email" aria-label="Search suppression list" />
               <Button variant="outline" type="submit">

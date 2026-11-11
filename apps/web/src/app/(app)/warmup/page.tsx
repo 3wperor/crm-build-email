@@ -58,8 +58,8 @@ export default async function WarmupPage() {
             <Badge variant="warning" className="mr-2">
               Beta
             </Badge>
-            The pool is your workspace&apos;s own inboxes only (at least two). Warmup mail is tagged, never shows up in Replies or Analytics, follows the
-            kill switch, and counts toward each inbox&apos;s daily cap. An inbox pauses itself if more than 20% of its warmup mail lands in spam or two
+            The pool is your workspace&apos;s own inboxes only (at least two). Warmup mail is tagged, never shows up in Replies or Analytics, stops when
+            you pause all sending, and counts toward each inbox&apos;s daily cap. An inbox pauses itself if more than 20% of its warmup mail lands in spam or two
             bounce.
           </span>
         </AlertDescription>

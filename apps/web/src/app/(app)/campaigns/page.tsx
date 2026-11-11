@@ -35,7 +35,7 @@ export default async function CampaignsPage() {
     <>
       <PageHeader
         title="Campaigns"
-        description="Multi-step sequences with send windows, volume limits and A/B variants."
+        description="Each campaign is a first email plus follow-ups, sent slowly within your hours. Follow-ups stop the moment someone replies."
         actions={can(role, "campaigns.write") && <NewCampaignForm />}
       />
       {!campaigns?.length ? (

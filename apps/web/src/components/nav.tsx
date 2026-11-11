@@ -44,7 +44,7 @@ const GROUPS: { label?: string; items: Item[] }[] = [
     label: "Deliverability",
     items: [
       { href: "/warmup", label: "Warmup", icon: Flame, badge: "Beta" },
-      { href: "/suppression", label: "Suppression", icon: Ban },
+      { href: "/suppression", label: "Do-not-email list", icon: Ban },
     ],
   },
 ];

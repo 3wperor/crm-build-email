@@ -60,7 +60,7 @@ export async function sendTestEmail(input: TestEmailInput): Promise<TestEmailRes
   if (!org) return { ok: false, error: "Workspace not found." };
   if (org.sending_paused) {
     await log("blocked", input.subject, "sending_paused");
-    return { ok: false, error: "All sending is paused (kill switch). Resume sending to send tests." };
+    return { ok: false, error: "All sending is paused. Resume sending (top of the page) to send a test." };
   }
 
   const planBlock = await sendBlockedMessage(input.orgId);

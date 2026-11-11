@@ -16,8 +16,8 @@ import { createAccount, testNewAccount, type AccountFormState } from "../actions
 type Provider = "google" | "smtp";
 
 const PROVIDERS: { id: Provider | "outlook"; label: string; description: string; disabled?: boolean }[] = [
-  { id: "google", label: "Google Workspace / Gmail", description: "smtp.gmail.com · imap.gmail.com" },
-  { id: "smtp", label: "Other SMTP / IMAP", description: "Any provider that supports app passwords" },
+  { id: "google", label: "Google Workspace / Gmail", description: "Settings are filled in for you" },
+  { id: "smtp", label: "Another email provider", description: "Any provider that supports app passwords" },
   { id: "outlook", label: "Microsoft 365 / Outlook", description: "Coming later", disabled: true },
 ];
 

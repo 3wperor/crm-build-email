@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyError } from "@/lib/errors";
 
 export type SettingsState = { error?: string; ok?: boolean } | undefined;
 
@@ -42,7 +43,7 @@ export async function updateOrgSettings(_prev: SettingsState, formData: FormData
       auto_verify_imports: autoVerifyImports,
     })
     .eq("id", org.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath("/", "layout");
   return { ok: true };
@@ -63,7 +64,7 @@ export async function updateGoal(_prev: GoalState, formData: FormData): Promise<
     .from("organizations")
     .update({ goal_customer_value: parsed.data.customerValue, goal_customers_per_month: parsed.data.customersPerMonth })
     .eq("id", org.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/dashboard");
   revalidatePath("/settings");
   return { ok: true };

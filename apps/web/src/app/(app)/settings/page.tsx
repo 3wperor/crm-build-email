@@ -40,7 +40,7 @@ export default async function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Workspace</CardTitle>
-            <CardDescription>Compliance footer, timezone and AI agent guardrails.</CardDescription>
+            <CardDescription>Your business details, timezone and how much an AI assistant may do on its own.</CardDescription>
           </CardHeader>
           <CardContent>
             {settings && <SettingsForm org={settings} disabled={!can(role, "org.update")} />}

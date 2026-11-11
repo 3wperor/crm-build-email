@@ -24,7 +24,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader
         title={campaign ? `Import leads into ${campaign.name}` : "Import leads"}
-        description="Rows are de-duplicated within the file, against existing leads and against your suppression list."
+        description="Duplicates are removed automatically, and anyone already in your leads or on your do-not-email list is skipped."
         breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: "Import" }]}
         actions={
           <Link href="/leads/imports" className="text-sm underline underline-offset-4">

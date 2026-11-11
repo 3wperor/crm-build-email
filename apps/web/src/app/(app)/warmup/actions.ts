@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { fieldErrors, formToObject, type FieldErrors } from "@/lib/forms";
 import { inngest } from "@/inngest/client";
 import { warmupTickRequested } from "@/inngest/events";
+import { friendlyError } from "@/lib/errors";
 
 export type WarmupState = { error?: string; message?: string; fieldErrors?: FieldErrors } | undefined;
 
@@ -42,7 +43,7 @@ export async function saveWarmupSettings(_prev: WarmupState, formData: FormData)
     .update({ warmup_daily_target: parsed.data.target, warmup_ramp_step: parsed.data.rampStep, warmup_reply_rate: parsed.data.replyRate })
     .eq("org_id", ctx.org.id)
     .eq("id", String(formData.get("account_id")));
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/warmup");
   return { message: "Saved." };
 }

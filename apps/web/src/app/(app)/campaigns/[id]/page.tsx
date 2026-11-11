@@ -172,7 +172,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
       )}
       {org.sending_paused && c.status === "active" && (
         <Alert variant="destructive" className="mb-4">
-          <AlertDescription>All sending is paused workspace-wide (kill switch). This campaign will continue when sending resumes.</AlertDescription>
+          <AlertDescription>All sending is paused for this workspace. This campaign carries on when sending is resumed.</AlertDescription>
         </Alert>
       )}
 
@@ -301,7 +301,7 @@ async function LeadsTab({
         <Card data-testid="add-leads">
           <CardHeader>
             <CardTitle className="text-base">Add leads</CardTitle>
-            <CardDescription>Invalid, suppressed and already-contacted addresses are skipped automatically, and you&apos;ll see why.</CardDescription>
+            <CardDescription>Invalid addresses, people on your do-not-email list and people you&apos;ve already contacted are skipped automatically, and you&apos;ll see why.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-6 md:grid-cols-2">
             <div className="grid content-start gap-2">

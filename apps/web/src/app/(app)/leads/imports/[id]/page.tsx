@@ -46,7 +46,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
       value: imp.existing_count,
       testid: "existing",
     },
-    { label: "Suppressed", value: imp.suppressed_count, testid: "suppressed" },
+    { label: "On do-not-email list", value: imp.suppressed_count, testid: "suppressed" },
     { label: "Invalid rows", value: imp.invalid_count, testid: "invalid" },
     { label: "Duplicates in file", value: imp.duplicate_count, testid: "duplicates" },
   ];

@@ -70,8 +70,8 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
             : action === "suppress"
               ? {
                   title: `Stop emailing ${count}?`,
-                  description: "They go on your suppression list and will never be emailed from this workspace.",
-                  confirmLabel: `Suppress ${count}`,
+                  description: "They go on your do-not-email list and will never be emailed from this workspace.",
+                  confirmLabel: "Add to do-not-email list",
                   destructive: true,
                 }
               : null,
@@ -84,8 +84,8 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
           <span className="text-muted-foreground text-sm">{selected.size} selected</span>
           <NativeSelect name="bulk_action" value={action} onChange={(e) => setAction(e.target.value)} className="w-auto" aria-label="Bulk action">
             <option value="add_to_list">Add to list</option>
-            <option value="verify">Verify emails</option>
-            <option value="suppress">Add to suppression list</option>
+            <option value="verify">Check email addresses</option>
+            <option value="suppress">Add to do-not-email list</option>
             <option value="delete">Delete</option>
           </NativeSelect>
           {action === "add_to_list" && (

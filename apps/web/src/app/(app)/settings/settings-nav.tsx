@@ -6,7 +6,7 @@ import { LinkTabs } from "@/components/ui/link-tabs";
 const TABS = [
   { href: "/settings", label: "Workspace" },
   { href: "/settings/ai", label: "AI" },
-  { href: "/settings/agent", label: "Claude & MCP" },
+  { href: "/settings/agent", label: "Connect Claude" },
   { href: "/settings/integrations", label: "Integrations" },
   { href: "/settings/audit-log", label: "Audit log" },
 ];

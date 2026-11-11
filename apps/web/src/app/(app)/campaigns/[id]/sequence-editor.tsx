@@ -242,7 +242,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
             <input type="hidden" name="campaign_id" value={campaignId} />
             <input type="hidden" name="step_id" value={step.id} />
             <Button size="sm" variant="ghost">
-              <Plus /> Add A/B variant
+              <Plus /> Add another version to test
             </Button>
           </form>
         )}
@@ -299,7 +299,7 @@ function VariantEditor({
         <input type="hidden" name="campaign_id" value={campaignId} />
         <input type="hidden" name="variant_id" value={variant.id} />
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary">Variant {variant.ab_group}</Badge>
+          <Badge variant="neutral">Version {variant.ab_group}</Badge>
           <label className="flex items-center gap-1 text-sm">
             Weight
             <Input name="weight" type="number" min={0} max={10000} defaultValue={variant.weight} className="h-8 w-20" disabled={!canEdit} />
@@ -315,7 +315,7 @@ function VariantEditor({
               <Eye /> {preview ? "Edit" : "Preview"}
             </Button>
             {canEdit && canDelete && (
-              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete variant ${variant.ab_group}`}>
+              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete version ${variant.ab_group}`}>
                 <Trash2 />
               </Button>
             )}
@@ -372,7 +372,7 @@ function VariantEditor({
         {canEdit && (
           <div className="flex items-center gap-3">
             <Button loading={pending} size="sm" disabled={pending}>
-              Save variant
+              Save version
             </Button>
             <ActionToast state={state} message={state?.message} />
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}

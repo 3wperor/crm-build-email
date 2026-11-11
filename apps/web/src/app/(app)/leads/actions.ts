@@ -14,6 +14,7 @@ import { leadImportRequested, leadVerificationRequested } from "@/inngest/events
 import { createVerificationRun, type VerificationTarget } from "@/lib/verification/runs";
 import { importLeadsDirect } from "@/lib/leads/direct-import";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
+import { friendlyError } from "@/lib/errors";
 
 const FORBIDDEN = "You don't have permission to change leads.";
 
@@ -154,7 +155,7 @@ export async function addLead(_prev: AddLeadState, formData: FormData): Promise<
   const { error } = await supabase.from("leads").insert({ org_id: ctx.org.id, ...parsed.data });
   if (error) {
     if (error.code === "23505") return { error: `${parsed.data.email} already exists.`, fieldErrors: { email: ["Already exists"] } };
-    return { error: error.message };
+    return { error: friendlyError(error) };
   }
   revalidatePath("/leads");
   return { ok: true };
@@ -182,19 +183,19 @@ export async function bulkLeadAction(_prev: BulkState, formData: FormData): Prom
 
   if (action === "delete") {
     const { error, count } = await supabase.from("leads").delete({ count: "exact" }).eq("org_id", ctx.org.id).in("id", ids.data);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyError(error) };
     revalidatePath("/leads");
     return { message: `Deleted ${count ?? 0} lead(s).` };
   }
 
   if (action === "suppress") {
     const { data: leads, error } = await supabase.from("leads").select("email").eq("org_id", ctx.org.id).in("id", ids.data);
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyError(error) };
     const { error: supError } = await supabase.from("suppression_list").upsert(
       (leads ?? []).map((l) => ({ org_id: ctx.org.id, email: l.email, reason: "manual", source: `user:${ctx.user.id}` })),
       { onConflict: "org_id,email", ignoreDuplicates: true },
     );
-    if (supError) return { error: supError.message };
+    if (supError) return { error: friendlyError(supError) };
     revalidatePath("/leads");
     revalidatePath("/suppression");
     return { message: `Suppressed ${leads?.length ?? 0} lead(s).` };
@@ -210,7 +211,7 @@ export async function bulkLeadAction(_prev: BulkState, formData: FormData): Prom
         onConflict: "list_id,lead_id",
         ignoreDuplicates: true,
       });
-    if (error) return { error: error.message };
+    if (error) return { error: friendlyError(error) };
     revalidatePath("/leads");
     return { message: `Added ${ids.data.length} lead(s) to the list.` };
   }

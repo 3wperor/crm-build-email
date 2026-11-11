@@ -45,7 +45,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
 
   return (
     <>
-      <PageHeader title="Replies" description="Detected across your inboxes every few minutes. Replying stops the sequence and adds the lead to the pipeline." />
+      <PageHeader title="Replies" description="We check your inboxes every few minutes. When someone replies, their follow-ups stop and they're added to your pipeline." />
       <LinkTabs
         label="Filter replies"
         items={[null, "needs_reply", ...REPLY_CLASSES].map((k) => ({
@@ -70,7 +70,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
                   <TableHead>From</TableHead>
                   <TableHead>Reply</TableHead>
                   <TableHead>Campaign</TableHead>
-                  <TableHead>Classification</TableHead>
+                  <TableHead>Reply type</TableHead>
                   <TableHead>Received</TableHead>
                 </TableRow>
               </TableHeader>

@@ -158,7 +158,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
 
         <Card>
           <CardContent>
-            {error && <p className="text-destructive text-sm">{error.message}</p>}
+            {error && <p className="text-destructive text-sm">We couldn&apos;t load your leads. Refresh the page to try again.</p>}
             {rows.length === 0 ? (
               total === 0 && !q && !sp.status && !sp.verification && !listId ? (
                 <EmptyState

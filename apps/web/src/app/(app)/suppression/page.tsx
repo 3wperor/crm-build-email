@@ -72,7 +72,11 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
                     <TableHead>Reason</TableHead>
                     <TableHead>Source</TableHead>
                     <TableHead>Added</TableHead>
-                    {canRemove && <TableHead />}
+                    {canRemove && (
+                      <TableHead>
+                        <span className="sr-only">Actions</span>
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>

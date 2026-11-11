@@ -41,7 +41,7 @@ export function SendingStatus({ paused, canPause, canResume }: { paused: boolean
           aria-busy={pending}
           className={cn(
             "focus-visible:ring-ring/50 flex h-8 items-center gap-2 rounded-full border pr-2 pl-2.5 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-[3px] aria-busy:opacity-60",
-            paused ? "border-destructive/30 bg-destructive/10 text-destructive" : "bg-background hover:bg-accent/60 data-[state=open]:bg-accent/60",
+            paused ? "border-destructive/30 bg-destructive/10 text-danger" : "bg-background hover:bg-accent/60 data-[state=open]:bg-accent/60",
           )}
         >
           {paused ? (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { SignupForm } from "./signup-form";
 
 export const metadata = { title: "Sign up" };
@@ -8,7 +8,7 @@ export default function SignupPage() {
   return (
     <Card className="border-0 bg-transparent py-0 shadow-none [&>*]:px-0">
       <CardHeader>
-        <CardTitle className="text-page-title">Create your account</CardTitle>
+        <h1 className="text-page-title">Create your account</h1>
         <CardDescription>Free for 7 days, 200 emails included, no card needed.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">

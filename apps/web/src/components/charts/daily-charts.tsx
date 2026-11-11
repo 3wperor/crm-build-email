@@ -111,6 +111,7 @@ export function SentChart({ days }: { days: DailyPoint[] }) {
                 height={H - PAD.top - PAD.bottom}
                 fill="transparent"
                 tabIndex={0}
+                role="img"
                 aria-label={`${fmtDay(d.day, true)}: ${d.sent} sent`}
                 onPointerEnter={() => setHover(i)}
                 onPointerLeave={() => setHover(null)}
@@ -212,6 +213,7 @@ export function ResponsesChart({ days }: { days: DailyPoint[] }) {
           height={H - PAD.top - PAD.bottom}
           fill="transparent"
           tabIndex={0}
+          role="img"
           aria-label="Use the left and right arrow keys to read values per day"
           onPointerMove={onMove}
           onPointerLeave={() => setHover(null)}

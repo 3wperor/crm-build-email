@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { safeNextPath } from "@/lib/safe-redirect";
 import { LoginForm } from "./login-form";
 import { authLinkMessage } from "@/lib/auth-links";
@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <Card className="border-0 bg-transparent py-0 shadow-none [&>*]:px-0">
       <CardHeader>
-        <CardTitle className="text-page-title">Sign in</CardTitle>
+        <h1 className="text-page-title">Sign in</h1>
         <CardDescription>Welcome back.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">

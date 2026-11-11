@@ -51,7 +51,7 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
         </div>
 
         <div className="grid gap-3">
-          <h3 className="text-sm font-semibold">Send window</h3>
+          <h2 className="text-sm font-semibold">Send window</h2>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="grid gap-2">
               <Label htmlFor="sendWindowStart">From</Label>
@@ -101,7 +101,7 @@ export function CampaignSettingsForm({ campaign, inboxes, attached, canEdit }: P
         </div>
 
         <div className="grid gap-2">
-          <h3 className="text-sm font-semibold">Inboxes</h3>
+          <h2 className="text-sm font-semibold">Inboxes</h2>
           {inboxes.length === 0 ? (
             <p className="text-muted-foreground text-sm">No inboxes connected yet.</p>
           ) : (

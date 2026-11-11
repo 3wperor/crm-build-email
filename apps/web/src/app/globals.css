@@ -9,6 +9,8 @@
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   /* Meaning, not colour: use these instead of emerald/amber/sky classes. */
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-danger: var(--danger);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-success-subtle: var(--success-subtle);
@@ -82,6 +84,9 @@
   --sidebar-ring: oklch(0.546 0.245 262.9);
   /* Status colours. Each is readable (AA) as text on the page, cards and its own
      -subtle background; -foreground is the text colour on the solid fill. */
+  /* Text on a solid red button, and red text that stays readable on a pale red background. */
+  --destructive-foreground: oklch(0.985 0 0);
+  --danger: oklch(0.5 0.2 27);
   --success: oklch(0.52 0.14 152);
   --success-foreground: oklch(0.985 0 0);
   --success-subtle: oklch(0.955 0.04 155);
@@ -125,6 +130,8 @@
     --sidebar-accent-foreground: oklch(0.93 0.03 262);
     --sidebar-border: oklch(1 0.02 262 / 11%);
     --sidebar-ring: oklch(0.707 0.165 254.6);
+    --destructive-foreground: oklch(0.2 0.06 25);
+    --danger: oklch(0.78 0.14 22);
     --success: oklch(0.76 0.15 155);
     --success-foreground: oklch(0.18 0.04 155);
     --success-subtle: oklch(0.28 0.05 155);
@@ -151,6 +158,18 @@
   /* Figures line up in columns and don't jiggle as they change. */
   table {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Motion is for dialogs, drawers, menus and toasts only, and never for people who've asked for less. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

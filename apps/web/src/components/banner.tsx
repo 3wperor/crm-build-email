@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 const TONES = {
   info: { icon: Info, className: "bg-info-subtle text-info" },
   warning: { icon: AlertTriangle, className: "bg-warning-subtle text-warning" },
-  danger: { icon: OctagonAlert, className: "bg-destructive/10 text-destructive" },
+  danger: { icon: OctagonAlert, className: "bg-destructive/10 text-danger" },
 } as const;
 
 /** A full-width notice under the top bar (billing, sending paused). */

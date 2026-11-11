@@ -1,6 +1,6 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { textToHtml } from "@crm/core";
+import { brandedEmailHtml } from "@/lib/system-mail-html";
 import { createMailAdapter } from "@crm/mail";
 import { mailAdapterOptions } from "@/lib/sending-accounts";
 
@@ -45,7 +45,7 @@ export async function sendSystemEmail(to: string[], subject: string, text: strin
       to: recipient,
       subject,
       text,
-      html: textToHtml(text),
+      html: brandedEmailHtml(subject, text),
       messageId: `<${randomUUID()}@${address.split("@")[1] ?? "ycareach.local"}>`,
       headers: { "X-YCAReach-System": "1", "Auto-Submitted": "auto-generated" },
     });

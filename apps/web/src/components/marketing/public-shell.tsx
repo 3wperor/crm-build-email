@@ -12,7 +12,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           <Link href="/">
             <Logo />
           </Link>
-          <nav className="flex items-center gap-1 text-sm sm:gap-4">
+          <nav aria-label="Main" className="flex items-center gap-1 text-sm sm:gap-4">
             <Link href="/#pricing" className="text-muted-foreground hover:text-foreground hidden px-2 sm:inline">
               Pricing
             </Link>
@@ -28,13 +28,13 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
       </header>
-      <div className="flex-1">{children}</div>
+      <main className="flex-1">{children}</main>
       <footer className="border-t">
         <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div>
             © {new Date().getFullYear()} {legalEntity()}
           </div>
-          <nav className="flex flex-wrap gap-4">
+          <nav aria-label="Footer" className="flex flex-wrap gap-4">
             <Link href="/docs" className="hover:text-foreground">
               Docs
             </Link>

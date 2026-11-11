@@ -43,7 +43,7 @@ export function PlanPicker({
             type="button"
             onClick={() => setInterval(i)}
             aria-pressed={interval === i}
-            className={cn("rounded-md px-3 py-1", interval === i ? "bg-primary text-primary-foreground" : "text-muted-foreground")}
+            className={cn("focus-visible:ring-ring/50 rounded-md px-3 py-1 outline-none focus-visible:ring-[3px]", interval === i ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground")}
           >
             {i === "month" ? "Monthly" : "Yearly · 2 months free"}
           </button>
@@ -57,7 +57,7 @@ export function PlanPicker({
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-lg capitalize">
                   {plan}
-                  {plan === "pro" && <span className="bg-primary text-primary-foreground rounded px-2 py-0.5 text-xs">With Claude</span>}
+                  {plan === "pro" && <span className="bg-accent text-accent-foreground rounded-full px-2.5 py-0.5 text-xs font-medium normal-case">Includes AI</span>}
                 </CardTitle>
                 <CardDescription>
                   <span className="text-foreground text-3xl font-semibold">£{PRICES[plan][interval]}</span> / {interval === "month" ? "month" : "year"}

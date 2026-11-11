@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useOptimistic, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { findPlaceholders } from "@crm/core/ai";
@@ -11,6 +11,7 @@ import { AutoRefresh } from "@/components/auto-refresh";
 import { redraftReplyAction, sendReplyAction, setReplyHandled } from "../actions";
 import { useConfirmSubmit } from "@/components/ui/confirm";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 
 type Props = {
   replyId: string;
@@ -39,6 +40,7 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
   const [draftState, redraft, drafting] = useActionState(redraftReplyAction, undefined);
   const writing = draftStatus === "pending" && !draft;
   const guard = useConfirmSubmit();
+  const [shownHandled, setShownHandled] = useOptimistic(handled);
 
   if (sendState?.sent) {
     return (
@@ -84,7 +86,7 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
       <CardHeader>
         <CardTitle className="text-base">
           Reply to {toName}
-          {handled && <span className="text-muted-foreground ml-2 text-xs font-normal">(marked as handled)</span>}
+          {shownHandled && <span className="text-muted-foreground ml-2 text-xs font-normal">(marked as handled)</span>}
         </CardTitle>
         <CardDescription>
           Sends from {fromEmail ?? "the inbox that got this reply"} to {toEmail}, in the same email thread.
@@ -166,11 +168,19 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
           </p>
         )}
 
-        <form action={setReplyHandled} className="border-t pt-3">
+        <form
+          action={async (data) => {
+            // Show the change straight away; it snaps back by itself if the save doesn't go through.
+            setShownHandled(!handled);
+            await setReplyHandled(data);
+            toast.success(handled ? "Moved back to Needs reply" : "Marked as handled");
+          }}
+          className="border-t pt-3"
+        >
           <input type="hidden" name="reply_id" value={replyId} />
           <input type="hidden" name="handled" value={handled ? "0" : "1"} />
           <Button size="sm" variant="ghost">
-            {handled ? "Move back to Needs reply" : "No reply needed — mark as handled"}
+            {shownHandled ? "Move back to Needs reply" : "No reply needed: mark as handled"}
           </Button>
         </form>
       </CardContent>

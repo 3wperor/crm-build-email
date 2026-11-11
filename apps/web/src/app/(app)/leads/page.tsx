@@ -3,6 +3,7 @@ import { Upload, Users } from "lucide-react";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { Pagination } from "@/components/pagination";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,6 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
   ]);
   const rows = (data ?? []) as unknown as LeadRow[];
   const total = count ?? 0;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const pageHref = (p: number) => {
     const params = new URLSearchParams(Object.entries(sp).filter(([k, v]) => v && k !== "page") as [string, string][]);
@@ -185,23 +185,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           </CardContent>
         </Card>
 
-        {pages > 1 && (
-          <div className="flex items-center justify-end gap-2 text-sm">
-            <span className="text-muted-foreground">
-              Page {page} of {pages}
-            </span>
-            <Button variant="outline" size="sm" asChild disabled={page <= 1}>
-              <Link href={pageHref(Math.max(1, page - 1))} aria-disabled={page <= 1}>
-                Previous
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href={pageHref(Math.min(pages, page + 1))} aria-disabled={page >= pages}>
-                Next
-              </Link>
-            </Button>
-          </div>
-        )}
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} href={pageHref} />
       </div>
     </>
   );

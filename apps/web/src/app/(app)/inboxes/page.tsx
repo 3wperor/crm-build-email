@@ -109,9 +109,7 @@ export default async function InboxesPage() {
                       <div className="text-muted-foreground flex items-center gap-1 text-xs">
                         {a.display_name ?? "—"}
                         {a.status !== "active" && (
-                          <Badge variant="outline" className="capitalize">
-                            {a.status}
-                          </Badge>
+                          <Badge variant="neutral">{a.status === "paused" ? "Paused" : "Disconnected"}</Badge>
                         )}
                       </div>
                     </TableCell>

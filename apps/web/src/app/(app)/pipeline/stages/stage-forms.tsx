@@ -21,14 +21,14 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
           <form action={moveStage}>
             <input type="hidden" name="stage_id" value={stage.id} />
             <input type="hidden" name="dir" value="up" />
-            <Button size="icon" variant="ghost" className="size-6" disabled={first} aria-label={`Move ${stage.name} up`}>
+            <Button size="icon" variant="ghost" className="size-6" disabled={first} aria-label={`Move ${stage.name} up`} title={`Move ${stage.name} up`}>
               <ArrowUp />
             </Button>
           </form>
           <form action={moveStage}>
             <input type="hidden" name="stage_id" value={stage.id} />
             <input type="hidden" name="dir" value="down" />
-            <Button size="icon" variant="ghost" className="size-6" disabled={last} aria-label={`Move ${stage.name} down`}>
+            <Button size="icon" variant="ghost" className="size-6" disabled={last} aria-label={`Move ${stage.name} down`} title={`Move ${stage.name} down`}>
               <ArrowDown />
             </Button>
           </form>
@@ -60,7 +60,7 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
         )}
         <form action={delAction}>
           <input type="hidden" name="stage_id" value={stage.id} />
-          <Button size="icon" variant="ghost" disabled={deleting} aria-label={`Delete ${stage.name}`}>
+          <Button size="icon" variant="ghost" disabled={deleting} aria-label={`Delete ${stage.name}`} title={`Delete ${stage.name}`}>
             <Trash2 />
           </Button>
         </form>

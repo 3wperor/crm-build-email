@@ -56,7 +56,7 @@ export function SettingsForm({ account, disabled }: { account: Settings; disable
           <Input id="displayName" name="displayName" defaultValue={account.display_name ?? ""} maxLength={120} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="dailyCap">Daily sending cap</Label>
+          <Label htmlFor="dailyCap">Most emails to send per day</Label>
           <VolumeInput id="dailyCap" name="dailyCap" defaultValue={account.daily_cap} max={DAILY_CAP_MAX} sliderMax={200} disabled={disabled} />
           <FieldError messages={errors.dailyCap} />
         </div>
@@ -68,8 +68,8 @@ export function SettingsForm({ account, disabled }: { account: Settings; disable
         <div className="grid gap-2">
           <Label htmlFor="status">Status</Label>
           <NativeSelect id="status" name="status" defaultValue={account.status === "paused" ? "paused" : "active"}>
-            <option value="active">Active — used by campaigns</option>
-            <option value="paused">Paused — excluded from sending</option>
+            <option value="active">Active: campaigns can send from it</option>
+            <option value="paused">Paused: nothing is sent from it</option>
           </NativeSelect>
         </div>
       </fieldset>

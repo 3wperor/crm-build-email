@@ -1,6 +1,7 @@
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { Pagination } from "@/components/pagination";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,8 +16,11 @@ import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Do-not-email list" };
 
-export default async function SuppressionPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const { q: rawQ } = await searchParams;
+const PAGE_SIZE = 50;
+
+export default async function SuppressionPage({ searchParams }: { searchParams: Promise<{ q?: string; page?: string }> }) {
+  const { q: rawQ, page: rawPage } = await searchParams;
+  const page = Math.max(1, Number(rawPage) || 1);
   const { org, role } = await getOrgContext();
   const supabase = await createClient();
   const q = (rawQ ?? "").replace(/[,()*%\\"]/g, "").trim().toLowerCase().slice(0, 100);
@@ -26,7 +30,7 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
     .select("id, email, reason, source, created_at", { count: "exact" })
     .eq("org_id", org.id);
   if (q) query = query.ilike("email", `%${q}%`);
-  const { data: rows, count } = await query.order("created_at", { ascending: false }).limit(200);
+  const { data: rows, count } = await query.order("created_at", { ascending: false }).range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
   const canRemove = can(role, "suppression.remove");
 
@@ -70,7 +74,6 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Reason</TableHead>
-                    <TableHead>Source</TableHead>
                     <TableHead>Added</TableHead>
                     {canRemove && (
                       <TableHead>
@@ -84,9 +87,8 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.email}</TableCell>
                       <TableCell>
-                        <StatusBadge kind="suppression" value={r.reason} />
+                        <StatusBadge kind="suppression" value={r.reason} title={r.source ? `Source: ${r.source}` : undefined} />
                       </TableCell>
-                      <TableCell className="text-muted-foreground font-mono text-xs">{r.source ?? "—"}</TableCell>
                       <TableCell className="text-muted-foreground text-xs"><Time value={r.created_at} /></TableCell>
                       {canRemove && (
                         <TableCell className="text-right">
@@ -103,6 +105,13 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
                 </TableBody>
               </Table>
             )}
+            <Pagination
+              className="mt-4"
+              page={page}
+              pageSize={PAGE_SIZE}
+              total={count ?? 0}
+              href={(p) => `/suppression?${new URLSearchParams({ ...(q ? { q } : {}), page: String(p) })}`}
+            />
           </CardContent>
         </Card>
       </div>

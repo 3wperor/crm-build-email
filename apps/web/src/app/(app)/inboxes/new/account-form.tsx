@@ -179,7 +179,7 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
           </div>
           <div className="grid gap-4 sm:grid-cols-[1fr_7rem_auto]">
             <div className="grid gap-2">
-              <Label htmlFor="smtpHost">SMTP host</Label>
+              <Label htmlFor="smtpHost">Sending server (SMTP host)</Label>
               <Input id="smtpHost" name="smtpHost" placeholder="smtp.example.com" required aria-invalid={!!errors.smtpHost} />
               <FieldError messages={errors.smtpHost} />
             </div>
@@ -204,7 +204,7 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
           </div>
           <div className="grid gap-4 sm:grid-cols-[1fr_7rem_auto]">
             <div className="grid gap-2">
-              <Label htmlFor="imapHost">IMAP host</Label>
+              <Label htmlFor="imapHost">Receiving server (IMAP host)</Label>
               <Input id="imapHost" name="imapHost" placeholder="imap.example.com" required aria-invalid={!!errors.imapHost} />
               <FieldError messages={errors.imapHost} />
             </div>
@@ -228,14 +228,14 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
             </label>
           </div>
           <p className="text-muted-foreground text-xs">
-            Without SSL/TLS, STARTTLS is required — credentials are never sent unencrypted.
+            Your password is always sent over an encrypted connection, whichever option you choose.
           </p>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="dailyCap">Daily sending cap</Label>
+          <Label htmlFor="dailyCap">Most emails to send per day</Label>
           <VolumeInput id="dailyCap" name="dailyCap" defaultValue={30} max={DAILY_CAP_MAX} sliderMax={200} />
           <FieldError messages={errors.dailyCap} />
           <p className="text-muted-foreground text-xs">Most cold-email inboxes should stay under 30–50/day.</p>

@@ -61,7 +61,7 @@ function LeadFieldInputs({ lead, canEdit, disabled }: { lead: Lead; canEdit: boo
             <Input name="custom_key" defaultValue={k} placeholder="field" aria-label="Custom field name" className="w-44 font-mono text-xs" disabled={!canEdit} />
             <Input name="custom_value" defaultValue={v} placeholder="value" aria-label={`Value for ${k || "field"}`} disabled={!canEdit} />
             {canEdit && (
-              <Button type="button" size="icon" variant="ghost" aria-label="Remove field" onClick={() => setCustom((c) => c.filter((_, j) => j !== i))}>
+              <Button type="button" size="icon" variant="ghost" aria-label="Remove field" title="Remove field" onClick={() => setCustom((c) => c.filter((_, j) => j !== i))}>
                 <Trash2 />
               </Button>
             )}

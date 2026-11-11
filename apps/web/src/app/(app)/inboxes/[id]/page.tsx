@@ -50,11 +50,7 @@ export default async function InboxPage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Connection <HealthBadge health={a.health} />
-              {a.status !== "active" && (
-                <Badge variant="outline" className="capitalize">
-                  {a.status}
-                </Badge>
-              )}
+              {a.status !== "active" && <Badge variant="neutral">{a.status === "paused" ? "Paused" : "Disconnected"}</Badge>}
             </CardTitle>
             <CardDescription>
               {created
@@ -65,43 +61,51 @@ export default async function InboxPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            {a.health_detail && <p className="text-destructive text-sm">{a.health_detail}</p>}
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+            {a.health_detail && a.health !== "healthy" && <p className="text-danger text-sm">{a.health_detail}</p>}
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
               <div>
-                <dt className="text-muted-foreground text-xs">Provider</dt>
-                <dd>{providerLabel(a.provider)}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">Username</dt>
-                <dd className="truncate">{a.username}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">SMTP</dt>
-                <dd className="font-mono text-xs">
-                  {a.smtp_host}:{a.smtp_port} {a.smtp_secure ? "TLS" : "STARTTLS"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">IMAP</dt>
-                <dd className="font-mono text-xs">
-                  {a.imap_host}:{a.imap_port} {a.imap_secure ? "TLS" : "STARTTLS"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-xs">Sent today</dt>
+                <dt className="text-muted-foreground text-caption mb-1">Sent today</dt>
                 <dd>
                   <UsageBar used={effectiveSentToday(a, new Date(), org.default_timezone)} cap={a.daily_cap} />
                 </dd>
               </div>
               <div>
-                <dt className="text-muted-foreground text-xs">Health score</dt>
-                <dd className="tabular-nums">{a.health_score ?? "—"}</dd>
+                <dt className="text-muted-foreground text-caption mb-1">Health score</dt>
+                <dd className="tabular-nums">{a.health_score ?? "Not enough emails yet"}</dd>
               </div>
               <div>
-                <dt className="text-muted-foreground text-xs">Warmup</dt>
+                <dt className="text-muted-foreground text-caption mb-1">Warmup</dt>
                 <dd>{a.warmup_enabled ? "On (beta)" : "Off"}</dd>
               </div>
             </dl>
+            <details className="group text-sm">
+              <summary className="text-muted-foreground hover:text-foreground w-fit cursor-pointer list-none rounded-sm underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+                Advanced: connection details <span className="group-open:hidden">(show)</span>
+                <span className="hidden group-open:inline">(hide)</span>
+              </summary>
+              <dl className="bg-muted/50 mt-3 grid grid-cols-1 gap-x-6 gap-y-3 rounded-md p-4 sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted-foreground text-caption">Provider</dt>
+                  <dd>{providerLabel(a.provider)}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-muted-foreground text-caption">Username</dt>
+                  <dd className="truncate">{a.username}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-caption">Sending server (SMTP)</dt>
+                  <dd className="font-mono text-xs break-all">
+                    {a.smtp_host}:{a.smtp_port} {a.smtp_secure ? "TLS" : "STARTTLS"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground text-caption">Receiving server (IMAP)</dt>
+                  <dd className="font-mono text-xs break-all">
+                    {a.imap_host}:{a.imap_port} {a.imap_secure ? "TLS" : "STARTTLS"}
+                  </dd>
+                </div>
+              </dl>
+            </details>
             <RetestButton accountId={a.id} disabled={!canManage} />
           </CardContent>
         </Card>

@@ -8,6 +8,7 @@ import { LeadThread } from "@/components/lead-thread";
 import { aiModeFor } from "@/lib/ai/provider";
 import { ReclassifySelect } from "../classification";
 import { ReplyComposer } from "./reply-composer";
+import { ReplyListPane } from "../reply-list-pane";
 import { Breadcrumbs } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 
@@ -35,7 +36,9 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
   const leadName = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(" ") || reply.from_email : reply.from_email;
   const canReply = can(role, "replies.send") && reply.classification !== "unsubscribe" && reply.classification !== "out_of_office";
   return (
-    <>
+    <div className="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <ReplyListPane orgId={org.id} currentId={reply.id} />
+      <div className="min-w-0">
       <Breadcrumbs items={[{ label: "Replies", href: "/replies" }, { label: leadName }]} />
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -54,8 +57,7 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="grid justify-items-end gap-2">
           <ReclassifySelect replyId={reply.id} value={reply.classification} canEdit={can(role, "replies.classify")} />
-          <div className="flex gap-2 text-xs">
-            {reply.outcome && <Badge variant="outline">outcome: {reply.outcome}</Badge>}
+          <div className="flex flex-wrap justify-end gap-2 text-xs">
             {opp?.pipeline_stages && <Badge variant="neutral">Pipeline: {opp.pipeline_stages.name}</Badge>}
             {lead && <StatusBadge kind="lead" value={lead.status} />}
           </div>
@@ -78,6 +80,7 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
         />
         {leadId ? <LeadThread leadId={leadId} highlightReplyId={reply.id} /> : null}
       </div>
-    </>
+      </div>
+    </div>
   );
 }

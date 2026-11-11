@@ -2,6 +2,7 @@ import Link from "next/link";
 import { can, extractReplyText, REPLY_CLASSES } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { Pagination } from "@/components/pagination";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -19,8 +20,11 @@ const needsAnswer = (r: { classification: string | null; handled_at: string | nu
 
 export const metadata = { title: "Replies" };
 
-export default async function RepliesPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
-  const { c } = await searchParams;
+const PAGE_SIZE = 50;
+
+export default async function RepliesPage({ searchParams }: { searchParams: Promise<{ c?: string; page?: string }> }) {
+  const { c, page: rawPage } = await searchParams;
+  const page = Math.max(1, Number(rawPage) || 1);
   const needsReply = c === "needs_reply";
   const filter = needsReply ? "needs_reply" : REPLY_CLASSES.includes(c as never) ? c : null;
   const { org, role } = await getOrgContext();
@@ -28,13 +32,13 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
 
   let query = supabase
     .from("replies")
-    .select("id, from_email, subject, body_text, classification, classification_source, received_at, outcome, handled_at, draft_status, leads(first_name, last_name, company), sends(campaigns(id, name))")
+    .select("id, from_email, subject, body_text, classification, classification_source, received_at, outcome, handled_at, draft_status, leads(first_name, last_name, company), sends(campaigns(id, name))", { count: "exact" })
     .eq("org_id", org.id)
     .order("received_at", { ascending: false })
-    .limit(100);
+    .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (needsReply) query = query.in("classification", NEEDS_REPLY_CLASSES).is("handled_at", null);
   else if (filter) query = query.eq("classification", filter);
-  const [{ data: replies }, { data: all }] = await Promise.all([query, supabase.from("replies").select("classification, handled_at").eq("org_id", org.id)]);
+  const [{ data: replies, count: total }, { data: all }] = await Promise.all([query, supabase.from("replies").select("classification, handled_at").eq("org_id", org.id)]);
 
   const counts = new Map<string, number>();
   for (const r of all ?? []) {
@@ -102,6 +106,13 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
           </ul>
         </Card>
       )}
+      <Pagination
+        className="mt-4"
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total ?? 0}
+        href={(p) => `/replies?${new URLSearchParams({ ...(filter ? { c: filter } : {}), page: String(p) })}`}
+      />
     </>
   );
 }

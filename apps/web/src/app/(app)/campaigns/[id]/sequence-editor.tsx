@@ -243,7 +243,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
             <form action={deleteStep}>
               <input type="hidden" name="campaign_id" value={campaignId} />
               <input type="hidden" name="step_id" value={step.id} />
-              <Button size="icon" variant="ghost" aria-label={`Delete step ${step.step_order}`}>
+              <Button size="icon" variant="ghost" aria-label={`Delete step ${step.step_order}`} title={`Delete step ${step.step_order}`}>
                 <Trash2 />
               </Button>
             </form>
@@ -341,7 +341,7 @@ function VariantEditor({
               <Eye /> {preview ? "Edit" : "Preview"}
             </Button>
             {canEdit && canDelete && (
-              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete version ${variant.ab_group}`}>
+              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete version ${variant.ab_group}`} title={`Delete version ${variant.ab_group}`}>
                 <Trash2 />
               </Button>
             )}

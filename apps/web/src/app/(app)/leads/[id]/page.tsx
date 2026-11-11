@@ -127,7 +127,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                       <form action={deleteNote}>
                         <input type="hidden" name="note_id" value={n.id} />
                         <input type="hidden" name="lead_id" value={id} />
-                        <Button size="icon" variant="ghost" className="size-6" aria-label="Delete note">
+                        <Button size="icon" variant="ghost" className="size-6" aria-label="Delete note" title="Delete note">
                           <Trash2 />
                         </Button>
                       </form>

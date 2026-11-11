@@ -3,7 +3,7 @@ import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +39,7 @@ export default async function AgentSettingsPage() {
     <>
       <PageHeader
         title="Claude &amp; MCP"
+        breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Claude & MCP" }]}
         description="Let an AI agent (Claude Desktop, Claude Code, any MCP client) run YCAReach through the MCP server, within guardrails."
         actions={
           <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">

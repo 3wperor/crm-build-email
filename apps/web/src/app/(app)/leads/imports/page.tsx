@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ImportStatusBadge } from "./status-badge";
@@ -22,6 +22,7 @@ export default async function ImportsPage() {
     <>
       <PageHeader
         title="Import history"
+        breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: "Import history" }]}
         actions={
           <Link href="/leads/import" className="text-sm underline underline-offset-4">
             New import

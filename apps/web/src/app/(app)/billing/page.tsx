@@ -2,7 +2,7 @@ import { can } from "@crm/core";
 import { blockMessage, trialDaysLeft } from "@crm/core/billing";
 import { getOrgContext } from "@/lib/org";
 import { getBillingStatus, stripeConfigured } from "@/lib/billing";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PlanPicker } from "./plan-picker";
 

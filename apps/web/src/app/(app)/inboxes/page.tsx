@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { can, effectiveSentToday } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { HealthBadge, providerLabel } from "@/components/health-badge";
 import { UsageBar } from "@/components/usage-bar";
 import { Badge } from "@/components/ui/badge";

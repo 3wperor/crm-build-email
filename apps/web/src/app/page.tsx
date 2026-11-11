@@ -88,7 +88,7 @@ export default async function HomePage() {
       {/* How it works */}
       <section className="bg-muted/40 border-y">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Your first campaign in about 15 minutes</h2>
+          <h2 className="text-page-title">Your first campaign in about 15 minutes</h2>
           <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => (
               <li key={s.title} className="grid content-start gap-2">
@@ -103,7 +103,7 @@ export default async function HomePage() {
 
       {/* Features */}
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-        <h2 className="text-2xl font-semibold tracking-tight">Everything you need, nothing you don&apos;t</h2>
+        <h2 className="text-page-title">Everything you need, nothing you don&apos;t</h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f) => (
             <Card key={f.title}>
@@ -120,7 +120,7 @@ export default async function HomePage() {
       {/* Pricing */}
       <section id="pricing" className="bg-muted/40 scroll-mt-16 border-y">
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Simple pricing</h2>
+          <h2 className="text-page-title">Simple pricing</h2>
           <p className="text-muted-foreground mt-1">
             Start with a free {TRIAL.days}-day trial of everything ({TRIAL.emails} emails, no card). Pay yearly and get 2 months free.
           </p>
@@ -162,7 +162,7 @@ export default async function HomePage() {
 
       {/* FAQ */}
       <section className="mx-auto max-w-3xl px-4 py-14 sm:px-6">
-        <h2 className="text-2xl font-semibold tracking-tight">Questions</h2>
+        <h2 className="text-page-title">Questions</h2>
         <div className="mt-6 grid gap-3">
           {FAQ.map((f) => (
             <details key={f.q} className="group rounded-md border p-4">
@@ -177,7 +177,7 @@ export default async function HomePage() {
       <section className="border-t">
         <div className="mx-auto grid max-w-6xl justify-items-center gap-4 px-4 py-14 text-center sm:px-6">
           <MailCheck className="text-primary size-8" />
-          <h2 className="text-2xl font-semibold tracking-tight">Your next customer is one email away</h2>
+          <h2 className="text-page-title">Your next customer is one email away</h2>
           <p className="text-muted-foreground max-w-xl">Set up in about 15 minutes. Free for {TRIAL.days} days, no card needed.</p>
           <Button asChild size="lg">
             <Link href="/signup">

@@ -25,6 +25,7 @@ import { blockMessage } from "@crm/core/billing";
 import { SequenceEditor } from "./sequence-editor";
 import { CampaignSettingsForm } from "./settings-form";
 import { ResultsTab } from "./results-tab";
+import { Breadcrumbs } from "@/components/page-header";
 
 export const metadata = { title: "Campaign" };
 
@@ -141,10 +142,8 @@ export default async function CampaignPage({ params, searchParams }: { params: P
       <AutoRefresh active={c.status === "active"} intervalMs={5000} />
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/campaigns" className="text-muted-foreground text-sm hover:underline">
-            ← Campaigns
-          </Link>
-          <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold tracking-tight">
+          <Breadcrumbs items={[{ label: "Campaigns", href: "/campaigns" }, { label: c.name }]} />
+          <h1 className="flex items-center gap-3 text-page-title">
             {c.name} <CampaignStatusBadge status={c.status} />
           </h1>
         </div>
@@ -205,7 +204,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
         </Card>
       </div>
 
-      <nav className="mb-4 flex gap-1 border-b">
+      <nav className="mb-4 flex gap-1 overflow-x-auto border-b">
         {TABS.map((t) => (
           <Link
             key={t}

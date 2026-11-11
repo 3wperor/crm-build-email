@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { can, type CrmPipeline } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { loadCrmAdapter } from "@/lib/crm";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,11 +36,7 @@ export default async function IntegrationsPage() {
       <PageHeader
         title="Integrations"
         description="YCAReach stays your source of truth. Connected CRMs receive a contact and a deal for every lead in your pipeline."
-        actions={
-          <Link href="/settings" className="text-sm underline underline-offset-4">
-            ← Settings
-          </Link>
-        }
+        breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "Integrations" }]}
       />
       <Card data-testid="hubspot">
         <CardHeader>

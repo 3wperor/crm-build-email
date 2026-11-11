@@ -5,7 +5,7 @@ import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { getBillingStatus } from "@/lib/billing";
 import { includedAiConfigured, ownAiKeyHint } from "@/lib/ai/provider";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +28,7 @@ export default async function AiSettingsPage() {
 
   return (
     <>
-      <PageHeader title="AI" description="AI writes your campaign emails, sorts replies and drafts answers for you to send." />
+      <PageHeader title="AI" breadcrumbs={[{ label: "Settings", href: "/settings" }, { label: "AI" }]} description="AI writes your campaign emails, sorts replies and drafts answers for you to send." />
       {!pro ? (
         <Card className="border-dashed">
           <CardHeader>

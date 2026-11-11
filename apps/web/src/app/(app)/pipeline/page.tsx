@@ -3,7 +3,7 @@ import { Settings2 } from "lucide-react";
 import { can, extractReplyText } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { Button } from "@/components/ui/button";
 import { Board, type BoardCard } from "./board";

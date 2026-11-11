@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteNote } from "./actions";
 import { LeadFieldsForm, NoteForm, PipelineControl } from "./lead-forms";
+import { Breadcrumbs } from "@/components/page-header";
 
 export const metadata = { title: "Lead" };
 
@@ -41,11 +42,9 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <Link href="/leads" className="text-muted-foreground text-sm hover:underline">
-        ← Leads
-      </Link>
-      <div className="mt-2 mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
+      <Breadcrumbs items={[{ label: "Leads", href: "/leads" }, { label: name }]} />
+      <div className="mb-6">
+        <h1 className="text-page-title">{name}</h1>
         <p className="text-muted-foreground text-sm">
           {lead.email}
           {lead.title ? ` · ${lead.title}` : ""}

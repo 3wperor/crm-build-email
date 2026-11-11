@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { UsageBar } from "@/components/usage-bar";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -56,11 +56,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
       <PageHeader
         title={imp.filename}
         description={imp.lead_lists ? `List: ${imp.lead_lists.name}` : undefined}
-        actions={
-          <Link href="/leads/imports" className="text-sm underline underline-offset-4">
-            Import history
-          </Link>
-        }
+        breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: "Import history", href: "/leads/imports" }, { label: imp.filename }]}
       />
       <Card>
         <CardHeader>

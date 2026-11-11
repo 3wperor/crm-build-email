@@ -13,7 +13,9 @@ export function PlanBadge({ status }: { status: BillingStatus }) {
   if (status.block) {
     return (
       <div className="flex items-center gap-2">
-        <Badge variant="destructive">{status.plan === "trial" ? "Trial over · sending paused" : "Sending paused · no plan"}</Badge>
+        <Badge variant="destructive" className="hidden sm:inline-flex">
+          {status.plan === "trial" ? "Trial over · sending paused" : "Sending paused · no plan"}
+        </Badge>
         {choose}
       </div>
     );
@@ -22,10 +24,16 @@ export function PlanBadge({ status }: { status: BillingStatus }) {
     const days = trialDaysLeft(status.trial_ends_at);
     return (
       <div className="flex items-center gap-2" data-testid="trial-badge">
-        <Badge variant="warning">
-          Free trial · {days} day{days === 1 ? "" : "s"} left · {status.trial_emails_used ?? 0}/{status.trial_email_limit} emails
+        <Badge asChild variant="warning" className="h-8 rounded-full px-3">
+          <Link href="/billing">
+            <span className="hidden sm:inline">Free trial ·</span> {days} day{days === 1 ? "" : "s"} left
+            <span className="hidden lg:inline">
+              {" "}
+              · {status.trial_emails_used ?? 0}/{status.trial_email_limit} emails
+            </span>
+          </Link>
         </Badge>
-        {choose}
+        <span className="hidden sm:inline-flex">{choose}</span>
       </div>
     );
   }

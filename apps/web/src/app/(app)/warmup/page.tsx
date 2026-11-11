@@ -2,7 +2,7 @@ import Link from "next/link";
 import { can, formatPct, warmupDay, warmupHealth, warmupQuota, zonedParts } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { PlacementChart } from "@/components/charts/placement-chart";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";

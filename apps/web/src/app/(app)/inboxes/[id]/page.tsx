@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { can, effectiveSentToday } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { HealthBadge, providerLabel } from "@/components/health-badge";
 import { UsageBar } from "@/components/usage-bar";
 import { Badge } from "@/components/ui/badge";
@@ -42,11 +41,7 @@ export default async function InboxPage({
       <PageHeader
         title={a.email}
         description={a.display_name ?? undefined}
-        actions={
-          <Link href="/inboxes" className="text-sm underline underline-offset-4">
-            All inboxes
-          </Link>
-        }
+        breadcrumbs={[{ label: "Inboxes", href: "/inboxes" }, { label: a.email }]}
       />
 
       <div className="grid gap-6">

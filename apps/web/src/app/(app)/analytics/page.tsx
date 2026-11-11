@@ -3,7 +3,7 @@ import { ANALYTICS_RANGES, formatPct, parseRange, rate } from "@crm/core/analyti
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { EMPTY_METRICS, loadBreakdown, type BreakdownRow, type Metrics } from "@/lib/analytics";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { ResponsesChart, SentChart, type DailyPoint } from "@/components/charts/daily-charts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

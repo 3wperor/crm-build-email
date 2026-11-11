@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { ImportWizard } from "./import-wizard";
 
 export const metadata = { title: "Import leads" };
@@ -25,6 +25,7 @@ export default async function ImportPage({ searchParams }: { searchParams: Promi
       <PageHeader
         title={campaign ? `Import leads into ${campaign.name}` : "Import leads"}
         description="Rows are de-duplicated within the file, against existing leads and against your suppression list."
+        breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: "Import" }]}
         actions={
           <Link href="/leads/imports" className="text-sm underline underline-offset-4">
             Import history

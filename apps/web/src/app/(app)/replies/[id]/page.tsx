@@ -8,6 +8,7 @@ import { LeadThread } from "@/components/lead-thread";
 import { aiModeFor } from "@/lib/ai/provider";
 import { ReclassifySelect } from "../classification";
 import { ReplyComposer } from "./reply-composer";
+import { Breadcrumbs } from "@/components/page-header";
 
 export const metadata = { title: "Reply" };
 
@@ -34,12 +35,10 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
   const canReply = can(role, "replies.send") && reply.classification !== "unsubscribe" && reply.classification !== "out_of_office";
   return (
     <>
-      <Link href="/replies" className="text-muted-foreground text-sm hover:underline">
-        ← Replies
-      </Link>
-      <div className="mt-2 mb-6 flex flex-wrap items-start justify-between gap-4">
+      <Breadcrumbs items={[{ label: "Replies", href: "/replies" }, { label: leadName }]} />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{reply.subject || "(no subject)"}</h1>
+          <h1 className="text-page-title">{reply.subject || "(no subject)"}</h1>
           <p className="text-muted-foreground text-sm">
             {lead ? (
               <Link href={`/leads/${lead.id}`} className="hover:underline">

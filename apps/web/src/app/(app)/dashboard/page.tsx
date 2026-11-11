@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { GettingStarted } from "@/components/onboarding/getting-started";
 import { GoalTracker } from "@/components/onboarding/goal-tracker";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

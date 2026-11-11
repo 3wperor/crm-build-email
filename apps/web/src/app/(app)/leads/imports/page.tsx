@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ImportStatusBadge } from "./status-badge";
+import { Time } from "@/components/time";
+import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Import history" };
 
@@ -58,12 +60,12 @@ export default async function ImportsPage() {
                     <TableCell>
                       <ImportStatusBadge status={i.status} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{i.total_rows.toLocaleString()}</TableCell>
-                    <TableCell className="text-right tabular-nums">{i.imported_count.toLocaleString()}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(i.total_rows)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(i.imported_count)}</TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {(i.existing_count + i.suppressed_count + i.invalid_count + i.duplicate_count).toLocaleString()}
+                      {(i.existing_count + i.suppressed_count + i.invalid_count + i.duplicate_count).toLocaleString("en-GB")}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{new Date(i.created_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs"><Time value={i.created_at} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

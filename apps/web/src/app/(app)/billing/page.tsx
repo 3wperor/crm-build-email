@@ -5,6 +5,7 @@ import { getBillingStatus, stripeConfigured } from "@/lib/billing";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PlanPicker } from "./plan-picker";
+import { formatDay } from "@/lib/format";
 
 export const metadata = { title: "Billing" };
 
@@ -22,7 +23,7 @@ export default async function BillingPage() {
   } else if (status.plan === "expired") {
     summary = status.subscription_status === "past_due" ? "Your last payment failed. Update your card to resume sending." : "No active plan. Sending is paused; your data is safe.";
   } else {
-    const renew = status.current_period_end ? new Date(status.current_period_end).toLocaleDateString() : null;
+    const renew = status.current_period_end ? formatDay(status.current_period_end, org.default_timezone) : null;
     summary = `You're on ${status.plan === "pro" ? "Pro" : "Standard"} (${status.billing_interval === "year" ? "yearly" : "monthly"}).${
       renew ? (status.cancel_at_period_end ? ` Ends on ${renew}.` : ` Renews on ${renew}.`) : ""
     }`;

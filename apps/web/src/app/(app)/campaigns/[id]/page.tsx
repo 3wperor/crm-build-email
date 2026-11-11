@@ -26,6 +26,9 @@ import { CampaignSettingsForm } from "./settings-form";
 import { ResultsTab } from "./results-tab";
 import { Breadcrumbs } from "@/components/page-header";
 import { LinkTabs } from "@/components/ui/link-tabs";
+import { Time } from "@/components/time";
+import { StatusBadge } from "@/components/status-badge";
+import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Campaign" };
 
@@ -33,7 +36,7 @@ const TABS = ["sequence", "results", "leads", "settings", "activity"] as const;
 type Tab = (typeof TABS)[number];
 
 function describeNext(n: NextSendEstimate, tz: string): string {
-  const fmt = (d: Date) => d.toLocaleString("en-US", { timeZone: tz, weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
+  const fmt = (d: Date) => d.toLocaleString("en-GB", { timeZone: tz, weekday: "short", hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
   switch (n.kind) {
     case "not_running":
       return "Not running";
@@ -199,7 +202,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
         <Card className="gap-2 py-4">
           <CardHeader className="px-4">
             <CardDescription>Leads</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{enrolled.toLocaleString()}</CardTitle>
+            <CardTitle className="text-2xl tabular-nums">{formatNumber(enrolled)}</CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -260,7 +263,7 @@ export default async function CampaignPage({ params, searchParams }: { params: P
         </div>
       )}
 
-      {tab === "activity" && <ActivityTab campaignId={c.id} timezone={c.timezone} />}
+      {tab === "activity" && <ActivityTab campaignId={c.id} />}
     </>
   );
 }
@@ -365,11 +368,11 @@ async function LeadsTab({
                       <div className="text-muted-foreground text-xs">{[r.leads.first_name, r.leads.last_name].filter(Boolean).join(" ")}</div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline">{r.status}</Badge>
+                      <StatusBadge kind="enrollment" value={r.status} />
                       {r.stopped_reason && <div className="text-muted-foreground text-xs">{r.stopped_reason}</div>}
                     </TableCell>
                     <TableCell className="tabular-nums">{r.current_step_order}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{r.next_send_at ? new Date(r.next_send_at).toLocaleString() : "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs"><Time value={r.next_send_at} /></TableCell>
                     <TableCell className="text-xs">{r.sending_accounts?.email ?? "—"}</TableCell>
                   </TableRow>
                 ))}
@@ -382,7 +385,7 @@ async function LeadsTab({
   );
 }
 
-async function ActivityTab({ campaignId, timezone }: { campaignId: string; timezone: string }) {
+async function ActivityTab({ campaignId }: { campaignId: string }) {
   const supabase = await createClient();
   const { data: sends } = await supabase
     .from("sends")
@@ -411,7 +414,7 @@ async function ActivityTab({ campaignId, timezone }: { campaignId: string; timez
               {sends.map((s) => (
                 <TableRow key={s.id} data-testid="send-row">
                   <TableCell className="text-muted-foreground text-xs">
-                    {new Date(s.sent_at ?? s.scheduled_at ?? Date.now()).toLocaleString("en-US", { timeZone: timezone })}
+                    <Time value={s.sent_at ?? s.scheduled_at} />
                   </TableCell>
                   <TableCell>{s.leads.email}</TableCell>
                   <TableCell>
@@ -421,9 +424,7 @@ async function ActivityTab({ campaignId, timezone }: { campaignId: string; timez
                   <TableCell className="max-w-64 truncate">{s.subject}</TableCell>
                   <TableCell className="text-xs">{s.sending_accounts?.email ?? "—"}</TableCell>
                   <TableCell>
-                    <Badge variant={s.status === "sent" ? "success" : s.status === "bounced" || s.status === "failed" ? "destructive" : "outline"}>
-                      {s.status}
-                    </Badge>
+                    <StatusBadge kind="send" value={s.status} />
                     {s.error && <div className="text-muted-foreground max-w-56 truncate text-xs">{s.error}</div>}
                   </TableCell>
                 </TableRow>

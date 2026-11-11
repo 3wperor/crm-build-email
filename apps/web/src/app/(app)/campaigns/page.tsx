@@ -9,6 +9,8 @@ import { NewCampaignForm } from "./new-campaign-form";
 import { CampaignStatusBadge } from "./status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Send } from "lucide-react";
+import { Time } from "@/components/time";
+import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Campaigns" };
 
@@ -68,10 +70,10 @@ export default async function CampaignsPage() {
                     <TableCell>
                       <CampaignStatusBadge status={c.status} />
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{(c.campaign_leads[0]?.count ?? 0).toLocaleString()}</TableCell>
-                    <TableCell className="text-right tabular-nums">{(sentBy.get(c.id) ?? 0).toLocaleString()}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(c.campaign_leads[0]?.count)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(sentBy.get(c.id))}</TableCell>
                     <TableCell className="text-right tabular-nums">{c.daily_limit}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{new Date(c.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs"><Time value={c.created_at} mode="day" /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

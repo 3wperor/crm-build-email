@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { GettingStarted } from "@/components/onboarding/getting-started";
 import { GoalTracker } from "@/components/onboarding/goal-tracker";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Dashboard" };
 
@@ -43,7 +44,7 @@ export default async function DashboardPage() {
             <Card className="hover:bg-muted/50 gap-2 transition-colors">
               <CardHeader>
                 <CardDescription>{s.label}</CardDescription>
-                <CardTitle className="text-3xl tabular-nums">{s.value.toLocaleString()}</CardTitle>
+                <CardTitle className="text-3xl tabular-nums">{formatNumber(s.value)}</CardTitle>
               </CardHeader>
             </Card>
           </Link>

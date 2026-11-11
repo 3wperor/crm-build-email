@@ -2,7 +2,6 @@ import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,10 +9,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { removeSuppression } from "./actions";
 import { AddSuppressionForm } from "./add-form";
 import { SuppressionUploadForm } from "./upload-form";
+import { Time } from "@/components/time";
+import { StatusBadge } from "@/components/status-badge";
+import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Suppression list" };
-
-const REASON_VARIANT = { unsubscribe: "warning", hard_bounce: "destructive", complaint: "destructive", manual: "secondary" } as const;
 
 export default async function SuppressionPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q: rawQ } = await searchParams;
@@ -53,7 +53,7 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
         )}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{(count ?? 0).toLocaleString()} suppressed</CardTitle>
+            <CardTitle className="text-base">{formatNumber(count)} suppressed</CardTitle>
             <form className="flex max-w-sm gap-2" role="search">
               <Input name="q" defaultValue={rawQ ?? ""} placeholder="Search email" aria-label="Search suppression list" />
               <Button variant="outline" type="submit">
@@ -80,12 +80,10 @@ export default async function SuppressionPage({ searchParams }: { searchParams: 
                     <TableRow key={r.id}>
                       <TableCell className="font-medium">{r.email}</TableCell>
                       <TableCell>
-                        <Badge variant={REASON_VARIANT[r.reason as keyof typeof REASON_VARIANT] ?? "outline"}>
-                          {r.reason.replace("_", " ")}
-                        </Badge>
+                        <StatusBadge kind="suppression" value={r.reason} />
                       </TableCell>
                       <TableCell className="text-muted-foreground font-mono text-xs">{r.source ?? "—"}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs">{new Date(r.created_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs"><Time value={r.created_at} /></TableCell>
                       {canRemove && (
                         <TableCell className="text-right">
                           <form action={removeSuppression}>

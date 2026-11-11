@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateReplyDraft } from "@/lib/replies/drafts";
 import { sendReplyMessage } from "@/lib/replies/send-reply";
+import { statusLabel } from "@/lib/labels";
 
 export type ReclassifyState = { error?: string; message?: string } | undefined;
 
@@ -28,11 +29,11 @@ export async function reclassifyReply(_prev: ReclassifyState, formData: FormData
   if (error) return { error: error.message };
   if (!data?.length) return { error: "Reply not found." };
 
-  const { data: outcome, error: outcomeError } = await createAdminClient().rpc("apply_reply_outcome", { p_org_id: ctx.org.id, p_reply_id: id });
+  const { error: outcomeError } = await createAdminClient().rpc("apply_reply_outcome", { p_org_id: ctx.org.id, p_reply_id: id });
   if (outcomeError) return { error: outcomeError.message };
   revalidatePath("/replies");
   revalidatePath(`/replies/${id}`);
-  return { message: `Marked ${classification.replace(/_/g, " ")} (${outcome}).` };
+  return { message: `Marked as "${statusLabel("reply", classification)}".` };
 }
 
 // ---------------------------------------------------------------------------

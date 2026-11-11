@@ -1,19 +1,7 @@
-import { Badge } from "@/components/ui/badge";
-
-const VARIANT = {
-  healthy: "success",
-  degraded: "warning",
-  failing: "destructive",
-  unknown: "outline",
-} as const;
+import { StatusBadge } from "@/components/status-badge";
 
 export function HealthBadge({ health }: { health: string }) {
-  const variant = VARIANT[health as keyof typeof VARIANT] ?? "outline";
-  return (
-    <Badge variant={variant} className="capitalize">
-      {health}
-    </Badge>
-  );
+  return <StatusBadge kind="health" value={health} />;
 }
 
 const PROVIDER_LABELS: Record<string, string> = { google: "Google", smtp: "SMTP", outlook: "Outlook" };

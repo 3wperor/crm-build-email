@@ -13,6 +13,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getBillingStatus } from "@/lib/billing";
 import { hasProAccess } from "@crm/core/billing";
 import { CreateKeyForm } from "./key-form";
+import { Time } from "@/components/time";
+import { StatusBadge } from "@/components/status-badge";
 
 export const metadata = { title: "Claude & MCP" };
 
@@ -83,7 +85,7 @@ export default async function AgentSettingsPage() {
                           ) : (
                             "Workspace"
                           )}{" "}
-                          · {a.api_keys?.name ?? "deleted key"} · {new Date(a.created_at).toLocaleString()}
+                          · {a.api_keys?.name ?? "deleted key"} · <Time value={a.created_at} />
                         </div>
                         <pre className="text-muted-foreground mt-1 max-w-xl text-xs whitespace-pre-wrap">{JSON.stringify(a.args)}</pre>
                       </TableCell>
@@ -116,7 +118,7 @@ export default async function AgentSettingsPage() {
                 <ul className="mt-2 grid gap-1 text-sm" data-testid="decided">
                   {decided.map((a) => (
                     <li key={a.id}>
-                      <Badge variant={a.status === "executed" ? "success" : a.status === "failed" ? "destructive" : "outline"}>{a.status}</Badge> {a.summary}
+                      <StatusBadge kind="approval" value={a.status} /> {a.summary}
                       {a.campaigns ? ` · ${a.campaigns.name}` : ""}
                       {a.error && <span className="text-destructive"> · {a.error}</span>}
                     </li>
@@ -165,7 +167,7 @@ export default async function AgentSettingsPage() {
                         <TableCell>
                           <code className="text-xs">{k.prefix}…</code>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "Never"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs"><Time value={k.last_used_at} fallback="Never" /></TableCell>
                         <TableCell className="text-right">
                           {k.revoked_at ? (
                             <Badge variant="outline">Revoked</Badge>

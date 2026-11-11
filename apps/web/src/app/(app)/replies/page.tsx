@@ -10,14 +10,14 @@ import { ReclassifySelect } from "./classification";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CheckCircle2, MessageSquareReply } from "lucide-react";
 import { LinkTabs } from "@/components/ui/link-tabs";
+import { Time } from "@/components/time";
+import { statusLabel } from "@/lib/labels";
 
 const NEEDS_REPLY_CLASSES = ["positive", "neutral"] as const;
 const needsAnswer = (r: { classification: string | null; handled_at: string | null }) =>
   !r.handled_at && (NEEDS_REPLY_CLASSES as readonly string[]).includes(r.classification ?? "");
 
 export const metadata = { title: "Replies" };
-
-const tabLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, " ");
 
 export default async function RepliesPage({ searchParams }: { searchParams: Promise<{ c?: string }> }) {
   const { c } = await searchParams;
@@ -50,7 +50,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
         label="Filter replies"
         items={[null, "needs_reply", ...REPLY_CLASSES].map((k) => ({
           href: k ? `/replies?c=${k}` : "/replies",
-          label: tabLabel(k ?? "all"),
+          label: statusLabel("reply", k ?? "all"),
           active: filter === k,
           count: k ? (counts.get(k) ?? 0) : (all?.length ?? 0),
         }))}
@@ -58,7 +58,7 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
       {!replies?.length ? (
         <EmptyState
           icon={needsReply ? CheckCircle2 : MessageSquareReply}
-          title={needsReply ? "Nothing waiting for an answer" : `No replies ${filter ? `classified ${filter.replace(/_/g, " ")}` : "yet"}`}
+          title={needsReply ? "Nothing waiting for an answer" : filter ? `No replies sorted as "${statusLabel("reply", filter)}"` : "No replies yet"}
           description="Replies to your campaigns show up here automatically."
         />
       ) : (
@@ -104,9 +104,9 @@ export default async function RepliesPage({ searchParams }: { searchParams: Prom
                     </TableCell>
                     <TableCell>
                       <ReclassifySelect replyId={r.id} value={r.classification} canEdit={canEdit} />
-                      <div className="text-muted-foreground mt-1 text-[10px] uppercase">{r.classification_source}</div>
+                      {r.classification_source && <div className="text-muted-foreground text-caption mt-1">{statusLabel("replySource", r.classification_source)}</div>}
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{new Date(r.received_at).toLocaleString()}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs"><Time value={r.received_at} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>

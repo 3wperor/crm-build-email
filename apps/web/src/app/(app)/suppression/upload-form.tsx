@@ -34,7 +34,7 @@ export function SuppressionUploadForm() {
         added += r?.added ?? 0;
         already += r?.already ?? 0;
       }
-      setStatus({ ok: `${file.name}: found ${emails.length.toLocaleString()} addresses · added ${added.toLocaleString()}${already ? ` · ${already.toLocaleString()} already suppressed` : ""}.` });
+      setStatus({ ok: `${file.name}: found ${emails.length.toLocaleString("en-GB")} addresses · added ${added.toLocaleString("en-GB")}${already ? ` · ${already.toLocaleString("en-GB")} already suppressed` : ""}.` });
       if (input.current) input.current.value = "";
     });
   }

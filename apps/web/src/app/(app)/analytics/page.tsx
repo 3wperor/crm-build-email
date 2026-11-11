@@ -98,9 +98,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       </form>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="kpis">
-        <Kpi label="Sent" value={t.sent.toLocaleString()} sub={`${(t.sent - t.bounced).toLocaleString()} delivered`} />
+        <Kpi label="Sent" value={t.sent.toLocaleString("en-GB")} sub={`${(t.sent - t.bounced).toLocaleString("en-GB")} delivered`} />
         <Kpi label="Reply rate" value={formatPct(rate(t.replied, t.sent))} sub={`${t.replied} replies`} />
-        <Kpi label="Positive replies" value={t.positive.toLocaleString()} sub={`${formatPct(rate(t.positive, t.sent))} of sent`} />
+        <Kpi label="Positive replies" value={t.positive.toLocaleString("en-GB")} sub={`${formatPct(rate(t.positive, t.sent))} of sent`} />
         <Kpi
           label="Bounce rate"
           value={formatPct(rate(t.bounced, t.sent))}

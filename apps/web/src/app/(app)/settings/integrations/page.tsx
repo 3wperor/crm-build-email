@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { disconnectCrm, syncNow } from "./actions";
 import { ConnectForm, MappingForm } from "./forms";
+import { Time } from "@/components/time";
 
 export const metadata = { title: "Integrations" };
 
@@ -55,7 +56,7 @@ export default async function IntegrationsPage() {
             <div className="grid gap-1 text-sm" data-testid="hubspot-status">
               <div>
                 {conn.account_label ?? "HubSpot"} · {deals ?? 0} deal{deals === 1 ? "" : "s"} synced · last sync{" "}
-                {conn.last_synced_at ? new Date(conn.last_synced_at).toLocaleString() : "never"}
+                <Time value={conn.last_synced_at} fallback="never" />
               </div>
               {conn.last_error && <div className="text-destructive">{conn.last_error}</div>}
               {pipelineError && <div className="text-destructive">{pipelineError}</div>}

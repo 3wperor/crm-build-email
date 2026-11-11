@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Time } from "@/components/time";
+import { statusLabel } from "@/lib/labels";
 
 type ThreadItem = { kind: "sent" | "reply" | "answer"; id: string; at: string; from: string; subject: string | null; body: string; meta?: string };
 
@@ -35,7 +37,7 @@ export async function LeadThread({ leadId, highlightReplyId }: { leadId: string;
       from: r.from_email,
       subject: r.subject,
       body: r.body_text ?? "",
-      meta: r.classification?.replace(/_/g, " "),
+      meta: r.classification ? statusLabel("reply", r.classification) : undefined,
     })),
     ...(answers ?? []).map((m) => ({
       kind: "answer" as const,
@@ -61,7 +63,7 @@ export async function LeadThread({ leadId, highlightReplyId }: { leadId: string;
               {t.kind === "reply" ? "Reply" : t.kind === "answer" ? "You replied" : "Sent"} · {t.from}
               {t.meta && <span className="text-muted-foreground font-normal"> · {t.meta}</span>}
             </CardTitle>
-            <span className="text-muted-foreground text-xs">{t.at ? new Date(t.at).toLocaleString() : ""}</span>
+            <span className="text-muted-foreground text-xs"><Time value={t.at} fallback="" /></span>
           </CardHeader>
           <CardContent>
             {t.subject && <div className="mb-2 text-sm font-medium">{t.subject}</div>}

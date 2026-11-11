@@ -15,6 +15,8 @@ import { PasteLeadsForm } from "@/components/leads/paste-leads-form";
 import { VerifyAllButton } from "./verify-all-button";
 import { LeadsTable, type LeadRow } from "./leads-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { plural } from "@/lib/format";
+import { statusLabel } from "@/lib/labels";
 
 export const metadata = { title: "Leads" };
 
@@ -74,7 +76,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
     <>
       <PageHeader
         title="Leads"
-        description={`${total.toLocaleString()} lead${total === 1 ? "" : "s"}`}
+        description={plural(total, "lead")}
         actions={
           <div className="flex gap-2">
             <Button asChild variant="outline">
@@ -124,7 +126,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             <option value="">Any status</option>
             {STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s.replaceAll("_", " ")}
+                {statusLabel("lead", s)}
               </option>
             ))}
           </NativeSelect>
@@ -132,7 +134,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
             <option value="">Any verification</option>
             {VERIFICATIONS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {statusLabel("verification", s)}
               </option>
             ))}
           </NativeSelect>

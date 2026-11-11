@@ -11,7 +11,7 @@ export function VerifyAllButton({ count }: { count: number }) {
   return (
     <form action={action} className="flex items-center gap-3">
       <Button variant="outline" size="sm" disabled={pending}>
-        <MailCheck /> Verify {count.toLocaleString()} unverified lead{count === 1 ? "" : "s"}
+        <MailCheck /> Verify {count.toLocaleString("en-GB")} unverified lead{count === 1 ? "" : "s"}
       </Button>
       <ActionToast state={state} message={state?.message} />
       {state?.error && <span className="text-destructive text-sm">{state.error}</span>}

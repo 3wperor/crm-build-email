@@ -30,7 +30,7 @@ const startImportSchema = z.object({
   filename: z.string().trim().min(1).max(255),
   size: z.number().int().positive().max(MAX_IMPORT_BYTES, "File is larger than 20 MB"),
   columnCount: z.number().int().positive().max(500),
-  totalRows: z.number().int().min(1, "The file has no data rows").max(MAX_IMPORT_ROWS, `Max ${MAX_IMPORT_ROWS.toLocaleString()} rows per import`),
+  totalRows: z.number().int().min(1, "The file has no data rows").max(MAX_IMPORT_ROWS, `Max ${MAX_IMPORT_ROWS.toLocaleString("en-GB")} rows per import`),
   mapping: z.array(z.string()),
   mode: z.enum(["skip", "fill"]),
   list: z.discriminatedUnion("type", [
@@ -245,7 +245,7 @@ export async function verifyAllUnverified(_prev: BulkState, _formData: FormData)
   if (!ctx) return { error: FORBIDDEN };
   const started = await startVerification(ctx.org.id, ctx.user.id, { allUnverified: true });
   if ("error" in started) return started;
-  return { message: started.total ? `Verifying ${started.total.toLocaleString()} lead(s)…` : "Nothing to verify." };
+  return { message: started.total ? `Verifying ${started.total.toLocaleString("en-GB")} lead(s)…` : "Nothing to verify." };
 }
 
 // ---------------------------------------------------------------------------
@@ -262,7 +262,7 @@ export async function pasteLeads(_prev: PasteState, formData: FormData): Promise
   const text = String(formData.get("leads") ?? "");
   const lines = text.split(/\r?\n/).filter((l) => l.trim()).length;
   if (lines === 0) return { error: "Type or paste at least one lead." };
-  if (lines > MAX_PASTE_LINES) return { error: `Max ${MAX_PASTE_LINES.toLocaleString()} lines at a time; upload a file for more.` };
+  if (lines > MAX_PASTE_LINES) return { error: `Max ${MAX_PASTE_LINES.toLocaleString("en-GB")} lines at a time; upload a file for more.` };
 
   const campaignId = String(formData.get("campaign_id") ?? "") || null;
   let campaignName: string | null = null;

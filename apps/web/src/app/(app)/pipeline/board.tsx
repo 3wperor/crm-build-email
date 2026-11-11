@@ -20,6 +20,7 @@ import { CalendarCheck, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { moveOpportunity } from "./actions";
+import { statusLabel } from "@/lib/labels";
 
 export type BoardStage = { id: string; name: string; kind: string; is_entry: boolean };
 export type BoardCard = {
@@ -239,7 +240,7 @@ function CardBody({ card, handle, footer, dragging }: { card: BoardCard; handle?
       </div>
       {card.last_reply && (
         <p className="text-muted-foreground line-clamp-2 text-xs">
-          <span className="font-medium">{card.last_reply.classification?.replace(/_/g, " ") ?? "reply"}:</span> {card.last_reply.snippet}
+          <span className="font-medium">{card.last_reply.classification ? statusLabel("reply", card.last_reply.classification) : "Reply"}:</span> {card.last_reply.snippet}
         </p>
       )}
       <div className="text-muted-foreground flex items-center justify-between text-[11px]">

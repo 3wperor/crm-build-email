@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ImportStatusBadge } from "../status-badge";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Import" };
 
@@ -67,7 +68,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
             {running
               ? "Processing in the background — you can leave this page."
               : imp.completed_at
-                ? `Finished ${new Date(imp.completed_at).toLocaleString()}`
+                ? `Finished ${formatDate(imp.completed_at, org.default_timezone)}`
                 : null}
           </CardDescription>
         </CardHeader>
@@ -101,7 +102,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
               <div key={s.label}>
                 <dt className="text-muted-foreground text-xs">{s.label}</dt>
                 <dd className="text-2xl font-semibold tabular-nums" data-testid={`count-${s.testid}`}>
-                  {s.value.toLocaleString()}
+                  {s.value.toLocaleString("en-GB")}
                 </dd>
               </div>
             ))}

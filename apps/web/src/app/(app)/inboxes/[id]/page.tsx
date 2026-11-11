@@ -8,6 +8,7 @@ import { UsageBar } from "@/components/usage-bar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteAccountForm, RetestButton, RotatePasswordForm, SettingsForm } from "./account-forms";
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Inbox" };
 export const maxDuration = 60;
@@ -59,7 +60,7 @@ export default async function InboxPage({
               {created
                 ? "Inbox saved. Initial connection test results below."
                 : a.last_checked_at
-                  ? `Last checked ${new Date(a.last_checked_at).toLocaleString()}`
+                  ? `Last checked ${formatDate(a.last_checked_at, org.default_timezone)}`
                   : "Not checked yet."}
             </CardDescription>
           </CardHeader>

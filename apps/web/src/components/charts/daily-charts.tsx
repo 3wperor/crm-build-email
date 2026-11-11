@@ -33,7 +33,7 @@ export function niceTicks(max: number, count = 4): number[] {
 
 export function fmtDay(day: string, long = false): string {
   const d = new Date(`${day}T12:00:00Z`);
-  return d.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric", ...(long ? { weekday: "short" } : {}) });
+  return d.toLocaleDateString("en-GB", { timeZone: "UTC", month: "short", day: "numeric", ...(long ? { weekday: "short" } : {}) });
 }
 
 /** Axis frame shared by both charts: hairline gridlines, y tick labels, a few x labels. */
@@ -45,7 +45,7 @@ export function Frame({ days, ticks, y, h, x, w, right }: { days: { day: string 
         <g key={t}>
           <line x1={PAD.left} x2={w - right} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeWidth={1} />
           <text x={PAD.left - 6} y={y(t)} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[11px] tabular-nums">
-            {t.toLocaleString()}
+            {t.toLocaleString("en-GB")}
           </text>
         </g>
       ))}
@@ -125,7 +125,7 @@ export function SentChart({ days }: { days: DailyPoint[] }) {
       </svg>
       {hover !== null && (
         <Tooltip left={x(hover) / W}>
-          <strong className="text-sm tabular-nums">{days[hover]!.sent.toLocaleString()}</strong> <span className="text-muted-foreground">sent</span>
+          <strong className="text-sm tabular-nums">{days[hover]!.sent.toLocaleString("en-GB")}</strong> <span className="text-muted-foreground">sent</span>
           <div className="text-muted-foreground">{fmtDay(days[hover]!.day, true)}</div>
         </Tooltip>
       )}

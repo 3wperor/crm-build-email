@@ -3,12 +3,12 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { VERIFICATION_REASON_LABELS, type VerificationReason } from "@crm/core/verification";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bulkLeadAction } from "./actions";
+import { StatusBadge } from "@/components/status-badge";
 import { ActionToast } from "@/components/ui/toast";
 import { useConfirmSubmit } from "@/components/ui/confirm";
 
@@ -33,24 +33,6 @@ function verificationTitle(r: LeadRow): string | undefined {
   if (d.mx?.length) parts.push(`MX: ${d.mx.slice(0, 2).join(", ")}`);
   return parts.filter(Boolean).join(" · ");
 }
-
-const VERIFY_VARIANT = {
-  valid: "success",
-  risky: "warning",
-  invalid: "destructive",
-  unknown: "outline",
-  pending: "outline",
-  unverified: "outline",
-} as const;
-
-const STATUS_VARIANT: Record<string, "secondary" | "destructive" | "warning" | "success" | "outline"> = {
-  new: "outline",
-  in_sequence: "secondary",
-  replied: "success",
-  bounced: "destructive",
-  unsubscribed: "warning",
-  do_not_contact: "warning",
-};
 
 export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: { id: string; name: string }[]; canWrite: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -171,16 +153,10 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
               <TableCell className="max-w-48 truncate">{r.company ?? "—"}</TableCell>
               <TableCell className="max-w-48 truncate">{r.title ?? "—"}</TableCell>
               <TableCell>
-                <Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>{r.status.replaceAll("_", " ")}</Badge>
+                <StatusBadge kind="lead" value={r.status} />
               </TableCell>
               <TableCell>
-                <Badge
-                  variant={VERIFY_VARIANT[r.verification_status as keyof typeof VERIFY_VARIANT] ?? "outline"}
-                  title={verificationTitle(r)}
-                  data-testid={`verification-${r.email}`}
-                >
-                  {r.verification_status}
-                </Badge>
+                <StatusBadge kind="verification" value={r.verification_status} title={verificationTitle(r)} data-testid={`verification-${r.email}`} />
               </TableCell>
             </TableRow>
           ))}

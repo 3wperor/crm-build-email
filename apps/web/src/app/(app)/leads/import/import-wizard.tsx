@@ -57,7 +57,7 @@ export function ImportWizard({ lists, campaign }: { lists: { id: string; name: s
       return setError(e instanceof Error ? e.message : "Couldn't read that file.");
     }
     if (parsed.headers.length === 0 || parsed.rows.length === 0) return setError("The file has no data rows.");
-    if (parsed.rows.length > MAX_IMPORT_ROWS) return setError(`Max ${MAX_IMPORT_ROWS.toLocaleString()} rows per import.`);
+    if (parsed.rows.length > MAX_IMPORT_ROWS) return setError(`Max ${MAX_IMPORT_ROWS.toLocaleString("en-GB")} rows per import.`);
     setFile(f);
     setCsv(parsed);
     setMapping(detectColumnMapping(parsed.headers, parsed.rows.slice(0, 20)));
@@ -154,7 +154,7 @@ export function ImportWizard({ lists, campaign }: { lists: { id: string; name: s
           <FileUp className="text-muted-foreground size-8" />
           <div className="font-medium">Drop a CSV or Excel file here, or click to choose</div>
           <div className="text-muted-foreground text-sm">
-            .csv or .xlsx, up to 20 MB / {MAX_IMPORT_ROWS.toLocaleString()} rows. First row must be headers. Google Sheets: File → Download → .xlsx.
+            .csv or .xlsx, up to 20 MB / {MAX_IMPORT_ROWS.toLocaleString("en-GB")} rows. First row must be headers. Google Sheets: File → Download → .xlsx.
           </div>
         </button>
         <input
@@ -186,7 +186,7 @@ export function ImportWizard({ lists, campaign }: { lists: { id: string; name: s
       <Card>
         <CardHeader>
           <CardTitle className="text-base">
-            {file?.name} · {csv.rows.length.toLocaleString()} rows
+            {file?.name} · {csv.rows.length.toLocaleString("en-GB")} rows
           </CardTitle>
           <CardDescription>Check how each column maps to lead fields. Unmapped columns can be kept as custom fields.</CardDescription>
         </CardHeader>
@@ -273,9 +273,9 @@ export function ImportWizard({ lists, campaign }: { lists: { id: string; name: s
       )}
       {dryRun && (
         <p className="text-muted-foreground text-sm" data-testid="dry-run">
-          {dryRun.leads.length.toLocaleString()} valid unique rows ·{" "}
-          {dryRun.rejected.filter((r) => r.reason !== "duplicate_in_file").length.toLocaleString()} invalid ·{" "}
-          {dryRun.rejected.filter((r) => r.reason === "duplicate_in_file").length.toLocaleString()} duplicates in file. Existing leads and
+          {dryRun.leads.length.toLocaleString("en-GB")} valid unique rows ·{" "}
+          {dryRun.rejected.filter((r) => r.reason !== "duplicate_in_file").length.toLocaleString("en-GB")} invalid ·{" "}
+          {dryRun.rejected.filter((r) => r.reason === "duplicate_in_file").length.toLocaleString("en-GB")} duplicates in file. Existing leads and
           suppressed addresses are checked on import.
         </p>
       )}
@@ -288,7 +288,7 @@ export function ImportWizard({ lists, campaign }: { lists: { id: string; name: s
       <div className="flex gap-2">
         <Button onClick={submit} disabled={pending || !!mappingError || !dryRun?.leads.length}>
           {pending && <Loader2 className="animate-spin" />}
-          {stage ?? `Import ${dryRun?.leads.length.toLocaleString() ?? 0} leads${campaign ? ` into ${campaign.name}` : ""}`}
+          {stage ?? `Import ${dryRun?.leads.length.toLocaleString("en-GB") ?? 0} leads${campaign ? ` into ${campaign.name}` : ""}`}
         </Button>
         <Button
           variant="ghost"

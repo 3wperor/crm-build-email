@@ -9,6 +9,7 @@ import { aiModeFor } from "@/lib/ai/provider";
 import { ReclassifySelect } from "../classification";
 import { ReplyComposer } from "./reply-composer";
 import { Breadcrumbs } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 
 export const metadata = { title: "Reply" };
 
@@ -55,8 +56,8 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
           <ReclassifySelect replyId={reply.id} value={reply.classification} canEdit={can(role, "replies.classify")} />
           <div className="flex gap-2 text-xs">
             {reply.outcome && <Badge variant="outline">outcome: {reply.outcome}</Badge>}
-            {opp?.pipeline_stages && <Badge variant="secondary">pipeline: {opp.pipeline_stages.name}</Badge>}
-            {lead && <Badge variant="outline">lead: {lead.status.replace(/_/g, " ")}</Badge>}
+            {opp?.pipeline_stages && <Badge variant="neutral">Pipeline: {opp.pipeline_stages.name}</Badge>}
+            {lead && <StatusBadge kind="lead" value={lead.status} />}
           </div>
           {reply.classification_reason && <p className="text-muted-foreground max-w-sm text-right text-xs">{reply.classification_reason}</p>}
         </div>

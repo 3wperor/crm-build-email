@@ -16,12 +16,12 @@ const REASON_LABELS: Record<string, string> = {
 /** "Added 12 leads. Skipped 3: 2 on the suppression list, 1 invalid address." */
 export function describeEnroll(r: EnrollResult): string {
   if (r.candidates === 0) return "No leads found to add. Import or paste some first.";
-  const head = `Added ${r.enrolled.toLocaleString()} lead${r.enrolled === 1 ? "" : "s"}.`;
+  const head = `Added ${r.enrolled.toLocaleString("en-GB")} lead${r.enrolled === 1 ? "" : "s"}.`;
   if (!r.skipped) return head;
   const parts = Object.entries(r.reasons ?? {})
     .filter(([, n]) => n > 0)
     .map(([k, n]) => `${n} ${REASON_LABELS[k] ?? k}`);
-  return `${head} Skipped ${r.skipped.toLocaleString()}${parts.length ? `: ${parts.join(", ")}` : ""}.`;
+  return `${head} Skipped ${r.skipped.toLocaleString("en-GB")}${parts.length ? `: ${parts.join(", ")}` : ""}.`;
 }
 
 /**

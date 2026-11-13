@@ -3,7 +3,7 @@ import { ANALYTICS_RANGES, formatPct, parseRange, rate } from "@crm/core/analyti
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { EMPTY_METRICS, loadBreakdown, type BreakdownRow, type Metrics } from "@/lib/analytics";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { ResponsesChart, SentChart, type DailyPoint } from "@/components/charts/daily-charts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -98,9 +98,9 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       </form>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5" data-testid="kpis">
-        <Kpi label="Sent" value={t.sent.toLocaleString()} sub={`${(t.sent - t.bounced).toLocaleString()} delivered`} />
+        <Kpi label="Sent" value={t.sent.toLocaleString("en-GB")} sub={`${(t.sent - t.bounced).toLocaleString("en-GB")} delivered`} />
         <Kpi label="Reply rate" value={formatPct(rate(t.replied, t.sent))} sub={`${t.replied} replies`} />
-        <Kpi label="Positive replies" value={t.positive.toLocaleString()} sub={`${formatPct(rate(t.positive, t.sent))} of sent`} />
+        <Kpi label="Positive replies" value={t.positive.toLocaleString("en-GB")} sub={`${formatPct(rate(t.positive, t.sent))} of sent`} />
         <Kpi
           label="Bounce rate"
           value={formatPct(rate(t.bounced, t.sent))}
@@ -172,12 +172,12 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         <Breakdown title="By campaign" rows={byCampaign} tracking={hasTracking} href={(r) => (r.key ? `/campaigns/${r.key}?tab=results` : null)} testId="by-campaign" />
         <Breakdown title="By inbox" rows={byInbox} tracking={hasTracking} href={() => null} testId="by-inbox" />
         <Breakdown
-          title="By variant"
+          title="By email version"
           rows={byVariant}
           tracking={hasTracking}
           href={() => null}
           testId="by-variant"
-          note="Open a campaign's Results tab to compare variants with confidence intervals and promote a winner."
+          note="Open a campaign's Results tab to compare versions and pick a winner."
         />
       </div>
     </>

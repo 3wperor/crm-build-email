@@ -5,6 +5,7 @@ import { z } from "zod";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyError } from "@/lib/errors";
 
 export type PipelineState = { error?: string; message?: string } | undefined;
 
@@ -32,7 +33,7 @@ export async function moveOpportunity(opportunityId: string, stageId: string): P
     .eq("org_id", ctx.org.id)
     .eq("id", opportunityId)
     .select("lead_id");
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if (!data?.length) return { error: "Card not found." };
   refresh(data[0]!.lead_id);
   return {};
@@ -92,7 +93,7 @@ export async function updateOpportunity(_prev: PipelineState, formData: FormData
     })
     .eq("org_id", ctx.org.id)
     .eq("lead_id", leadId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   refresh(leadId);
   return { message: "Saved." };
 }
@@ -116,7 +117,7 @@ export async function addStage(_prev: PipelineState, formData: FormData): Promis
   const supabase = await createClient();
   const { data: last } = await supabase.from("pipeline_stages").select("position").eq("org_id", ctx.org.id).order("position", { ascending: false }).limit(1).maybeSingle();
   const { error } = await supabase.from("pipeline_stages").insert({ org_id: ctx.org.id, name: parsed.data.name, kind: parsed.data.kind, position: (last?.position ?? 0) + 1 });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   refresh();
   revalidatePath("/pipeline/stages");
   return { message: `Added "${parsed.data.name}".` };
@@ -147,7 +148,7 @@ export async function deleteStage(_prev: PipelineState, formData: FormData): Pro
   if (error) {
     if (error.code === "23503") return { error: "Move its cards to another stage first." };
     if (error.code === "23514") return { error: "Choose another entry stage before deleting this one." };
-    return { error: error.message };
+    return { error: friendlyError(error) };
   }
   // Close the gap in positions.
   const { data: rest } = await supabase.from("pipeline_stages").select("id").eq("org_id", ctx.org.id).order("position");

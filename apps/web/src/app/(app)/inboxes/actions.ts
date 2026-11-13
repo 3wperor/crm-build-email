@@ -22,6 +22,7 @@ import {
   storeAccountPassword,
   type AccountRow,
 } from "@/lib/sending-accounts";
+import { friendlyError } from "@/lib/errors";
 
 export type AccountFormState =
   | { error?: string; fieldErrors?: FieldErrors; test?: ConnectionTestResult; saved?: boolean }
@@ -144,7 +145,7 @@ export async function updateAccount(_prev: AccountFormState, formData: FormData)
     .eq("org_id", ctx.org.id)
     .eq("id", accountId)
     .select("id");
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   if (!data?.length) return { error: "Account not found." };
 
   revalidatePath("/inboxes");

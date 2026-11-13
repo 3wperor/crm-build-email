@@ -64,6 +64,7 @@ export function PlacementChart({ days }: { days: PlacementPoint[] }) {
                 height={H - PAD.top - PAD.bottom}
                 fill="transparent"
                 tabIndex={0}
+                role="img"
                 aria-label={`${fmtDay(d.day, true)}: ${d.inbox} in inbox, ${d.spam} in spam`}
                 onPointerEnter={() => setHover(i)}
                 onPointerLeave={() => setHover(null)}

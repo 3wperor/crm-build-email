@@ -1,18 +1,18 @@
 import { can } from "@crm/core";
-import { AlertTriangle } from "lucide-react";
 import { getOrgContext } from "@/lib/org";
 import { Nav } from "@/components/nav";
-import { OrgSwitcher } from "@/components/org-switcher";
-import { KillSwitch } from "@/components/kill-switch";
-import { Badge } from "@/components/ui/badge";
+import { UserMenu } from "@/components/user-menu";
+import { MobileNav } from "@/components/mobile-nav";
+import { Banner } from "@/components/banner";
+import { SendingStatus } from "@/components/sending-status";
 import { Suspense } from "react";
 import { NavigationProgress } from "@/components/navigation-progress";
 import { PlanBadge } from "@/components/plan-badge";
 import { getBillingStatus } from "@/lib/billing";
 import Link from "next/link";
 import { billingBanner } from "@crm/core/onboarding";
-import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { Logo } from "@/components/brand/logo";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getOrgContext();
@@ -30,75 +30,58 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const banner = billingBanner(billing);
 
+  // "user:<id>" is an internal reference: say "you" when it's this person, otherwise leave the name out.
+  const by = org.sending_paused_by;
+  const pausedBy = !by ? null : by === `user:${user.id}` ? "you" : by.startsWith("user:") ? null : by;
+
+  const sidebar = (
+    <>
+      <Link href="/dashboard" className="mb-5 flex h-8 w-fit items-center px-2">
+        <Logo />
+      </Link>
+      <Nav counts={{ "/replies": needsReply ?? 0 }} />
+      <div className="mt-3 border-t pt-3">
+        <UserMenu email={user.email} role={role} orgId={org.id} orgs={ctx.orgs.map((o) => ({ id: o.org.id, name: o.org.name }))} />
+      </div>
+    </>
+  );
+
   return (
     <div className="flex min-h-screen">
       <Suspense fallback={null}>
         <NavigationProgress />
       </Suspense>
-      <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-3 md:flex">
-        <div className="mb-4 grid gap-2 pt-1">
-          <div className="px-2 text-base font-bold tracking-tight">
-            YCA<span className="text-primary/60">Reach</span>
-          </div>
-          <OrgSwitcher ctx={ctx} />
-        </div>
-        <Nav counts={{ "/replies": needsReply ?? 0 }} />
-        <div className="mt-auto grid gap-2 border-t pt-3">
-          <div className="truncate px-2 text-xs">
-            <div className="truncate font-medium">{user.email}</div>
-            <div className="text-muted-foreground capitalize">{role}</div>
-          </div>
-          <form action="/auth/signout" method="post">
-            <button className="text-muted-foreground hover:text-foreground px-2 text-xs hover:underline">Sign out</button>
-          </form>
-        </div>
-      </aside>
+      <aside className="bg-sidebar border-sidebar-border sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r p-3 md:flex">{sidebar}</aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="bg-background/80 sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b px-6 backdrop-blur">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium md:hidden">{org.name}</span>
-            {org.sending_paused ? (
-              <Badge variant="destructive">Sending paused</Badge>
-            ) : (
-              <Badge variant="success">Sending live</Badge>
-            )}
-            {org.approval_mode === "draft" && <Badge variant="outline">Agent: draft-only</Badge>}
+        <header className="bg-background/85 sticky top-0 z-10 flex h-14 items-center justify-between gap-3 border-b px-4 backdrop-blur sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
+            <MobileNav>
+              <div className="flex min-h-0 flex-1 flex-col p-3">{sidebar}</div>
+            </MobileNav>
+            <SendingStatus paused={org.sending_paused} canPause={can(role, "sending.pause")} canResume={can(role, "sending.resume")} />
           </div>
-          <div className="flex items-center gap-2">
-            <PlanBadge status={billing} />
-            <KillSwitch
-            paused={org.sending_paused}
-            canPause={can(role, "sending.pause")}
-              canResume={can(role, "sending.resume")}
-            />
-          </div>
+          <PlanBadge status={billing} />
         </header>
 
         {banner && (
-          <div
+          <Banner
             data-testid="billing-banner"
-            className={cn(
-              "flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-6 py-2 text-sm",
-              banner.tone === "danger" ? "bg-destructive/10 text-destructive" : "bg-amber-500/10 text-amber-800 dark:text-amber-300",
-            )}
+            tone={banner.tone === "danger" ? "danger" : "warning"}
+            action={<Link href="/billing">{banner.cta}</Link>}
           >
-            <span>{banner.message}</span>
-            <Link href="/billing" className="font-medium underline underline-offset-4">
-              {banner.cta}
-            </Link>
-          </div>
+            {banner.message}
+          </Banner>
         )}
         {org.sending_paused && (
-          <div className="bg-destructive/10 text-destructive flex items-center gap-2 border-b px-6 py-2 text-sm">
-            <AlertTriangle className="size-4" />
+          <Banner tone="danger">
             All sending is paused
-            {org.sending_paused_by ? ` by ${org.sending_paused_by}` : ""}
-            {org.sending_paused_reason ? ` — ${org.sending_paused_reason}` : ""}.
-          </div>
+            {pausedBy ? ` by ${pausedBy}` : ""}
+            {org.sending_paused_reason ? ` (${org.sending_paused_reason})` : ""}.
+          </Banner>
         )}
 
-        <main className="mx-auto w-full max-w-6xl flex-1 p-6">{children}</main>
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</main>
       </div>
     </div>
   );

@@ -13,6 +13,8 @@ import { FieldError } from "@/components/field-error";
 import { TimezoneInput } from "@/components/timezone-input";
 import { VolumeInput } from "@/components/volume-input";
 import { deleteAccount, retestAccount, rotatePassword, updateAccount } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
+import { useConfirmSubmit } from "@/components/ui/confirm";
 
 function ErrorAlert({ error }: { error?: string }) {
   if (!error) return null;
@@ -29,9 +31,9 @@ export function RetestButton({ accountId, disabled }: { accountId: string; disab
     <form action={action} className="grid gap-3">
       <input type="hidden" name="account_id" value={accountId} />
       <div>
-        <Button variant="outline" disabled={disabled || pending}>
+        <Button loading={pending} variant="outline" disabled={disabled || pending}>
           <RefreshCw className={pending ? "animate-spin" : undefined} />
-          {pending ? "Testing…" : "Test connection"}
+          Test connection
         </Button>
       </div>
       <ErrorAlert error={state?.error} />
@@ -54,7 +56,7 @@ export function SettingsForm({ account, disabled }: { account: Settings; disable
           <Input id="displayName" name="displayName" defaultValue={account.display_name ?? ""} maxLength={120} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="dailyCap">Daily sending cap</Label>
+          <Label htmlFor="dailyCap">Most emails to send per day</Label>
           <VolumeInput id="dailyCap" name="dailyCap" defaultValue={account.daily_cap} max={DAILY_CAP_MAX} sliderMax={200} disabled={disabled} />
           <FieldError messages={errors.dailyCap} />
         </div>
@@ -66,15 +68,15 @@ export function SettingsForm({ account, disabled }: { account: Settings; disable
         <div className="grid gap-2">
           <Label htmlFor="status">Status</Label>
           <NativeSelect id="status" name="status" defaultValue={account.status === "paused" ? "paused" : "active"}>
-            <option value="active">Active — used by campaigns</option>
-            <option value="paused">Paused — excluded from sending</option>
+            <option value="active">Active: campaigns can send from it</option>
+            <option value="paused">Paused: nothing is sent from it</option>
           </NativeSelect>
         </div>
       </fieldset>
       <ErrorAlert error={state?.error} />
-      {state?.saved && <p className="text-sm text-emerald-600">Saved.</p>}
+      <ActionToast state={state} message={state?.saved && "Saved."} />
       <div>
-        <Button disabled={disabled || pending}>{pending ? "Saving…" : "Save changes"}</Button>
+        <Button loading={pending} disabled={disabled || pending}>Save changes</Button>
       </div>
     </form>
   );
@@ -91,11 +93,11 @@ export function RotatePasswordForm({ accountId, disabled }: { accountId: string;
         <FieldError messages={state?.fieldErrors?.password} />
       </div>
       <ErrorAlert error={state?.error} />
-      {state?.saved && <p className="text-sm text-emerald-600">Password updated.</p>}
+      <ActionToast state={state} message={state?.saved && "Password updated."} />
       {state?.test && <ConnectionResult result={state.test} />}
       <div>
-        <Button variant="outline" disabled={disabled || pending}>
-          {pending ? "Updating & testing…" : "Update password"}
+        <Button loading={pending} variant="outline" disabled={disabled || pending}>
+          Update password
         </Button>
       </div>
     </form>
@@ -103,14 +105,18 @@ export function RotatePasswordForm({ accountId, disabled }: { accountId: string;
 }
 
 export function DeleteAccountForm({ accountId, email, disabled }: { accountId: string; email: string; disabled: boolean }) {
+  const guard = useConfirmSubmit();
   return (
     <form
       action={deleteAccount}
-      onSubmit={(e) => {
-        if (!window.confirm(`Disconnect ${email}? Scheduled sends from this inbox will stop. Sent history is kept.`)) {
-          e.preventDefault();
-        }
-      }}
+      onSubmit={(e) =>
+        guard(e, {
+          title: `Disconnect ${email}?`,
+          description: "Scheduled sends from this inbox will stop. Everything already sent stays in your history.",
+          confirmLabel: "Disconnect inbox",
+          destructive: true,
+        })
+      }
     >
       <input type="hidden" name="account_id" value={accountId} />
       <Button variant="destructive" disabled={disabled}>

@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select-native";
 import { addToPipeline, removeFromPipeline, updateOpportunity } from "../../pipeline/actions";
 import { addNote, updateLead } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
+import { Textarea } from "@/components/ui/textarea";
 
 type Lead = { id: string; first_name: string | null; last_name: string | null; company: string | null; title: string | null; custom: [string, string][] };
 
@@ -24,8 +26,8 @@ export function LeadFieldsForm({ lead, canEdit, version }: { lead: Lead; canEdit
       <LeadFieldInputs key={version} lead={lead} canEdit={canEdit} disabled={!canEdit || pending} />
       {canEdit && (
         <div className="flex items-center gap-3">
-          <Button disabled={pending}>{pending ? "Saving…" : "Save lead"}</Button>
-          {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+          <Button loading={pending} disabled={pending}>Save lead</Button>
+          <ActionToast state={state} message={state?.message} />
           {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
         </div>
       )}
@@ -59,7 +61,7 @@ function LeadFieldInputs({ lead, canEdit, disabled }: { lead: Lead; canEdit: boo
             <Input name="custom_key" defaultValue={k} placeholder="field" aria-label="Custom field name" className="w-44 font-mono text-xs" disabled={!canEdit} />
             <Input name="custom_value" defaultValue={v} placeholder="value" aria-label={`Value for ${k || "field"}`} disabled={!canEdit} />
             {canEdit && (
-              <Button type="button" size="icon" variant="ghost" aria-label="Remove field" onClick={() => setCustom((c) => c.filter((_, j) => j !== i))}>
+              <Button type="button" size="icon" variant="ghost" aria-label="Remove field" title="Remove field" onClick={() => setCustom((c) => c.filter((_, j) => j !== i))}>
                 <Trash2 />
               </Button>
             )}
@@ -134,7 +136,7 @@ export function PipelineControl({
             <Button size="sm" disabled={pending}>
               Save
             </Button>
-            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            <ActionToast state={state} message={state?.message} />
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </div>
         )}
@@ -156,13 +158,12 @@ export function NoteForm({ leadId }: { leadId: string }) {
   return (
     <form action={action} className="grid gap-2">
       <input type="hidden" name="lead_id" value={leadId} />
-      <textarea
+      <Textarea
         name="body"
         rows={3}
         maxLength={10000}
         placeholder="Add a note…"
         aria-label="Note"
-        className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
       />
       <div className="flex items-center gap-3">
         <Button size="sm" disabled={pending}>

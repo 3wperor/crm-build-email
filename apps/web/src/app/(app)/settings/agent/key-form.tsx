@@ -16,7 +16,7 @@ export function CreateKeyForm({ appUrl }: { appUrl: string }) {
           <Label htmlFor="key-name">Key name</Label>
           <Input id="key-name" name="name" placeholder="Claude Desktop" className="w-64" maxLength={100} />
         </div>
-        <Button disabled={pending}>{pending ? "Creating…" : "Create API key"}</Button>
+        <Button loading={pending} disabled={pending}>Create API key</Button>
       </form>
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
       {state?.key && (

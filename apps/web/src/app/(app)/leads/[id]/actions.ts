@@ -6,6 +6,7 @@ import { customKey } from "@crm/core/imports";
 import { can as canDo } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyError } from "@/lib/errors";
 
 export type LeadFormState = { error?: string; message?: string } | undefined;
 
@@ -36,7 +37,7 @@ export async function updateLead(_prev: LeadFormState, formData: FormData): Prom
     .update({ ...parsed.data, custom_json: custom })
     .eq("org_id", ctx.org.id)
     .eq("id", leadId);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/leads/${leadId}`);
   return { message: "Saved." };
 }
@@ -50,7 +51,7 @@ export async function addNote(_prev: LeadFormState, formData: FormData): Promise
   if (body.length > 10000) return { error: "Notes are limited to 10,000 characters." };
   const supabase = await createClient();
   const { error } = await supabase.from("lead_notes").insert({ org_id: ctx.org.id, lead_id: leadId, user_id: ctx.user.id, body });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath(`/leads/${leadId}`);
   return { message: "Note added." };
 }

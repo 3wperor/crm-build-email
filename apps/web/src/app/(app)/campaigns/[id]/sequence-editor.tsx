@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { addStep, addVariant, deleteStep, deleteVariant, saveVariant, updateStep, writeSequenceWithAi } from "../actions";
 import { TestEmailPanel, type TestOptions } from "./test-email-panel";
+import { ActionToast } from "@/components/ui/toast";
+import { useConfirmSubmit } from "@/components/ui/confirm";
+import { Textarea } from "@/components/ui/textarea";
 
 export type EditorVariant = { id: string; ab_group: string; subject: string; body: string; weight: number; is_active: boolean };
 export type EditorStep = { id: string; step_order: number; delay_days: number; delay_hours: number; variants: EditorVariant[] };
@@ -30,6 +33,11 @@ type Props = {
   aiDefaults?: { offer: string; audience: string };
 };
 
+function waitText(days: number, hours: number): string {
+  const parts = [days ? `${days} ${days === 1 ? "day" : "days"}` : "", hours ? `${hours} ${hours === 1 ? "hour" : "hours"}` : ""].filter(Boolean);
+  return parts.join(" and ") || "straight away";
+}
+
 export function SequenceEditor(props: Props) {
   const firstSubject = props.steps[0]?.variants[0]?.subject ?? "";
   return (
@@ -37,23 +45,44 @@ export function SequenceEditor(props: Props) {
       {props.canEdit && props.ai && props.ai !== "off" && (
         <WriteWithAi campaignId={props.campaignId} ai={props.ai} defaults={props.aiDefaults} locked={props.structureLocked} hasContent={props.steps.some((s) => s.variants.some((v) => v.body.trim()))} />
       )}
-      <p className="text-muted-foreground text-sm">
-        Merge tags:{" "}
-        {BUILTIN_TAGS.map((t) => (
-          <code key={t} className="bg-muted mr-1 rounded px-1 text-xs">{`{{${t}}}`}</code>
+      <details className="group text-sm">
+        <summary className="text-muted-foreground hover:text-foreground w-fit cursor-pointer list-none rounded-sm underline-offset-4 hover:underline [&::-webkit-details-marker]:hidden">
+          Personalise with merge tags <span className="group-open:hidden">(show)</span>
+          <span className="hidden group-open:inline">(hide)</span>
+        </summary>
+        <p className="text-muted-foreground mt-2 leading-7">
+          {BUILTIN_TAGS.map((t) => (
+            <code key={t} className="bg-muted mr-1 rounded px-1 py-0.5 text-xs">{`{{${t}}}`}</code>
+          ))}
+          <code className="bg-muted mr-1 rounded px-1 py-0.5 text-xs">{"{{custom_field}}"}</code>
+          <br />
+          Add a fallback for missing details like this: <code className="bg-muted rounded px-1 py-0.5 text-xs">{"{{first_name|there}}"}</code>. Leave a
+          follow-up&apos;s subject empty to reply in the same thread.
+        </p>
+      </details>
+      <ol className="grid">
+        {props.steps.map((step, i) => (
+          <li key={step.id} className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 pb-6 last:pb-0 sm:gap-x-4">
+            <div aria-hidden="true" className="flex flex-col items-center">
+              <span className="bg-primary text-primary-foreground flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums">
+                {i + 1}
+              </span>
+              {i < props.steps.length - 1 && <span className="bg-border -mb-6 mt-1 w-px flex-1" />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-muted-foreground text-small mt-1 mb-2">
+                {i === 0 ? "First email" : `Follow-up, sent ${waitText(step.delay_days, step.delay_hours)} after the previous email if they haven't replied`}
+              </p>
+              <StepCard {...props} step={step} index={i} threadSubject={firstSubject} />
+            </div>
+          </li>
         ))}
-        <code className="bg-muted mr-1 rounded px-1 text-xs">{"{{custom_field}}"}</code>
-        <code className="bg-muted rounded px-1 text-xs">{"{{first_name|there}}"}</code> (fallback). Leave a follow-up&apos;s subject empty to reply
-        in the same thread.
-      </p>
-      {props.steps.map((step, i) => (
-        <StepCard key={step.id} {...props} step={step} index={i} threadSubject={firstSubject} />
-      ))}
+      </ol>
       {props.canEdit && (
         <form action={addStep}>
           <input type="hidden" name="campaign_id" value={props.campaignId} />
           <Button variant="outline">
-            <Plus /> Add follow-up step
+            <Plus /> Add a follow-up
           </Button>
         </form>
       )}
@@ -74,11 +103,12 @@ function WriteWithAi({
   hasContent: boolean;
   defaults?: { offer: string; audience: string };
 }) {
+  const guard = useConfirmSubmit();
   const [state, action, pending] = useActionState(writeSequenceWithAi, undefined);
   const [open, setOpen] = useState(!hasContent);
   if (ai === "upgrade") {
     return (
-      <Card className="border-dashed">
+      <Card className="bg-accent/40 py-0">
         <CardContent className="flex flex-wrap items-center gap-2 py-4 text-sm">
           <Sparkles className="size-4" /> Let AI write this sequence for you.
           <Link href="/billing" className="underline">
@@ -112,14 +142,23 @@ function WriteWithAi({
           <form
             action={action}
             className="grid gap-3"
-            onSubmit={(e) => {
-              if (hasContent && !confirm("This replaces the text of your current emails (version A of each step). Continue?")) e.preventDefault();
-            }}
+            onSubmit={(e) =>
+              guard(
+                e,
+                hasContent
+                  ? {
+                      title: "Replace your current emails?",
+                      description: "The AI writes new text over your current emails (version A of each step). Other versions are left alone.",
+                      confirmLabel: "Replace emails",
+                    }
+                  : null,
+              )
+            }
           >
             <input type="hidden" name="campaign_id" value={campaignId} />
             <div className="grid gap-1.5">
               <Label htmlFor="ai-offer">What do you offer?</Label>
-              <textarea
+              <Textarea
                 id="ai-offer"
                 name="offer"
                 required
@@ -128,7 +167,6 @@ function WriteWithAi({
                 rows={3}
                 defaultValue={defaults?.offer}
                 placeholder="e.g. We build fast websites for dental practices in Leeds. Most go live in 2 weeks and bring in more bookings."
-                className="border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
               />
             </div>
             <div className="grid gap-1.5">
@@ -168,7 +206,7 @@ function WriteWithAi({
                   Close
                 </Button>
               )}
-              {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+              <ActionToast state={state} message={state?.message} />
               {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
             </div>
           </form>
@@ -185,7 +223,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-base">Step {step.step_order}</CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <form action={action} className="flex items-center gap-2 text-sm">
+          <form action={action} className="flex flex-wrap items-center justify-end gap-2 text-sm">
             <input type="hidden" name="campaign_id" value={campaignId} />
             <input type="hidden" name="step_id" value={step.id} />
             <span className="text-muted-foreground">{index === 0 ? "Send after" : "Wait"}</span>
@@ -198,14 +236,14 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
                 Save
               </Button>
             )}
-            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            <ActionToast state={state} message={state?.message} />
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </form>
           {canEdit && !structureLocked && index > 0 && (
             <form action={deleteStep}>
               <input type="hidden" name="campaign_id" value={campaignId} />
               <input type="hidden" name="step_id" value={step.id} />
-              <Button size="icon" variant="ghost" aria-label={`Delete step ${step.step_order}`}>
+              <Button size="icon" variant="ghost" aria-label={`Delete step ${step.step_order}`} title={`Delete step ${step.step_order}`}>
                 <Trash2 />
               </Button>
             </form>
@@ -230,7 +268,7 @@ function StepCard({ campaignId, step, index, canEdit, structureLocked, threadSub
             <input type="hidden" name="campaign_id" value={campaignId} />
             <input type="hidden" name="step_id" value={step.id} />
             <Button size="sm" variant="ghost">
-              <Plus /> Add A/B variant
+              <Plus /> Add another version to test
             </Button>
           </form>
         )}
@@ -287,7 +325,7 @@ function VariantEditor({
         <input type="hidden" name="campaign_id" value={campaignId} />
         <input type="hidden" name="variant_id" value={variant.id} />
         <div className="flex flex-wrap items-center gap-3">
-          <Badge variant="secondary">Variant {variant.ab_group}</Badge>
+          <Badge variant="neutral">Version {variant.ab_group}</Badge>
           <label className="flex items-center gap-1 text-sm">
             Weight
             <Input name="weight" type="number" min={0} max={10000} defaultValue={variant.weight} className="h-8 w-20" disabled={!canEdit} />
@@ -303,7 +341,7 @@ function VariantEditor({
               <Eye /> {preview ? "Edit" : "Preview"}
             </Button>
             {canEdit && canDelete && (
-              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete variant ${variant.ab_group}`}>
+              <Button type="submit" size="sm" variant="ghost" formAction={deleteVariant} aria-label={`Delete version ${variant.ab_group}`} title={`Delete version ${variant.ab_group}`}>
                 <Trash2 />
               </Button>
             )}
@@ -318,7 +356,7 @@ function VariantEditor({
             </div>
             <pre className="font-sans whitespace-pre-wrap">{rendered.text}</pre>
             {rendered.missing.length > 0 && (
-              <p className="text-xs text-amber-600">
+              <p className="text-xs text-warning">
                 No value for {rendered.missing.map((m) => `{{${m}}}`).join(", ")} on this sample lead — add a fallback like {"{{tag|text}}"}.
               </p>
             )}
@@ -339,7 +377,7 @@ function VariantEditor({
             </div>
             <div className="grid gap-1">
               <Label htmlFor={`body-${variant.id}`}>Body</Label>
-              <textarea
+              <Textarea
                 id={`body-${variant.id}`}
                 name="body"
                 rows={7}
@@ -347,7 +385,6 @@ function VariantEditor({
                 onChange={(e) => setBody(e.target.value)}
                 disabled={!canEdit}
                 placeholder={"Hi {{first_name|there}},\n\n…\n\n{{sender_first_name}}"}
-                className="border-input focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]"
               />
             </div>
           </>
@@ -360,10 +397,10 @@ function VariantEditor({
         )}
         {canEdit && (
           <div className="flex items-center gap-3">
-            <Button size="sm" disabled={pending}>
-              {pending ? "Saving…" : "Save variant"}
+            <Button loading={pending} size="sm" disabled={pending}>
+              Save version
             </Button>
-            {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+            <ActionToast state={state} message={state?.message} />
             {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
           </div>
         )}

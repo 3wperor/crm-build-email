@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select-native";
 import { sendTestEmailAction } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export type TestOptions = {
   defaultTo: string;
@@ -29,7 +30,7 @@ export function TestEmailPanel({
 }) {
   const [state, action, pending] = useActionState(sendTestEmailAction, undefined);
   return (
-    <form action={action} className="bg-muted/30 grid gap-2 rounded-md border border-dashed p-3" data-testid="test-email-panel">
+    <form action={action} className="bg-muted/30 grid gap-2 rounded-md border p-3" data-testid="test-email-panel">
       <input type="hidden" name="variant_id" value={variantId} />
       <input type="hidden" name="subject" value={subject} />
       <input type="hidden" name="body" value={body} />
@@ -51,12 +52,12 @@ export function TestEmailPanel({
           ))}
           <option value="">as sample lead (Ada)</option>
         </NativeSelect>
-        <Button size="sm" variant="outline" disabled={pending || options.inboxes.length === 0}>
-          <Send /> {pending ? "Sending…" : "Send test"}
+        <Button loading={pending} size="sm" variant="outline" disabled={pending || options.inboxes.length === 0}>
+          <Send /> Send test
         </Button>
       </div>
       {options.inboxes.length === 0 && <p className="text-muted-foreground text-xs">Connect an inbox to send tests.</p>}
-      {state?.ok === true && <p className="text-sm text-emerald-600">{state.message}</p>}
+      <ActionToast state={state} message={state?.ok === true && state.message} />
       {state?.ok === false && (
         <div className="text-destructive text-sm" role="alert">
           {state.error}

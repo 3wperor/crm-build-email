@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { welcomeAnswersSchema } from "@crm/core/growth";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
+import { friendlyError } from "@/lib/errors";
 
 export type WelcomeState = { error?: string } | undefined;
 
@@ -37,7 +38,7 @@ export async function saveWelcome(_prev: WelcomeState, formData: FormData): Prom
           onboarding_answered_at: now,
         };
   const { error } = await supabase.from("organizations").update(update).eq("id", ctx.org.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath("/dashboard");
   redirect(formData.get("next") === "inbox" && !skipAll ? "/inboxes/new" : "/dashboard");

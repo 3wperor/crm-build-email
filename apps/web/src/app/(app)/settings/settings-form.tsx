@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { updateOrgSettings } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
+import { Switch } from "@/components/ui/switch";
 
 type Props = {
   disabled: boolean;
@@ -36,27 +38,27 @@ export function SettingsForm({ org, disabled }: Props) {
             defaultValue={org.physical_address ?? ""}
             placeholder="123 Main St, City, Country"
           />
-          <p className="text-muted-foreground text-xs">Included in every email footer (CAN-SPAM).</p>
+          <p className="text-muted-foreground text-xs">Added to the bottom of every email. The law requires a real postal address.</p>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="default_timezone">Default timezone</Label>
+          <Label htmlFor="default_timezone">Timezone</Label>
           <Input id="default_timezone" name="default_timezone" defaultValue={org.default_timezone} placeholder="America/New_York" />
         </div>
         <label className="flex items-start gap-2 text-sm">
-          <input type="checkbox" name="auto_verify_imports" defaultChecked={org.auto_verify_imports} className="mt-0.5" />
+          <Switch name="auto_verify_imports" defaultChecked={org.auto_verify_imports} className="mt-0.5" />
           <span>
-            <span className="font-medium">Verify emails automatically after each import</span>
-            <span className="text-muted-foreground block text-xs">MX / DNS check, disposable-domain and role-address detection.</span>
+            <span className="font-medium">Check email addresses automatically after each import</span>
+            <span className="text-muted-foreground block text-xs">Catches addresses that don&apos;t exist, throwaway addresses and shared ones like info@.</span>
           </span>
         </label>
         <div className="grid gap-2">
-          <Label htmlFor="approval_mode">AI agent approval mode</Label>
+          <Label htmlFor="approval_mode">When an AI assistant wants to send</Label>
           <NativeSelect id="approval_mode" name="approval_mode" defaultValue={org.approval_mode}>
-            <option value="draft">Draft-only — agent proposes, a human approves (recommended)</option>
-            <option value="auto">Allow full-auto on campaigns that opt in</option>
+            <option value="draft">It asks first: you approve before anything is sent (recommended)</option>
+            <option value="auto">It can send on its own, in campaigns where you allow it</option>
           </NativeSelect>
           <p className="text-muted-foreground text-xs">
-            Full-auto requires this AND the campaign&apos;s own setting. Hard caps and suppression always apply.
+            Sending on its own needs this setting and the campaign&apos;s own setting. Daily limits and your do-not-email list always apply.
           </p>
         </div>
       </fieldset>
@@ -65,10 +67,10 @@ export function SettingsForm({ org, disabled }: Props) {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       )}
-      {state?.ok && <p className="text-sm text-emerald-600">Saved.</p>}
+      <ActionToast state={state} message={state?.ok && "Saved."} />
       <div>
-        <Button type="submit" disabled={disabled || pending}>
-          {pending ? "Saving…" : "Save settings"}
+        <Button loading={pending} type="submit" disabled={disabled || pending}>
+          Save settings
         </Button>
       </div>
     </form>

@@ -1,17 +1,13 @@
 import { Badge } from "@/components/ui/badge";
+import { statusInfo } from "@/lib/labels";
 
-const VARIANT = {
-  healthy: "success",
-  degraded: "warning",
-  failing: "destructive",
-  unknown: "outline",
-} as const;
-
+/** A traffic light plus a word, so the state never depends on colour alone. */
 export function HealthBadge({ health }: { health: string }) {
-  const variant = VARIANT[health as keyof typeof VARIANT] ?? "outline";
+  const { label, tone } = statusInfo("health", health);
   return (
-    <Badge variant={variant} className="capitalize">
-      {health}
+    <Badge variant={tone} data-status={health}>
+      <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+      {label}
     </Badge>
   );
 }

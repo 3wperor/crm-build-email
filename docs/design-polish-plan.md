@@ -14,7 +14,7 @@
   - `pnpm --filter @crm/web exec tsc --noEmit`
   - `pnpm --filter @crm/web lint`
   - `pnpm --filter @crm/web build`
-- **Do not add an app-wide `loading.tsx`.** In Next 15 it stopped the URL from updating after server actions that call `redirect()`, which was a real bug here. Use `<Suspense>` with skeletons *inside* pages instead. If you do add a section-level `loading.tsx`, check that every form in that section still redirects correctly.
+- **Do not add an app-wide `loading.tsx`.** In Next 15 it stopped the URL from updating after server actions that call `redirect()`, which was a real bug here. Use `<Suspense>` with skeletons *inside* pages instead. If you do add a section-level `loading.tsx`, check that every form in that section still redirects correctly. The same goes for `<Suspense>` around data on a page: on the Dashboard it left "Pause all sending" (a server action that refreshes the layout) stuck about half the time, so it was removed. Test server actions on any page before keeping a `<Suspense>` boundary there.
 - **Keep navigation fast.** `components/nav.tsx` loads pages in advance on hover, and `next.config.ts` sets `staleTimes`. Don't undo either.
 - **Keep it restrained:**
   - one accent colour

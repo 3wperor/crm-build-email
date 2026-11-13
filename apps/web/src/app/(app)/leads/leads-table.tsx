@@ -3,12 +3,14 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import { VERIFICATION_REASON_LABELS, type VerificationReason } from "@crm/core/verification";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-native";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { bulkLeadAction } from "./actions";
+import { StatusBadge } from "@/components/status-badge";
+import { ActionToast } from "@/components/ui/toast";
+import { useConfirmSubmit } from "@/components/ui/confirm";
 
 export type LeadRow = {
   id: string;
@@ -32,24 +34,6 @@ function verificationTitle(r: LeadRow): string | undefined {
   return parts.filter(Boolean).join(" · ");
 }
 
-const VERIFY_VARIANT = {
-  valid: "success",
-  risky: "warning",
-  invalid: "destructive",
-  unknown: "outline",
-  pending: "outline",
-  unverified: "outline",
-} as const;
-
-const STATUS_VARIANT: Record<string, "secondary" | "destructive" | "warning" | "success" | "outline"> = {
-  new: "outline",
-  in_sequence: "secondary",
-  replied: "success",
-  bounced: "destructive",
-  unsubscribed: "warning",
-  do_not_contact: "warning",
-};
-
 export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: { id: string; name: string }[]; canWrite: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [action, setAction] = useState("add_to_list");
@@ -64,20 +48,35 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
       return next;
     });
 
+  const guard = useConfirmSubmit();
+  const count = `${selected.size} ${selected.size === 1 ? "lead" : "leads"}`;
+
   return (
     <form
       action={(fd) => {
         formAction(fd);
         setSelected(new Set());
       }}
-      onSubmit={(e) => {
-        if (action === "delete" && !window.confirm(`Delete ${selected.size} lead(s)? This also removes their campaign history.`)) {
-          e.preventDefault();
-        }
-        if (action === "suppress" && !window.confirm(`Suppress ${selected.size} lead(s)? They will never be emailed.`)) {
-          e.preventDefault();
-        }
-      }}
+      onSubmit={(e) =>
+        guard(
+          e,
+          action === "delete"
+            ? {
+                title: `Delete ${count}?`,
+                description: "This also removes their campaign history. It can't be undone.",
+                confirmLabel: `Delete ${count}`,
+                destructive: true,
+              }
+            : action === "suppress"
+              ? {
+                  title: `Stop emailing ${count}?`,
+                  description: "They go on your do-not-email list and will never be emailed from this workspace.",
+                  confirmLabel: "Add to do-not-email list",
+                  destructive: true,
+                }
+              : null,
+        )
+      }
       className="grid gap-3"
     >
       {canWrite && (
@@ -85,8 +84,8 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
           <span className="text-muted-foreground text-sm">{selected.size} selected</span>
           <NativeSelect name="bulk_action" value={action} onChange={(e) => setAction(e.target.value)} className="w-auto" aria-label="Bulk action">
             <option value="add_to_list">Add to list</option>
-            <option value="verify">Verify emails</option>
-            <option value="suppress">Add to suppression list</option>
+            <option value="verify">Check email addresses</option>
+            <option value="suppress">Add to do-not-email list</option>
             <option value="delete">Delete</option>
           </NativeSelect>
           {action === "add_to_list" && (
@@ -104,7 +103,7 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
           <Button size="sm" variant={action === "add_to_list" || action === "verify" ? "outline" : "destructive"} disabled={selected.size === 0 || pending}>
             Apply
           </Button>
-          {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+          <ActionToast state={state} message={state?.message} />
         </div>
       )}
       {state?.error && (
@@ -154,16 +153,10 @@ export function LeadsTable({ rows, lists, canWrite }: { rows: LeadRow[]; lists: 
               <TableCell className="max-w-48 truncate">{r.company ?? "—"}</TableCell>
               <TableCell className="max-w-48 truncate">{r.title ?? "—"}</TableCell>
               <TableCell>
-                <Badge variant={STATUS_VARIANT[r.status] ?? "outline"}>{r.status.replaceAll("_", " ")}</Badge>
+                <StatusBadge kind="lead" value={r.status} />
               </TableCell>
               <TableCell>
-                <Badge
-                  variant={VERIFY_VARIANT[r.verification_status as keyof typeof VERIFY_VARIANT] ?? "outline"}
-                  title={verificationTitle(r)}
-                  data-testid={`verification-${r.email}`}
-                >
-                  {r.verification_status}
-                </Badge>
+                <StatusBadge kind="verification" value={r.verification_status} title={verificationTitle(r)} data-testid={`verification-${r.email}`} />
               </TableCell>
             </TableRow>
           ))}

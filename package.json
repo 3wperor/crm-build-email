@@ -14,6 +14,7 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:types": "supabase gen types typescript --local --schema public > packages/db/src/database.types.ts",
+    "db:demo": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -v ON_ERROR_STOP=1 -f supabase/demo.sql",
     "db:test": "psql \"${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:54322/postgres}\" -v ON_ERROR_STOP=1 -f supabase/tests/rls.sql",
     "inngest:dev": "npx --yes inngest-cli@1.45.1 dev -u http://localhost:3000/api/inngest",
     "activate-user": "node scripts/activate-user.mjs"

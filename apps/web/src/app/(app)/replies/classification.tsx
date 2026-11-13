@@ -2,14 +2,13 @@
 
 import { useActionState } from "react";
 import { REPLY_CLASSES } from "@crm/core/replies";
-import { Badge } from "@/components/ui/badge";
 import { reclassifyReply } from "./actions";
-
-const VARIANT = { positive: "success", negative: "destructive", out_of_office: "secondary", unsubscribe: "warning", neutral: "outline" } as const;
+import { ActionToast } from "@/components/ui/toast";
+import { StatusBadge } from "@/components/status-badge";
+import { statusLabel } from "@/lib/labels";
 
 export function ClassificationBadge({ value }: { value: string | null }) {
-  const v = value ?? "neutral";
-  return <Badge variant={VARIANT[v as keyof typeof VARIANT] ?? "outline"}>{v.replace(/_/g, " ")}</Badge>;
+  return <StatusBadge kind="reply" value={value ?? "neutral"} />;
 }
 
 export function ReclassifySelect({ replyId, value, canEdit }: { replyId: string; value: string | null; canEdit: boolean }) {
@@ -21,19 +20,19 @@ export function ReclassifySelect({ replyId, value, canEdit }: { replyId: string;
       <select
         name="classification"
         defaultValue={value ?? "neutral"}
-        aria-label="Classification"
+        aria-label="Reply type"
         disabled={pending}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className="border-input rounded-md border bg-transparent px-2 py-1 text-xs"
+        className="border-input bg-background h-8 rounded-md border px-2 text-xs shadow-xs"
       >
         {REPLY_CLASSES.map((c) => (
           <option key={c} value={c}>
-            {c.replace(/_/g, " ")}
+            {statusLabel("reply", c)}
           </option>
         ))}
       </select>
       {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-      {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
     </form>
   );
 }

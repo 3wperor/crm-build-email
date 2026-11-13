@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Mail, Plus } from "lucide-react";
 import { can, effectiveSentToday } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { HealthBadge, providerLabel } from "@/components/health-badge";
 import { UsageBar } from "@/components/usage-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Inboxes" };
 
@@ -50,7 +51,7 @@ export default async function InboxesPage() {
     <>
       <PageHeader
         title="Inboxes"
-        description="Connected sending accounts. Replies are detected over IMAP."
+        description="The email addresses you send from. We also watch them for replies."
         actions={
           canManage && (
             <Button asChild>
@@ -62,17 +63,23 @@ export default async function InboxesPage() {
         }
       />
 
-      {error && <p className="text-destructive text-sm">{error.message}</p>}
+      {error && <p className="text-destructive text-sm">We couldn&apos;t load your inboxes. Refresh the page to try again.</p>}
 
       {accounts && accounts.length === 0 && (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-base">No inboxes yet</CardTitle>
-            <CardDescription>
-              Connect a Google Workspace / Gmail account or any SMTP + IMAP mailbox using an app password.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={Mail}
+          title="No inboxes yet"
+          description="Connect the email address you want to send from. Gmail, Google Workspace or any mailbox with an app password works, and it takes about 2 minutes."
+          action={
+            canManage && (
+              <Button asChild>
+                <Link href="/inboxes/new">
+                  <Plus /> Add inbox
+                </Link>
+              </Button>
+            )
+          }
+        />
       )}
 
       {accounts && accounts.length > 0 && (
@@ -102,9 +109,7 @@ export default async function InboxesPage() {
                       <div className="text-muted-foreground flex items-center gap-1 text-xs">
                         {a.display_name ?? "—"}
                         {a.status !== "active" && (
-                          <Badge variant="outline" className="capitalize">
-                            {a.status}
-                          </Badge>
+                          <Badge variant="neutral">{a.status === "paused" ? "Paused" : "Disconnected"}</Badge>
                         )}
                       </div>
                     </TableCell>

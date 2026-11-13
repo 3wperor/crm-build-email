@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { addLead } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function AddLeadForm() {
   const [state, action, pending] = useActionState(addLead, undefined);
@@ -18,10 +19,10 @@ export function AddLeadForm() {
         <Input name="title" placeholder="Title" aria-label="Title" />
       </div>
       <div className="flex items-center gap-3">
-        <Button size="sm" disabled={pending}>
-          {pending ? "Adding…" : "Add lead"}
+        <Button loading={pending} size="sm" disabled={pending}>
+          Add lead
         </Button>
-        {state?.ok && <span className="text-sm text-emerald-600">Lead added.</span>}
+        <ActionToast state={state} message={state?.ok && "Lead added."} />
       </div>
       {state?.error && (
         <Alert variant="destructive">

@@ -8,6 +8,9 @@ import { LeadThread } from "@/components/lead-thread";
 import { aiModeFor } from "@/lib/ai/provider";
 import { ReclassifySelect } from "../classification";
 import { ReplyComposer } from "./reply-composer";
+import { ReplyListPane } from "../reply-list-pane";
+import { Breadcrumbs } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
 
 export const metadata = { title: "Reply" };
 
@@ -33,13 +36,13 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
   const leadName = lead ? [lead.first_name, lead.last_name].filter(Boolean).join(" ") || reply.from_email : reply.from_email;
   const canReply = can(role, "replies.send") && reply.classification !== "unsubscribe" && reply.classification !== "out_of_office";
   return (
-    <>
-      <Link href="/replies" className="text-muted-foreground text-sm hover:underline">
-        ← Replies
-      </Link>
-      <div className="mt-2 mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="grid items-start gap-6 lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <ReplyListPane orgId={org.id} currentId={reply.id} />
+      <div className="min-w-0">
+      <Breadcrumbs items={[{ label: "Replies", href: "/replies" }, { label: leadName }]} />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{reply.subject || "(no subject)"}</h1>
+          <h1 className="text-page-title">{reply.subject || "(no subject)"}</h1>
           <p className="text-muted-foreground text-sm">
             {lead ? (
               <Link href={`/leads/${lead.id}`} className="hover:underline">
@@ -54,10 +57,9 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="grid justify-items-end gap-2">
           <ReclassifySelect replyId={reply.id} value={reply.classification} canEdit={can(role, "replies.classify")} />
-          <div className="flex gap-2 text-xs">
-            {reply.outcome && <Badge variant="outline">outcome: {reply.outcome}</Badge>}
-            {opp?.pipeline_stages && <Badge variant="secondary">pipeline: {opp.pipeline_stages.name}</Badge>}
-            {lead && <Badge variant="outline">lead: {lead.status.replace(/_/g, " ")}</Badge>}
+          <div className="flex flex-wrap justify-end gap-2 text-xs">
+            {opp?.pipeline_stages && <Badge variant="neutral">Pipeline: {opp.pipeline_stages.name}</Badge>}
+            {lead && <StatusBadge kind="lead" value={lead.status} />}
           </div>
           {reply.classification_reason && <p className="text-muted-foreground max-w-sm text-right text-xs">{reply.classification_reason}</p>}
         </div>
@@ -78,6 +80,7 @@ export default async function ReplyPage({ params }: { params: Promise<{ id: stri
         />
         {leadId ? <LeadThread leadId={leadId} highlightReplyId={reply.id} /> : null}
       </div>
-    </>
+      </div>
+    </div>
   );
 }

@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { deleteNote } from "./actions";
 import { LeadFieldsForm, NoteForm, PipelineControl } from "./lead-forms";
+import { Breadcrumbs } from "@/components/page-header";
+import { Time } from "@/components/time";
+import { StatusBadge } from "@/components/status-badge";
+import { statusLabel } from "@/lib/labels";
+import { plural } from "@/lib/format";
 
 export const metadata = { title: "Lead" };
 
@@ -41,24 +46,18 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <Link href="/leads" className="text-muted-foreground text-sm hover:underline">
-        ← Leads
-      </Link>
-      <div className="mt-2 mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
+      <Breadcrumbs items={[{ label: "Leads", href: "/leads" }, { label: name }]} />
+      <div className="mb-6">
+        <h1 className="text-page-title">{name}</h1>
         <p className="text-muted-foreground text-sm">
           {lead.email}
           {lead.title ? ` · ${lead.title}` : ""}
           {lead.company ? ` at ${lead.company}` : ""}
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <Badge variant="outline" data-testid="lead-status">
-            {lead.status.replace(/_/g, " ")}
-          </Badge>
-          <Badge variant={lead.verification_status === "valid" ? "success" : lead.verification_status === "invalid" ? "destructive" : "outline"}>
-            {lead.verification_status}
-          </Badge>
-          {suppression && <Badge variant="destructive">suppressed: {suppression.reason.replace(/_/g, " ")}</Badge>}
+          <StatusBadge kind="lead" value={lead.status} data-testid="lead-status" />
+          <StatusBadge kind="verification" value={lead.verification_status} />
+          {suppression && <Badge variant="danger">On the do-not-email list: {statusLabel("suppression", suppression.reason)}</Badge>}
           {opp?.pipeline_stages && <Badge variant="secondary">pipeline: {opp.pipeline_stages.name}</Badge>}
           {(lists ?? []).map((l) =>
             l.lead_lists ? (
@@ -98,7 +97,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Pipeline</CardTitle>
-              {opp && <CardDescription>In stage since {new Date(opp.moved_at).toLocaleDateString()} · {opp.source === "reply" ? "entered by reply" : "added manually"}</CardDescription>}
+              {opp && <CardDescription>In this stage since <Time value={opp.moved_at} mode="day" /> · {opp.source === "reply" ? "added when they replied" : "added by hand"}</CardDescription>}
             </CardHeader>
             <CardContent>
               <PipelineControl
@@ -122,13 +121,13 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                   <p className="whitespace-pre-wrap">{n.body}</p>
                   <div className="text-muted-foreground flex items-center justify-between text-xs">
                     <span>
-                      {n.users?.full_name ?? n.users?.email ?? "someone"} · {new Date(n.created_at).toLocaleString()}
+                      {n.users?.full_name ?? n.users?.email ?? "someone"} · <Time value={n.created_at} />
                     </span>
                     {(n.user_id === user.id || can(role, "org.update")) && (
                       <form action={deleteNote}>
                         <input type="hidden" name="note_id" value={n.id} />
                         <input type="hidden" name="lead_id" value={id} />
-                        <Button size="icon" variant="ghost" className="size-6" aria-label="Delete note">
+                        <Button size="icon" variant="ghost" className="size-6" aria-label="Delete note" title="Delete note">
                           <Trash2 />
                         </Button>
                       </form>
@@ -151,8 +150,13 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                     {e.campaigns.name}
                   </Link>
                   <div className="text-muted-foreground text-xs">
-                    {e.status} · {e.current_step_order} step(s) sent
-                    {e.next_send_at ? ` · next ${new Date(e.next_send_at).toLocaleString()}` : ""}
+                    {statusLabel("enrollment", e.status)} · {plural(e.current_step_order, "email")} sent
+                    {e.next_send_at && (
+                      <>
+                        {" "}
+                        · next email <Time value={e.next_send_at} />
+                      </>
+                    )}
                     {e.stopped_reason ? ` · ${e.stopped_reason}` : ""}
                     {e.sending_accounts?.email ? ` · from ${e.sending_accounts.email}` : ""}
                   </div>
@@ -167,8 +171,13 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
             </CardHeader>
             <CardContent className="text-muted-foreground grid gap-1 text-xs">
               <div>
-                Status: <span className="text-foreground">{lead.verification_status}</span>
-                {lead.verified_at ? ` · ${new Date(lead.verified_at).toLocaleDateString()}` : ""}
+                Result: <span className="text-foreground">{statusLabel("verification", lead.verification_status)}</span>
+                {lead.verified_at && (
+                  <>
+                    {" "}
+                    · <Time value={lead.verified_at} mode="day" />
+                  </>
+                )}
               </div>
               {detail?.level === "mx" && <div>Domain accepts mail (DNS check; mailbox not probed)</div>}
               {(detail?.reasons ?? []).map((r) => (

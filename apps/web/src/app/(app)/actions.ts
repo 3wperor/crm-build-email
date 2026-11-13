@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { can } from "@crm/core";
 import { createClient } from "@/lib/supabase/server";
 import { getOrgContext, ORG_COOKIE } from "@/lib/org";
+import { friendlyError } from "@/lib/errors";
 
 export async function switchOrganization(formData: FormData) {
   const orgId = String(formData.get("org_id") ?? "");
@@ -33,7 +34,7 @@ export async function setSendingPaused(_prev: KillSwitchState, formData: FormDat
     p_paused: paused,
     ...(reason ? { p_reason: reason } : {}),
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   revalidatePath("/", "layout");
   return undefined;

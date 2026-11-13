@@ -6,8 +6,24 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Meaning, not colour: use these instead of emerald/amber/sky classes. */
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-subtle: var(--success-subtle);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-subtle: var(--warning-subtle);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-subtle: var(--info-subtle);
+  /* Three shadow levels: controls, cards, things that float (menus, dialogs). */
+  --shadow-xs: 0 1px 2px 0 oklch(0.2 0.03 262 / 6%);
+  --shadow-sm: 0 1px 2px 0 oklch(0.2 0.03 262 / 6%), 0 1px 3px 0 oklch(0.2 0.03 262 / 8%);
+  --shadow-md: 0 2px 4px -1px oklch(0.2 0.03 262 / 8%), 0 8px 20px -4px oklch(0.2 0.03 262 / 14%);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -41,31 +57,45 @@
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.21 0.025 262);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.21 0.025 262);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.21 0.025 262);
+  --primary: oklch(0.546 0.245 262.9);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.965 0.006 262);
+  --secondary-foreground: oklch(0.27 0.03 262);
+  --muted: oklch(0.968 0.005 262);
+  --muted-foreground: oklch(0.51 0.022 262);
+  --accent: oklch(0.962 0.02 262);
+  --accent-foreground: oklch(0.36 0.15 263);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --border: oklch(0.918 0.008 262);
+  --input: oklch(0.89 0.01 262);
+  --ring: oklch(0.546 0.245 262.9);
+  --sidebar: oklch(0.982 0.004 262);
+  --sidebar-foreground: oklch(0.21 0.025 262);
+  --sidebar-primary: oklch(0.546 0.245 262.9);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.94 0.028 262);
+  --sidebar-accent-foreground: oklch(0.36 0.15 263);
+  --sidebar-border: oklch(0.918 0.008 262);
+  --sidebar-ring: oklch(0.546 0.245 262.9);
+  /* Status colours. Each is readable (AA) as text on the page, cards and its own
+     -subtle background; -foreground is the text colour on the solid fill. */
+  /* Text on a solid red button, and red text that stays readable on a pale red background. */
+  --destructive-foreground: oklch(0.985 0 0);
+  --danger: oklch(0.5 0.2 27);
+  --success: oklch(0.52 0.14 152);
+  --success-foreground: oklch(0.985 0 0);
+  --success-subtle: oklch(0.955 0.04 155);
+  --warning: oklch(0.53 0.125 62);
+  --warning-foreground: oklch(0.985 0 0);
+  --warning-subtle: oklch(0.96 0.05 88);
+  --info: oklch(0.52 0.14 240);
+  --info-foreground: oklch(0.985 0 0);
+  --info-subtle: oklch(0.955 0.025 235);
   /* Chart series (validated categorical slots 1–3, light surface) */
   --viz-1: #2a78d6;
   --viz-2: #eb6834;
@@ -74,32 +104,43 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    --background: oklch(0.165 0.012 262);
+    --foreground: oklch(0.96 0.006 262);
+    --card: oklch(0.205 0.014 262);
+    --card-foreground: oklch(0.96 0.006 262);
+    --popover: oklch(0.225 0.016 262);
+    --popover-foreground: oklch(0.96 0.006 262);
+    --primary: oklch(0.707 0.165 254.6);
+    --primary-foreground: oklch(0.18 0.05 262);
+    --secondary: oklch(0.27 0.016 262);
+    --secondary-foreground: oklch(0.96 0.006 262);
+    --muted: oklch(0.255 0.015 262);
+    --muted-foreground: oklch(0.72 0.02 262);
+    --accent: oklch(0.29 0.055 262);
+    --accent-foreground: oklch(0.93 0.03 262);
     --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --border: oklch(1 0.02 262 / 11%);
+    --input: oklch(1 0.02 262 / 17%);
+    --ring: oklch(0.707 0.165 254.6);
+    --sidebar: oklch(0.145 0.012 262);
+    --sidebar-foreground: oklch(0.96 0.006 262);
+    --sidebar-primary: oklch(0.707 0.165 254.6);
+    --sidebar-primary-foreground: oklch(0.18 0.05 262);
+    --sidebar-accent: oklch(0.29 0.055 262);
+    --sidebar-accent-foreground: oklch(0.93 0.03 262);
+    --sidebar-border: oklch(1 0.02 262 / 11%);
+    --sidebar-ring: oklch(0.707 0.165 254.6);
+    --destructive-foreground: oklch(0.2 0.06 25);
+    --danger: oklch(0.78 0.14 22);
+    --success: oklch(0.76 0.15 155);
+    --success-foreground: oklch(0.18 0.04 155);
+    --success-subtle: oklch(0.28 0.05 155);
+    --warning: oklch(0.8 0.135 80);
+    --warning-foreground: oklch(0.2 0.04 80);
+    --warning-subtle: oklch(0.29 0.05 75);
+    --info: oklch(0.76 0.11 235);
+    --info-foreground: oklch(0.18 0.04 240);
+    --info-subtle: oklch(0.28 0.045 240);
     /* Chart series stepped for the dark card surface */
     --viz-1: #3987e5;
     --viz-2: #d95926;
@@ -114,6 +155,130 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
+  /* Figures line up in columns and don't jiggle as they change. */
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Motion is for dialogs, drawers, menus and toasts only, and never for people who've asked for less. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Native controls, styled once so every select, tick box and radio matches. */
+@layer base {
+  /* Browsers stop a fieldset shrinking below its content; let forms fit small phones. */
+  fieldset {
+    min-width: 0;
+  }
+  /* A plain one-column grid shares the width it's given, instead of growing to fit its widest child
+     (which pushed forms off the side of small phones). grid-cols-* utilities still win. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237c8493' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.55rem center;
+    background-size: 1rem;
+  }
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: none;
+    flex-shrink: 0;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+    background-color: var(--background);
+    background-repeat: no-repeat;
+    background-position: center;
+    box-shadow: var(--shadow-xs);
+    vertical-align: middle;
+    outline: none;
+    transition: background-color 120ms, border-color 120ms;
+  }
+  input[type="checkbox"] {
+    border-radius: 0.25rem;
+  }
+  input[type="radio"] {
+    border-radius: 9999px;
+  }
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-color: var(--primary);
+    background-color: var(--primary);
+  }
+  input[type="checkbox"]:checked {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.8 8.4 2.7 2.7 5.7-6'/%3E%3C/svg%3E");
+  }
+  input[type="checkbox"]:indeterminate {
+    border-color: var(--primary);
+    background-color: var(--primary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+  }
+  input[type="radio"]:checked {
+    background-image: radial-gradient(circle, #fff 0 32%, transparent 36%);
+  }
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  @media (prefers-color-scheme: dark) {
+    input[type="checkbox"]:checked {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230b1430' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3.8 8.4 2.7 2.7 5.7-6'/%3E%3C/svg%3E");
+    }
+    input[type="checkbox"]:indeterminate {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230b1430' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 8h8'/%3E%3C/svg%3E");
+    }
+    input[type="radio"]:checked {
+      background-image: radial-gradient(circle, #0b1430 0 32%, transparent 36%);
+    }
+  }
+}
+/* Room for the arrow, whatever padding a select was given. */
+select {
+  padding-right: 2rem;
+}
+
+/* Type scale: use these instead of picking sizes per page. */
+@utility text-page-title {
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+@utility text-section-title {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+@utility text-body {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+@utility text-small {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+@utility text-caption {
+  font-size: 0.75rem;
+  line-height: 1rem;
 }
 
 /* Top navigation progress bar */

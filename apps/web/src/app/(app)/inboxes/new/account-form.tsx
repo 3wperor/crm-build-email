@@ -16,8 +16,8 @@ import { createAccount, testNewAccount, type AccountFormState } from "../actions
 type Provider = "google" | "smtp";
 
 const PROVIDERS: { id: Provider | "outlook"; label: string; description: string; disabled?: boolean }[] = [
-  { id: "google", label: "Google Workspace / Gmail", description: "smtp.gmail.com · imap.gmail.com" },
-  { id: "smtp", label: "Other SMTP / IMAP", description: "Any provider that supports app passwords" },
+  { id: "google", label: "Google Workspace / Gmail", description: "Settings are filled in for you" },
+  { id: "smtp", label: "Another email provider", description: "Any provider that supports app passwords" },
   { id: "outlook", label: "Microsoft 365 / Outlook", description: "Coming later", disabled: true },
 ];
 
@@ -29,14 +29,14 @@ function SetupGuide({ provider, answer }: { provider: Provider; answer: string |
         <ol className="mt-3 grid list-decimal gap-2 pl-5">
           <li>
             Turn on <strong>2-Step Verification</strong> for the Google account you&apos;ll send from:{" "}
-            <a className="underline" href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noreferrer">
+            <a className="underline break-all" href="https://myaccount.google.com/signinoptions/twosv" target="_blank" rel="noreferrer">
               myaccount.google.com/signinoptions/twosv
             </a>
             . Skip this if it&apos;s already on.
           </li>
           <li>
             Open{" "}
-            <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
+            <a className="underline break-all" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
               myaccount.google.com/apppasswords
             </a>
             , type <strong>YCAReach</strong> as the name, and click <strong>Create</strong>.
@@ -159,7 +159,7 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
             {provider === "google" ? (
               <>
                 Requires 2-Step Verification. Create one at{" "}
-                <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
+                <a className="underline break-all" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">
                   myaccount.google.com/apppasswords
                 </a>
                 . Encrypted at rest; never shown again.
@@ -179,7 +179,7 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
           </div>
           <div className="grid gap-4 sm:grid-cols-[1fr_7rem_auto]">
             <div className="grid gap-2">
-              <Label htmlFor="smtpHost">SMTP host</Label>
+              <Label htmlFor="smtpHost">Sending server (SMTP host)</Label>
               <Input id="smtpHost" name="smtpHost" placeholder="smtp.example.com" required aria-invalid={!!errors.smtpHost} />
               <FieldError messages={errors.smtpHost} />
             </div>
@@ -204,7 +204,7 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
           </div>
           <div className="grid gap-4 sm:grid-cols-[1fr_7rem_auto]">
             <div className="grid gap-2">
-              <Label htmlFor="imapHost">IMAP host</Label>
+              <Label htmlFor="imapHost">Receiving server (IMAP host)</Label>
               <Input id="imapHost" name="imapHost" placeholder="imap.example.com" required aria-invalid={!!errors.imapHost} />
               <FieldError messages={errors.imapHost} />
             </div>
@@ -228,14 +228,14 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
             </label>
           </div>
           <p className="text-muted-foreground text-xs">
-            Without SSL/TLS, STARTTLS is required — credentials are never sent unencrypted.
+            Your password is always sent over an encrypted connection, whichever option you choose.
           </p>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="dailyCap">Daily sending cap</Label>
+          <Label htmlFor="dailyCap">Most emails to send per day</Label>
           <VolumeInput id="dailyCap" name="dailyCap" defaultValue={30} max={DAILY_CAP_MAX} sliderMax={200} />
           <FieldError messages={errors.dailyCap} />
           <p className="text-muted-foreground text-xs">Most cold-email inboxes should stay under 30–50/day.</p>
@@ -255,11 +255,11 @@ export function AccountForm({ answer = null }: { answer?: string | null }) {
       {last === "test" && testState?.test && <ConnectionResult result={testState.test} />}
 
       <div className="flex gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={() => run("test")}>
-          {testing ? "Testing…" : "Test connection"}
+        <Button loading={testing} type="button" variant="outline" disabled={busy} onClick={() => run("test")}>
+          Test connection
         </Button>
-        <Button type="submit" disabled={busy}>
-          {saving ? "Saving & testing…" : "Save inbox"}
+        <Button loading={saving} type="submit" disabled={busy}>
+          Save inbox
         </Button>
       </div>
     </form>

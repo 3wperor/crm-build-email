@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { hubspotAdapter, storeCrmToken } from "@/lib/crm";
 import { inngest } from "@/inngest/client";
 import { crmSyncRequested } from "@/inngest/events";
+import { friendlyError } from "@/lib/errors";
 
 export type CrmState = { error?: string; message?: string } | undefined;
 
@@ -74,7 +75,7 @@ export async function saveMapping(_prev: CrmState, formData: FormData): Promise<
     .update({ pipeline_id: String(formData.get("pipeline_id") ?? "").slice(0, 100) || null, stage_map: map, last_synced_at: null })
     .eq("org_id", ctx.org.id)
     .eq("provider", "hubspot");
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/settings/integrations");
   return { message: "Mapping saved. The next sync updates every deal." };
 }

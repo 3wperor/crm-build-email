@@ -20,8 +20,8 @@ export function OnboardingForm() {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       )}
-      <Button type="submit" disabled={pending}>
-        {pending ? "Creating…" : "Create workspace"}
+      <Button loading={pending} type="submit" disabled={pending}>
+        Create workspace
       </Button>
     </form>
   );

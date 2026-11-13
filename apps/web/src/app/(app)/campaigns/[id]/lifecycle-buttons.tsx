@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from "next/link";
 import { pauseCampaign, startCampaign } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function LifecycleButtons({
   campaignId,
@@ -29,7 +30,7 @@ export function LifecycleButtons({
         {status === "active" ? (
           <form action={pause}>
             <input type="hidden" name="campaign_id" value={campaignId} />
-            <Button variant="outline" disabled={pausing}>
+            <Button variant="outline" loading={pausing}>
               <Pause /> Pause campaign
             </Button>
           </form>
@@ -46,8 +47,8 @@ export function LifecycleButtons({
           ) : (
             <form action={start}>
               <input type="hidden" name="campaign_id" value={campaignId} />
-              <Button disabled={starting}>
-                <Play /> {status === "paused" ? "Resume" : "Start campaign"}
+              <Button loading={starting}>
+                <Play /> {status === "paused" ? "Resume campaign" : "Start campaign"}
               </Button>
             </form>
           ))
@@ -74,7 +75,7 @@ export function LifecycleButtons({
           )}
         </Alert>
       )}
-      {state?.message && <span className="text-sm text-emerald-600">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { friendlyError } from "@/lib/errors";
 
 export type AuthState = { error?: string; message?: string } | undefined;
 
@@ -19,7 +20,7 @@ export async function signInWithPassword(_prev: AuthState, formData: FormData): 
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   redirect(safeNextPath(formData.get("next")));
 }
@@ -65,7 +66,7 @@ export async function signUp(_prev: AuthState, formData: FormData): Promise<Auth
       emailRedirectTo: `${publicEnv.appUrl}/auth/callback?next=/onboarding`,
     },
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   // Email confirmation disabled (local dev): we already have a session.
   if (data.session) redirect("/onboarding");

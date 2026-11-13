@@ -5,6 +5,7 @@ import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/select-native";
 import { enrollLeads } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function EnrollForm({ campaignId, lists }: { campaignId: string; lists: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState(enrollLeads, undefined);
@@ -20,11 +21,11 @@ export function EnrollForm({ campaignId, lists }: { campaignId: string; lists: {
           ))}
           <option value="all">All my leads (eligible ones)</option>
         </NativeSelect>
-        <Button variant="outline" disabled={pending}>
-          <UserPlus /> {pending ? "Adding…" : "Add existing leads"}
+        <Button loading={pending} variant="outline" disabled={pending}>
+          <UserPlus /> Add existing leads
         </Button>
       </div>
-      {state?.message && <p className="text-sm text-emerald-600">{state.message}</p>}
+      <ActionToast state={state} message={state?.message} />
       {state?.error && <p className="text-destructive text-sm">{state.error}</p>}
     </form>
   );

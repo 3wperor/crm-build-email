@@ -9,6 +9,7 @@ import { generateApiKey } from "@/lib/agent/keys";
 import { getBillingStatus } from "@/lib/billing";
 import { hasProAccess } from "@crm/core/billing";
 import { executeApproval } from "@/lib/agent/run";
+import { friendlyError } from "@/lib/errors";
 
 export type KeyState = { error?: string; key?: string; name?: string } | undefined;
 
@@ -22,7 +23,7 @@ export async function createApiKey(_prev: KeyState, formData: FormData): Promise
   // Insert as the user: RLS limits it to admins of this workspace.
   const supabase = await createClient();
   const { error } = await supabase.from("api_keys").insert({ org_id: ctx.org.id, name, prefix, key_hash: hash, created_by: ctx.user.id });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   await createAdminClient().from("agent_audit_log").insert({
     org_id: ctx.org.id,
     actor: `user:${ctx.user.id}`,

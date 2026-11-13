@@ -5,12 +5,14 @@ import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { getBillingStatus } from "@/lib/billing";
 import { includedAiConfigured, ownAiKeyHint } from "@/lib/ai/provider";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { switchToIncludedAi } from "./actions";
 import { AiTogglesForm, OwnKeyForm } from "./ai-forms";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Sparkles } from "lucide-react";
 
 export const metadata = { title: "AI" };
 
@@ -30,20 +32,16 @@ export default async function AiSettingsPage() {
     <>
       <PageHeader title="AI" description="AI writes your campaign emails, sorts replies and drafts answers for you to send." />
       {!pro ? (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-base">AI is part of Pro</CardTitle>
-            <CardDescription>
-              Pro adds AI that writes your sequences, sorts replies, and drafts answers you can send in one click. You can also connect Claude to control
-              YCAReach from chat.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+        <EmptyState
+          icon={Sparkles}
+          title="AI is part of Pro"
+          description="Pro adds AI that writes your sequences, sorts replies, and drafts answers you can send in one click. You can also connect Claude to control YCAReach from chat."
+          action={
             <Button asChild>
               <Link href="/billing">See plans</Link>
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       ) : (
         <div className="grid gap-6">
           <Card>

@@ -1,9 +1,11 @@
+import { Time } from "@/components/time";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StatusBadge } from "@/components/status-badge";
 
 export const metadata = { title: "Audit log" };
 
@@ -19,10 +21,10 @@ export default async function AuditLogPage() {
 
   return (
     <>
-      <PageHeader title="Audit log" description="Every agent action, plus kill-switch changes. Most recent 200." />
+      <PageHeader title="Audit log" description="Everything an AI assistant has done here, plus each time sending was paused or resumed. Most recent 200." />
       <Card>
         <CardContent>
-          {error && <p className="text-destructive text-sm">{error.message}</p>}
+          {error && <p className="text-destructive text-sm">We couldn&apos;t load the log. Refresh the page to try again.</p>}
           {rows && rows.length === 0 && <p className="text-muted-foreground text-sm">No entries yet.</p>}
           {rows && rows.length > 0 && (
             <Table>
@@ -39,7 +41,7 @@ export default async function AuditLogPage() {
                 {rows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-muted-foreground tabular-nums">
-                      {new Date(r.created_at).toLocaleString()}
+                      <Time value={r.created_at} mode="exact" />
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{r.actor_type}</Badge> <span className="font-mono text-xs">{r.actor}</span>
@@ -47,9 +49,7 @@ export default async function AuditLogPage() {
                     <TableCell className="font-mono text-xs">{r.action}</TableCell>
                     <TableCell className="font-mono text-xs">{r.target ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={r.result === "ok" ? "success" : r.result === "denied" ? "destructive" : "warning"}>
-                        {r.result}
-                      </Badge>
+                      <StatusBadge kind="audit" value={r.result} />
                     </TableCell>
                   </TableRow>
                 ))}

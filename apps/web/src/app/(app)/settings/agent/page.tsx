@@ -3,7 +3,7 @@ import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { publicEnv } from "@/lib/env";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getBillingStatus } from "@/lib/billing";
 import { hasProAccess } from "@crm/core/billing";
 import { CreateKeyForm } from "./key-form";
+import { Time } from "@/components/time";
+import { StatusBadge } from "@/components/status-badge";
 
-export const metadata = { title: "Claude & MCP" };
+export const metadata = { title: "Connect Claude" };
 
 export default async function AgentSettingsPage() {
   const { org, role } = await getOrgContext();
@@ -38,13 +40,8 @@ export default async function AgentSettingsPage() {
   return (
     <>
       <PageHeader
-        title="Claude &amp; MCP"
-        description="Let an AI agent (Claude Desktop, Claude Code, any MCP client) run YCAReach through the MCP server, within guardrails."
-        actions={
-          <Link href="/settings/audit-log" className="text-sm underline underline-offset-4">
-            Audit log
-          </Link>
-        }
+        title="Connect Claude"
+        description="Let Claude (or another AI assistant) work in YCAReach for you: write campaigns, add leads and draft replies, within the limits below."
       />
       <div className="grid gap-6">
         <Card>
@@ -56,12 +53,12 @@ export default async function AgentSettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="text-muted-foreground grid gap-1 text-sm">
-            <p>• Reads, drafts and configuration run right away. Pausing a campaign, suppressing addresses and the kill switch are always allowed.</p>
+            <p>• Reads, drafts and configuration run right away. Pausing a campaign, adding addresses to the do-not-email list and pausing all sending are always allowed.</p>
             <p>
               • Anything that sends (start/resume a campaign, raising volume, test emails to non-members) waits here for approval unless both the workspace and
               the campaign are full-auto.
             </p>
-            <p>• The agent can never resume sending, change approval modes, remove suppressions or activate an inbox it added. Caps and suppression always apply.</p>
+            <p>• The agent can never resume sending, change approval modes, take anyone off the do-not-email list or switch on an inbox it added. Daily limits and the do-not-email list always apply.</p>
             <p>• Every call, allowed or not, is written to the audit log.</p>
           </CardContent>
         </Card>
@@ -88,7 +85,7 @@ export default async function AgentSettingsPage() {
                           ) : (
                             "Workspace"
                           )}{" "}
-                          · {a.api_keys?.name ?? "deleted key"} · {new Date(a.created_at).toLocaleString()}
+                          · {a.api_keys?.name ?? "deleted key"} · <Time value={a.created_at} />
                         </div>
                         <pre className="text-muted-foreground mt-1 max-w-xl text-xs whitespace-pre-wrap">{JSON.stringify(a.args)}</pre>
                       </TableCell>
@@ -121,7 +118,7 @@ export default async function AgentSettingsPage() {
                 <ul className="mt-2 grid gap-1 text-sm" data-testid="decided">
                   {decided.map((a) => (
                     <li key={a.id}>
-                      <Badge variant={a.status === "executed" ? "success" : a.status === "failed" ? "destructive" : "outline"}>{a.status}</Badge> {a.summary}
+                      <StatusBadge kind="approval" value={a.status} /> {a.summary}
                       {a.campaigns ? ` · ${a.campaigns.name}` : ""}
                       {a.error && <span className="text-destructive"> · {a.error}</span>}
                     </li>
@@ -149,7 +146,7 @@ export default async function AgentSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">API keys</CardTitle>
-              <CardDescription>The MCP server authenticates with one of these. Keys act on this workspace only; only a hash is stored.</CardDescription>
+              <CardDescription>Claude signs in with one of these (technical name: MCP server key). Keys act on this workspace only; only a hash is stored.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <CreateKeyForm appUrl={publicEnv.appUrl} />
@@ -170,7 +167,7 @@ export default async function AgentSettingsPage() {
                         <TableCell>
                           <code className="text-xs">{k.prefix}…</code>
                         </TableCell>
-                        <TableCell className="text-muted-foreground text-xs">{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "Never"}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs"><Time value={k.last_used_at} fallback="Never" /></TableCell>
                         <TableCell className="text-right">
                           {k.revoked_at ? (
                             <Badge variant="outline">Revoked</Badge>

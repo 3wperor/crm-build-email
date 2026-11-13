@@ -3,7 +3,7 @@ import { can } from "@crm/core";
 import { guessEmailProvider } from "@crm/core/growth";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AccountForm } from "./account-form";
 
@@ -18,7 +18,7 @@ export default async function NewInboxPage() {
 
   return (
     <>
-      <PageHeader title="Add inbox" description="Connect a mailbox with an app password. We test SMTP and IMAP before you send." />
+      <PageHeader title="Add inbox" breadcrumbs={[{ label: "Inboxes", href: "/inboxes" }, { label: "Add inbox" }]} description="Connect the email address you want to send from, using an app password. We check that sending and receiving both work before you send anything." />
       <Card>
         <CardContent>
           <AccountForm answer={answers?.onboarding_provider ?? guessEmailProvider(user.email)} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useOptimistic, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, RotateCcw, Send, Sparkles } from "lucide-react";
 import { findPlaceholders } from "@crm/core/ai";
@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { redraftReplyAction, sendReplyAction, setReplyHandled } from "../actions";
+import { useConfirmSubmit } from "@/components/ui/confirm";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/components/ui/toast";
 
 type Props = {
   replyId: string;
@@ -36,13 +39,15 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
   const [sendState, send, sending] = useActionState(sendReplyAction, undefined);
   const [draftState, redraft, drafting] = useActionState(redraftReplyAction, undefined);
   const writing = draftStatus === "pending" && !draft;
+  const guard = useConfirmSubmit();
+  const [shownHandled, setShownHandled] = useOptimistic(handled);
 
   if (sendState?.sent) {
     return (
-      <Card className="border-emerald-300">
+      <Card className="border-success/40">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <CheckCircle2 className="size-4 text-emerald-600" /> Reply sent
+            <CheckCircle2 className="size-4 text-success" /> Reply sent
           </CardTitle>
           <CardDescription>{sendState.message} It&apos;s in the conversation below.</CardDescription>
         </CardHeader>
@@ -54,7 +59,26 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     const holes = findPlaceholders(body);
-    if (holes.length && !confirm(`Your reply still has ${holes.join(", ")} in it. Send anyway?`)) e.preventDefault();
+    guard(
+      e,
+      holes.length
+        ? {
+            title: "Your reply still has blanks to fill in",
+            description: (
+              <>
+                <p>These would be sent exactly as written:</p>
+                <ul className="text-foreground mt-2 grid gap-1 font-mono text-sm">
+                  {holes.map((h) => (
+                    <li key={h}>{h}</li>
+                  ))}
+                </ul>
+              </>
+            ),
+            confirmLabel: "Send anyway",
+            cancelLabel: "Go back and edit",
+          }
+        : null,
+    );
   };
 
   return (
@@ -62,7 +86,7 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
       <CardHeader>
         <CardTitle className="text-base">
           Reply to {toName}
-          {handled && <span className="text-muted-foreground ml-2 text-xs font-normal">(marked as handled)</span>}
+          {shownHandled && <span className="text-muted-foreground ml-2 text-xs font-normal">(marked as handled)</span>}
         </CardTitle>
         <CardDescription>
           Sends from {fromEmail ?? "the inbox that got this reply"} to {toEmail}, in the same email thread.
@@ -88,19 +112,18 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
         <form action={send} onSubmit={onSubmit} className="grid gap-3">
           <input type="hidden" name="reply_id" value={replyId} />
           <input type="hidden" name="ai_drafted" value={usingDraft ? "1" : "0"} />
-          <textarea
+          <Textarea
             name="body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={9}
             placeholder={writing ? "The draft will appear here…" : "Write your reply…"}
-            className="border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
             aria-label="Reply message"
             maxLength={20000}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <Button disabled={sending || !body.trim()}>
-              <Send /> {sending ? "Sending…" : "Send reply"}
+            <Button loading={sending} disabled={sending || !body.trim()}>
+              <Send /> Send reply
             </Button>
             {draft && (
               <Button
@@ -129,8 +152,8 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
               className="min-w-64 flex-1"
               maxLength={1000}
             />
-            <Button variant="outline" disabled={drafting}>
-              {draft ? <RotateCcw /> : <Sparkles />} {drafting ? "Writing…" : draft ? "Redo with AI" : "Draft with AI"}
+            <Button loading={drafting} variant="outline" disabled={drafting}>
+              {draft ? <RotateCcw /> : <Sparkles />} {draft ? "Redo with AI" : "Draft with AI"}
             </Button>
             {draftState?.error && <span className="text-destructive text-sm">{draftState.error}</span>}
           </form>
@@ -145,11 +168,19 @@ function Composer({ replyId, toName, toEmail, fromEmail, draft, draftStatus, han
           </p>
         )}
 
-        <form action={setReplyHandled} className="border-t pt-3">
+        <form
+          action={async (data) => {
+            // Show the change straight away; it snaps back by itself if the save doesn't go through.
+            setShownHandled(!handled);
+            await setReplyHandled(data);
+            toast.success(handled ? "Moved back to Needs reply" : "Marked as handled");
+          }}
+          className="border-t pt-3"
+        >
           <input type="hidden" name="reply_id" value={replyId} />
           <input type="hidden" name="handled" value={handled ? "0" : "1"} />
           <Button size="sm" variant="ghost">
-            {handled ? "Move back to Needs reply" : "No reply needed — mark as handled"}
+            {shownHandled ? "Move back to Needs reply" : "No reply needed: mark as handled"}
           </Button>
         </form>
       </CardContent>

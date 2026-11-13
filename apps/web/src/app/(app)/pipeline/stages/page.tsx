@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { can } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { AddStageForm, StageRow } from "./stage-forms";
 
@@ -25,11 +24,7 @@ export default async function StagesPage() {
       <PageHeader
         title="Pipeline stages"
         description="Rename, reorder and add stages. Won/Lost stages mark the outcome; replies land in the entry stage (negative replies go to the first Lost stage)."
-        actions={
-          <Link href="/pipeline" className="text-sm underline underline-offset-4">
-            Back to pipeline
-          </Link>
-        }
+        breadcrumbs={[{ label: "Pipeline", href: "/pipeline" }, { label: "Stages" }]}
       />
       <Card>
         <CardContent className="grid gap-2">

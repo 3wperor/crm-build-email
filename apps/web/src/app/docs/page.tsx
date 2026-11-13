@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/brand/logo";
 
 export const metadata = { title: "Docs", description: "How to use YCAReach: inboxes, leads, campaigns, replies, analytics and more." };
 
@@ -184,10 +185,10 @@ const SECTIONS: Section[] = [
           emailed again.
         </li>
         <li>
-          <strong>Bounces</strong>: hard bounces are suppressed automatically.
+          <strong>Bounces</strong>: addresses that bounce are added to your do-not-email list automatically.
         </li>
         <li>
-          <strong>Pause all sending</strong> (top right) is the kill switch: it stops everything in the workspace at once, including test emails and warmup.
+          <strong>Pause all sending</strong> (click &ldquo;Sending on&rdquo; at the top) stops everything in the workspace at once, including test emails and warmup.
           Only owners and admins can resume.
         </li>
         <li>Emails only go out inside each campaign&apos;s send window, within daily caps, spaced 3–7 minutes apart per inbox.</li>
@@ -207,7 +208,7 @@ const SECTIONS: Section[] = [
         <ul>
           <li>Positive and neutral replies land in the first column of the <strong>Pipeline</strong>; negative ones go to Closed Lost.</li>
           <li>Out-of-office replies don&apos;t stop the sequence: the next email waits until they&apos;re back.</li>
-          <li>Unsubscribe replies are added to the suppression list.</li>
+          <li>Unsubscribe replies are added to your do-not-email list.</li>
         </ul>
         <p>
           Drag cards between stages (or use the keyboard, or the &ldquo;Move to&rdquo; menu). Click a lead to see the whole conversation, add notes and edit
@@ -245,7 +246,7 @@ const SECTIONS: Section[] = [
           encrypted, and use it for all AI in your workspace. Your provider bills you directly.
         </p>
         <p>
-          <strong>Control YCAReach from Claude</strong>: in Settings → Claude &amp; MCP, create an API key and connect Claude Desktop or Claude Code. Then just
+          <strong>Control YCAReach from Claude</strong>: in Settings → Connect Claude, create an API key and connect Claude Desktop or Claude Code. Then just
           ask: &ldquo;show me replies that need an answer&rdquo;, &ldquo;write a campaign for dentists in Leeds&rdquo;. Anything that sends email waits for
           your approval.
         </p>
@@ -258,11 +259,11 @@ const SECTIONS: Section[] = [
     body: (
       <>
         <p>
-          <strong>Analytics</strong> shows sends, replies, bounces and unsubscribes over 7, 30 or 90 days, by campaign, inbox and email variant. Keep the
+          <strong>Analytics</strong> shows sends, replies, bounces and unsubscribes over 7, 30 or 90 days, by campaign, inbox and email version. Keep the
           bounce rate under 3%.
         </p>
         <p>
-          <strong>A/B tests</strong>: add variants B, C… to any step and new leads are split between them. A campaign&apos;s <strong>Results</strong> tab compares
+          <strong>A/B tests</strong>: add versions B, C… to any step and new leads are split between them. A campaign&apos;s <strong>Results</strong> tab compares
           reply rates and marks a winner once the difference is statistically meaningful (after at least 100 sends per variant). Promote the winner to send
           it to everyone, or turn on auto-promote in the campaign settings.
         </p>
@@ -285,11 +286,11 @@ const SECTIONS: Section[] = [
   },
   {
     id: "suppression",
-    title: "Suppression list",
+    title: "Do-not-email list",
     body: (
       <p>
         Addresses on the suppression list are never emailed, by any campaign. Unsubscribes and hard bounces are added automatically. To add your own (current
-        customers, competitors, a do-not-contact list), go to <strong>Suppression</strong> and upload a CSV or Excel file (the email column is found
+        customers, competitors, a do-not-contact list), go to <strong>Do-not-email list</strong> and upload a CSV or Excel file (the email column is found
         automatically) or paste addresses.
       </p>
     ),
@@ -350,7 +351,7 @@ const SECTIONS: Section[] = [
           deal in the matching stage. It syncs every 15 minutes.
         </p>
         <p>
-          <strong>AI agent</strong> (Settings → Claude &amp; MCP): create an API key to let Claude or another AI assistant work in YCAReach through the MCP server. By
+          <strong>AI agent</strong> (Settings → Connect Claude): create an API key to let Claude or another AI assistant work in YCAReach through the MCP server. By
           default, anything that would send email waits for your approval on that page. Every action the agent takes is in the audit log.
         </p>
       </>
@@ -393,8 +394,8 @@ export default function DocsPage() {
     <div className="bg-background min-h-screen">
       <header className="bg-background/80 sticky top-0 z-10 border-b backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-          <Link href="/docs" className="text-base font-bold tracking-tight">
-            YCA<span className="text-primary/60">Reach</span> <span className="text-muted-foreground font-normal">Docs</span>
+          <Link href="/docs" className="flex items-center gap-2">
+            <Logo /> <span className="text-muted-foreground">Docs</span>
           </Link>
           <Link href="/dashboard" className="text-sm underline underline-offset-4">
             Open the app →

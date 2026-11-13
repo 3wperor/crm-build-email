@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBillingStatus } from "@/lib/billing";
 import { callAi, deleteOwnAiKey, ownKeyConfig, storeOwnAiKey } from "@/lib/ai/provider";
+import { friendlyError } from "@/lib/errors";
 
 export type AiSettingsState = { error?: string; message?: string } | undefined;
 
@@ -25,7 +26,7 @@ export async function saveAiToggles(_prev: AiSettingsState, formData: FormData):
       ai_drafts_enabled: formData.get("ai_drafts_enabled") === "on",
     })
     .eq("id", ctx.org.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   revalidatePath("/settings/ai");
   return { message: "Saved." };
 }
@@ -58,7 +59,7 @@ export async function saveOwnAiKey(_prev: AiSettingsState, formData: FormData): 
     .from("organizations")
     .update({ ai_provider: provider, ai_model: config.model, ai_base_url: provider === "openai_compatible" ? baseUrl : null })
     .eq("id", ctx.org.id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   await admin.from("agent_audit_log").insert({
     org_id: ctx.org.id,
     actor: `user:${ctx.user.id}`,

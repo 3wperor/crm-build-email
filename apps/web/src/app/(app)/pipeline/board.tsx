@@ -17,9 +17,9 @@ import {
   type KeyboardCoordinateGetter,
 } from "@dnd-kit/core";
 import { CalendarCheck, GripVertical } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { moveOpportunity } from "./actions";
+import { statusLabel } from "@/lib/labels";
 
 export type BoardStage = { id: string; name: string; kind: string; is_entry: boolean };
 export type BoardCard = {
@@ -61,7 +61,7 @@ function daysAgo(iso: string): string {
   return d <= 0 ? "today" : d === 1 ? "1 day" : `${d} days`;
 }
 
-const KIND_ACCENT = { open: "border-t-primary/30", won: "border-t-emerald-500", lost: "border-t-destructive/60" } as const;
+const KIND_DOT = { open: "bg-primary", won: "bg-success", lost: "bg-destructive" } as const;
 
 export function Board({ stages, cards: initial, canEdit }: { stages: BoardStage[]; cards: BoardCard[]; canEdit: boolean }) {
   const [cards, setCards] = useState(initial);
@@ -119,6 +119,7 @@ export function Board({ stages, cards: initial, canEdit }: { stages: BoardStage[
     <div className="grid gap-3">
       {error && <p className="text-destructive text-sm">{error}</p>}
       <DndContext
+        id="pipeline-board"
         sensors={sensors}
         accessibility={{ announcements }}
         onDragStart={onDragStart}
@@ -156,21 +157,23 @@ function Column({
       aria-label={`${stage.name} column`}
       data-testid={`column-${stage.name}`}
       className={cn(
-        "bg-muted/40 flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-t-4 p-2 transition-colors",
-        KIND_ACCENT[stage.kind as keyof typeof KIND_ACCENT] ?? "",
+        "bg-muted/50 flex w-72 shrink-0 flex-col gap-2 rounded-lg border p-2 transition-colors",
         isOver && "bg-primary/5 ring-primary/30 ring-2",
       )}
     >
-      <header className="flex items-center justify-between px-1 py-1 text-sm font-medium">
-        <span>
-          {stage.name} {stage.is_entry && <span className="text-muted-foreground text-xs font-normal">(replies land here)</span>}
+      <header className="flex items-center gap-2 px-1.5 py-1 text-sm font-medium">
+        <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", KIND_DOT[stage.kind as keyof typeof KIND_DOT] ?? "bg-muted-foreground")} />
+        <span className="min-w-0 flex-1 truncate">
+          {stage.name} {stage.is_entry && <span className="text-muted-foreground text-caption font-normal">· new replies land here</span>}
         </span>
-        <Badge variant="outline">{cards.length}</Badge>
+        <span className="text-muted-foreground text-caption tabular-nums" aria-label={`${cards.length} in this stage`}>
+          {cards.length}
+        </span>
       </header>
       {cards.map((c) => (
         <DraggableCard key={c.id} card={c} stages={stages} canEdit={canEdit} onMove={onMove} />
       ))}
-      {cards.length === 0 && <p className="text-muted-foreground px-1 py-4 text-center text-xs">Drop cards here</p>}
+      {cards.length === 0 && <p className="text-muted-foreground rounded-md border border-dashed px-1 py-5 text-center text-xs">Nothing here yet</p>}
     </section>
   );
 }
@@ -204,7 +207,7 @@ function DraggableCard({
               aria-label={`Move ${card.name} to`}
               value={card.stage_id}
               onChange={(e) => onMove(card.id, e.target.value)}
-              className="border-input w-full rounded border bg-transparent px-1 py-0.5 text-xs"
+              className="border-input bg-background h-7 w-full rounded-md border px-2 text-xs"
             >
               {stages.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -221,7 +224,7 @@ function DraggableCard({
 
 function CardBody({ card, handle, footer, dragging }: { card: BoardCard; handle?: React.ReactNode; footer?: React.ReactNode; dragging?: boolean }) {
   return (
-    <article className={cn("bg-card grid gap-1.5 rounded-md border p-2.5 text-sm shadow-xs", dragging && "rotate-2 shadow-lg")}>
+    <article className={cn("bg-card grid gap-2 rounded-md border p-3 text-sm shadow-xs", dragging && "rotate-2 shadow-md")}>
       <div className="flex items-start gap-1">
         {handle}
         <div className="min-w-0 flex-1">
@@ -239,12 +242,12 @@ function CardBody({ card, handle, footer, dragging }: { card: BoardCard; handle?
       </div>
       {card.last_reply && (
         <p className="text-muted-foreground line-clamp-2 text-xs">
-          <span className="font-medium">{card.last_reply.classification?.replace(/_/g, " ") ?? "reply"}:</span> {card.last_reply.snippet}
+          <span className="font-medium">{card.last_reply.classification ? statusLabel("reply", card.last_reply.classification) : "Reply"}:</span> {card.last_reply.snippet}
         </p>
       )}
       <div className="text-muted-foreground flex items-center justify-between text-[11px]">
-        <span className="truncate">{card.campaign ?? (card.source === "manual" ? "Added manually" : "")}</span>
-        <span>in stage {daysAgo(card.moved_at)}</span>
+        <span className="truncate">{card.campaign ?? (card.source === "manual" ? "Added by hand" : "")}</span>
+        <span className="shrink-0 pl-2">{daysAgo(card.moved_at) === "today" ? "Moved here today" : `${daysAgo(card.moved_at)} in this stage`}</span>
       </div>
       {footer}
     </article>

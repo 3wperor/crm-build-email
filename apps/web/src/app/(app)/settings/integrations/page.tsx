@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { can, type CrmPipeline } from "@crm/core";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { loadCrmAdapter } from "@/lib/crm";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { disconnectCrm, syncNow } from "./actions";
 import { ConnectForm, MappingForm } from "./forms";
+import { Time } from "@/components/time";
 
 export const metadata = { title: "Integrations" };
 
@@ -37,11 +37,6 @@ export default async function IntegrationsPage() {
       <PageHeader
         title="Integrations"
         description="YCAReach stays your source of truth. Connected CRMs receive a contact and a deal for every lead in your pipeline."
-        actions={
-          <Link href="/settings" className="text-sm underline underline-offset-4">
-            ← Settings
-          </Link>
-        }
       />
       <Card data-testid="hubspot">
         <CardHeader>
@@ -61,7 +56,7 @@ export default async function IntegrationsPage() {
             <div className="grid gap-1 text-sm" data-testid="hubspot-status">
               <div>
                 {conn.account_label ?? "HubSpot"} · {deals ?? 0} deal{deals === 1 ? "" : "s"} synced · last sync{" "}
-                {conn.last_synced_at ? new Date(conn.last_synced_at).toLocaleString() : "never"}
+                <Time value={conn.last_synced_at} fallback="never" />
               </div>
               {conn.last_error && <div className="text-destructive">{conn.last_error}</div>}
               {pipelineError && <div className="text-destructive">{pipelineError}</div>}

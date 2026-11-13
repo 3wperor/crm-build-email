@@ -23,7 +23,7 @@ export async function GoalTracker({ orgId }: { orgId: string }) {
   const month = now.toLocaleString("en-GB", { month: "long", timeZone: "UTC" });
 
   return (
-    <Card className="mb-6" data-testid="goal-tracker">
+    <Card data-testid="goal-tracker">
       <CardHeader className="flex flex-row items-start justify-between gap-2">
         <div className="grid gap-1">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -44,7 +44,7 @@ export async function GoalTracker({ orgId }: { orgId: string }) {
       </CardHeader>
       <CardContent>
         <div className="bg-muted h-2 overflow-hidden rounded-full" aria-hidden>
-          <div className={p.reached ? "h-full rounded-full bg-emerald-600" : "bg-primary h-full rounded-full"} style={{ width: `${Math.max(p.pct, 2)}%` }} />
+          <div className={p.reached ? "h-full rounded-full bg-success" : "bg-primary h-full rounded-full"} style={{ width: `${Math.max(p.pct, 2)}%` }} />
         </div>
       </CardContent>
     </Card>

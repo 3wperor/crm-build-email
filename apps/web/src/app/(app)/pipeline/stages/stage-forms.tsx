@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/select-native";
 import { addStage, deleteStage, moveStage, setEntryStage, updateStage } from "../actions";
+import { ActionToast } from "@/components/ui/toast";
 
 type Stage = { id: string; name: string; kind: string; is_entry: boolean; cards: number };
 
@@ -20,14 +21,14 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
           <form action={moveStage}>
             <input type="hidden" name="stage_id" value={stage.id} />
             <input type="hidden" name="dir" value="up" />
-            <Button size="icon" variant="ghost" className="size-6" disabled={first} aria-label={`Move ${stage.name} up`}>
+            <Button size="icon" variant="ghost" className="size-6" disabled={first} aria-label={`Move ${stage.name} up`} title={`Move ${stage.name} up`}>
               <ArrowUp />
             </Button>
           </form>
           <form action={moveStage}>
             <input type="hidden" name="stage_id" value={stage.id} />
             <input type="hidden" name="dir" value="down" />
-            <Button size="icon" variant="ghost" className="size-6" disabled={last} aria-label={`Move ${stage.name} down`}>
+            <Button size="icon" variant="ghost" className="size-6" disabled={last} aria-label={`Move ${stage.name} down`} title={`Move ${stage.name} down`}>
               <ArrowDown />
             </Button>
           </form>
@@ -46,7 +47,7 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
         </form>
         <span className="text-muted-foreground text-xs">{stage.cards} card(s)</span>
         {stage.is_entry ? (
-          <span className="rounded bg-emerald-600/15 px-2 py-0.5 text-xs text-emerald-700 dark:text-emerald-400">Replies land here</span>
+          <span className="bg-success-subtle text-success rounded px-2 py-0.5 text-xs">Replies land here</span>
         ) : (
           stage.kind === "open" && (
             <form action={setEntryStage}>
@@ -59,13 +60,13 @@ export function StageRow({ stage, first, last }: { stage: Stage; first: boolean;
         )}
         <form action={delAction}>
           <input type="hidden" name="stage_id" value={stage.id} />
-          <Button size="icon" variant="ghost" disabled={deleting} aria-label={`Delete ${stage.name}`}>
+          <Button size="icon" variant="ghost" disabled={deleting} aria-label={`Delete ${stage.name}`} title={`Delete ${stage.name}`}>
             <Trash2 />
           </Button>
         </form>
       </div>
       {msg && <p className="text-destructive text-xs">{msg}</p>}
-      {state?.message && <p className="text-xs text-emerald-600">{state.message}</p>}
+      <ActionToast state={state} message={state?.message} />
     </div>
   );
 }
@@ -84,7 +85,7 @@ export function AddStageForm() {
         Add stage
       </Button>
       {state?.error && <span className="text-destructive text-xs">{state.error}</span>}
-      {state?.message && <span className="text-xs text-emerald-600">{state.message}</span>}
+      <ActionToast state={state} message={state?.message} />
     </form>
   );
 }

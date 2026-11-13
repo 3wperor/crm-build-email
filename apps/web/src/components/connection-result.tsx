@@ -11,7 +11,7 @@ function Row({ label, result }: { label: string; result: CheckResult }) {
   return (
     <div className="flex items-start gap-2 text-sm">
       {result.ok ? (
-        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
       ) : (
         <XCircle className="text-destructive mt-0.5 size-4 shrink-0" />
       )}
@@ -29,8 +29,8 @@ function Row({ label, result }: { label: string; result: CheckResult }) {
 export function ConnectionResult({ result }: { result: ConnectionTestResult }) {
   return (
     <div className="grid gap-2 rounded-md border p-3" aria-live="polite">
-      <Row label="SMTP (sending)" result={result.smtp} />
-      <Row label="IMAP (reply detection)" result={result.imap} />
+      <Row label="Sending (SMTP)" result={result.smtp} />
+      <Row label="Receiving replies (IMAP)" result={result.imap} />
     </div>
   );
 }

@@ -73,7 +73,7 @@ export async function GettingStarted({ orgId }: { orgId: string }) {
             const isNext = item.id === next?.id;
             return (
               <li key={item.id} className={cn("flex items-start gap-3 rounded-md p-2", isNext && "bg-primary/5 border-primary/30 border")}>
-                {item.done ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" /> : <Circle className="text-muted-foreground mt-0.5 size-5 shrink-0" />}
+                {item.done ? <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" /> : <Circle className="text-muted-foreground mt-0.5 size-5 shrink-0" />}
                 <div className="min-w-0 flex-1">
                   <div className={cn("text-sm font-medium", item.done && "text-muted-foreground line-through")}>{item.title}</div>
                   {!item.done && <div className="text-muted-foreground text-xs">{item.hint}</div>}

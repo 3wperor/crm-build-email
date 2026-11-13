@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateGoal } from "./actions";
+import { ActionToast } from "@/components/ui/toast";
 
 export function GoalForm({ customersPerMonth, customerValue }: { customersPerMonth: number | null; customerValue: number | null }) {
   const [state, action, pending] = useActionState(updateGoal, undefined);
@@ -21,7 +22,7 @@ export function GoalForm({ customersPerMonth, customerValue }: { customersPerMon
       <Button size="sm" disabled={pending}>
         Save goal
       </Button>
-      {state?.ok && <span className="text-sm text-emerald-600">Saved.</span>}
+      <ActionToast state={state} message={state?.ok && "Saved."} />
       {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
     </form>
   );

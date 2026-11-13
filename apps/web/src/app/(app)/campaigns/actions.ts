@@ -18,6 +18,7 @@ import { sendBlockedMessage } from "@/lib/billing";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
 import { parseSequence, sequenceBriefSchema, sequencePrompt } from "@crm/core/ai";
 import { runAi } from "@/lib/ai/provider";
+import { friendlyError } from "@/lib/errors";
 
 export type CampaignState = { error?: string; message?: string; fieldErrors?: FieldErrors; problems?: string[]; upgrade?: boolean } | undefined;
 
@@ -133,7 +134,7 @@ export async function updateCampaignSettings(_prev: CampaignState, formData: For
     })
     .eq("org_id", ctx.org.id)
     .eq("id", id);
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
 
   // Sync attached inboxes (only inboxes from this org — RLS + composite FK enforce it too).
   const { data: current } = await supabase.from("campaign_sending_accounts").select("sending_account_id").eq("campaign_id", id);
@@ -146,7 +147,7 @@ export async function updateCampaignSettings(_prev: CampaignState, formData: For
     const { error: addError } = await supabase
       .from("campaign_sending_accounts")
       .insert(toAdd.map((sending_account_id) => ({ org_id: ctx.org.id, campaign_id: id, sending_account_id })));
-    if (addError) return { error: addError.message };
+    if (addError) return { error: friendlyError(addError) };
   }
 
   refresh(id);
@@ -193,7 +194,7 @@ export async function updateStep(_prev: CampaignState, formData: FormData): Prom
     .update({ delay_days: parsed.data.delayDays, delay_hours: parsed.data.delayHours })
     .eq("org_id", ctx.org.id)
     .eq("id", String(formData.get("step_id")));
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   refresh(String(formData.get("campaign_id")));
   return { message: "Saved." };
 }
@@ -221,14 +222,14 @@ export async function saveVariant(_prev: CampaignState, formData: FormData): Pro
   const ctx = await requireWriter();
   if (!ctx) return FORBIDDEN;
   const parsed = variantSchema.safeParse(formToObject(formData));
-  if (!parsed.success) return { error: "Invalid variant", fieldErrors: fieldErrors(parsed.error) };
+  if (!parsed.success) return { error: "Check the subject and message, then save again.", fieldErrors: fieldErrors(parsed.error) };
   const supabase = await createClient();
   const { error } = await supabase
     .from("email_variants")
     .update({ subject: parsed.data.subject, body: parsed.data.body, weight: parsed.data.weight, is_active: parsed.data.isActive })
     .eq("org_id", ctx.org.id)
     .eq("id", String(formData.get("variant_id")));
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   refresh(String(formData.get("campaign_id")));
   return { message: "Saved." };
 }
@@ -279,7 +280,7 @@ export async function enrollLeads(_prev: CampaignState, formData: FormData): Pro
     p_campaign_id: id,
     ...(source === "all" ? { p_all_eligible: true } : { p_list_id: source }),
   });
-  if (error) return { error: error.message };
+  if (error) return { error: friendlyError(error) };
   refresh(id);
   return { message: describeEnroll(data as unknown as EnrollResult) };
 }

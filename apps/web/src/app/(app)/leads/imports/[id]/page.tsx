@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
-import { PageHeader } from "@/components/coming-soon";
+import { PageHeader } from "@/components/page-header";
 import { UsageBar } from "@/components/usage-bar";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ImportStatusBadge } from "../status-badge";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { describeEnroll, type EnrollResult } from "@/lib/imports/campaign";
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Import" };
 
@@ -45,7 +46,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
       value: imp.existing_count,
       testid: "existing",
     },
-    { label: "Suppressed", value: imp.suppressed_count, testid: "suppressed" },
+    { label: "On do-not-email list", value: imp.suppressed_count, testid: "suppressed" },
     { label: "Invalid rows", value: imp.invalid_count, testid: "invalid" },
     { label: "Duplicates in file", value: imp.duplicate_count, testid: "duplicates" },
   ];
@@ -56,11 +57,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
       <PageHeader
         title={imp.filename}
         description={imp.lead_lists ? `List: ${imp.lead_lists.name}` : undefined}
-        actions={
-          <Link href="/leads/imports" className="text-sm underline underline-offset-4">
-            Import history
-          </Link>
-        }
+        breadcrumbs={[{ label: "Leads", href: "/leads" }, { label: "Import history", href: "/leads/imports" }, { label: imp.filename }]}
       />
       <Card>
         <CardHeader>
@@ -71,7 +68,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
             {running
               ? "Processing in the background — you can leave this page."
               : imp.completed_at
-                ? `Finished ${new Date(imp.completed_at).toLocaleString()}`
+                ? `Finished ${formatDate(imp.completed_at, org.default_timezone)}`
                 : null}
           </CardDescription>
         </CardHeader>
@@ -105,7 +102,7 @@ export default async function ImportPage({ params }: { params: Promise<{ id: str
               <div key={s.label}>
                 <dt className="text-muted-foreground text-xs">{s.label}</dt>
                 <dd className="text-2xl font-semibold tabular-nums" data-testid={`count-${s.testid}`}>
-                  {s.value.toLocaleString()}
+                  {s.value.toLocaleString("en-GB")}
                 </dd>
               </div>
             ))}

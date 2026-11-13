@@ -17,6 +17,7 @@ import { hasProAccess, type Plan } from "@crm/core/billing";
 import { decryptSecret, encryptSecret, keyringFromEnv } from "@crm/core/crypto";
 import { HostNotAllowedError, PinnedRequestError, postJsonPinned } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBillingStatus } from "@/lib/billing";
 
 /**
  * One way to call AI for the whole app.
@@ -324,9 +325,26 @@ export async function runAi(orgId: string, kind: AiKind, prompt: AiPrompt, opts:
   }
 }
 
-/** For the UI: "on" = AI ready, "upgrade" = plan without AI (Standard / ended trial), "off" = not set up on the server. */
+/**
+ * For the UI: "on" = AI ready, "upgrade" = plan without AI (Standard / ended trial),
+ * "off" = the plan includes AI but it isn't usable on this site right now (no AI key
+ * on the server, or the workspace's AI settings couldn't be read).
+ *
+ * A setup problem must never be shown as "Upgrade to Pro": if the settings can't be
+ * read, the plan is taken from the same source as the header badge instead.
+ */
 export const aiModeFor = cache(async (orgId: string): Promise<"on" | "upgrade" | "off"> => {
-  const { data } = await createAdminClient().from("organizations").select("plan, trial_ends_at, ai_provider").eq("id", orgId).maybeSingle();
-  if (!data || !hasProAccess({ plan: data.plan as Plan, trial_ends_at: data.trial_ends_at })) return "upgrade";
-  return (await aiAvailableFor(data)) ? "on" : "off";
+  const { data, error } = await createAdminClient().from("organizations").select("plan, trial_ends_at, ai_provider").eq("id", orgId).maybeSingle();
+  if (data) {
+    if (!hasProAccess({ plan: data.plan as Plan, trial_ends_at: data.trial_ends_at })) return "upgrade";
+    return (await aiAvailableFor(data)) ? "on" : "off";
+  }
+  console.error(`aiModeFor: couldn't read AI settings for workspace ${orgId}: ${error ? `${error.code ?? ""} ${error.message}` : "no row returned"}`);
+  try {
+    const status = await getBillingStatus(orgId);
+    if (!hasProAccess({ plan: status.plan as Plan, trial_ends_at: status.trial_ends_at as string })) return "upgrade";
+  } catch (e) {
+    console.error("aiModeFor: couldn't read the plan either:", e instanceof Error ? e.message : e);
+  }
+  return "off";
 });

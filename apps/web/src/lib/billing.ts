@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { blockMessage, priceMapFromEnv, type BillingInterval, type BillingStatus, type PaidPlan } from "@crm/core/billing";
+import { blockMessage, planForPrice, priceMapFromEnv, summarizeSubscription, type BillingInterval, type BillingStatus, type PaidPlan } from "@crm/core/billing";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publicEnv } from "@/lib/env";
@@ -108,4 +108,88 @@ export async function createSwitchPlanUrl(customerId: string, subscriptionId: st
     "flow_data[after_completion][redirect][return_url]": `${publicEnv.appUrl}/billing?switched=1`,
   });
   return session.url;
+}
+
+// ---------------------------------------------------------------------------
+// Stripe → workspace plan. One function, used by the webhook and by the pages
+// people land on after paying, so a missed or late webhook can't leave someone
+// on the wrong plan.
+// ---------------------------------------------------------------------------
+
+export type SubscriptionSync =
+  | { result: "applied"; orgId: string; plan: string; changed: boolean }
+  /** The subscription's price isn't one of the STRIPE_PRICE_* settings, or it names no workspace. */
+  | { result: "unmapped"; orgId: string | null; priceId: string | null; subscriptionId: string }
+  /** The subscription belongs to a different workspace than the one asking. */
+  | { result: "mismatch" };
+
+/**
+ * Reads a subscription fresh from Stripe and applies its current state to the
+ * workspace it belongs to. Safe to call any number of times, in any order.
+ * `forOrgId` limits it to one workspace (pass it whenever a signed-in person,
+ * rather than Stripe, is the reason for the call).
+ */
+export async function applySubscriptionFromStripe(subscriptionId: string, opts: { forOrgId?: string; fallbackOrgId?: string | null } = {}): Promise<SubscriptionSync> {
+  const sub = summarizeSubscription(await stripeRequest("GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`));
+  const orgId = sub.orgId ?? opts.forOrgId ?? opts.fallbackOrgId ?? null;
+  if (opts.forOrgId && orgId !== opts.forOrgId) return { result: "mismatch" };
+  const mapped = planForPrice(sub.priceId, priceMapFromEnv(process.env));
+  if (!orgId || !mapped) return { result: "unmapped", orgId, priceId: sub.priceId, subscriptionId: sub.subscriptionId };
+
+  const admin = createAdminClient();
+  const { data: before } = await admin.from("organizations").select("plan, subscription_status").eq("id", orgId).maybeSingle();
+  const { data: outcome, error } = await admin.rpc("apply_stripe_subscription", {
+    p_org_id: orgId,
+    p_customer_id: sub.customerId,
+    p_subscription_id: sub.subscriptionId,
+    p_status: sub.status,
+    p_plan: mapped.plan,
+    p_interval: mapped.interval,
+    p_period_end: sub.periodEnd as string,
+    p_cancel_at_end: sub.cancelAtPeriodEnd,
+  });
+  if (error) throw new Error(error.message);
+  // Worked out from what Stripe said, not by reading the row again: a second identical read
+  // in the same request is answered from the request's cache and would look unchanged.
+  const applied = outcome !== "ignored_old_subscription";
+  const plan = !applied ? (before?.plan ?? mapped.plan) : ["active", "trialing"].includes(sub.status) ? mapped.plan : "expired";
+  return { result: "applied", orgId, plan, changed: applied && (before?.plan !== plan || before?.subscription_status !== sub.status) };
+}
+
+/**
+ * Brings a workspace's plan in line with Stripe right now (billing page, after
+ * checkout). Never throws: Stripe being slow must not break the page.
+ */
+export async function syncOrgSubscription(orgId: string): Promise<SubscriptionSync | null> {
+  if (!stripeConfigured()) return null;
+  try {
+    const { data: org } = await createAdminClient().from("organizations").select("stripe_subscription_id").eq("id", orgId).maybeSingle();
+    if (!org?.stripe_subscription_id) return null;
+    return await applySubscriptionFromStripe(org.stripe_subscription_id, { forOrgId: orgId });
+  } catch (e) {
+    console.error(`subscription sync failed for ${orgId}:`, e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/**
+ * Straight after Stripe checkout: activate the plan from the checkout session
+ * itself instead of waiting for the webhook. Only for a workspace the caller
+ * belongs to (`memberOrgIds`).
+ */
+export async function syncCheckoutSession(sessionId: string, memberOrgIds: string[]): Promise<SubscriptionSync | null> {
+  if (!stripeConfigured() || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) return null;
+  try {
+    const session = await stripeRequest<{ subscription?: string | { id: string } | null; client_reference_id?: string | null; status?: string }>(
+      "GET",
+      `/v1/checkout/sessions/${encodeURIComponent(sessionId)}`,
+    );
+    const orgId = session.client_reference_id;
+    const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription?.id;
+    if (session.status !== "complete" || !orgId || !subscriptionId || !memberOrgIds.includes(orgId)) return null;
+    return await applySubscriptionFromStripe(subscriptionId, { forOrgId: orgId });
+  } catch (e) {
+    console.error("checkout session sync failed:", e instanceof Error ? e.message : e);
+    return null;
+  }
 }

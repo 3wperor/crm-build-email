@@ -1,6 +1,5 @@
-import { planForPrice, priceMapFromEnv, subscriptionIdFromEvent, summarizeSubscription, verifyStripeSignature } from "@crm/core/billing";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { stripeRequest } from "@/lib/billing";
+import { subscriptionIdFromEvent, verifyStripeSignature } from "@crm/core/billing";
+import { applySubscriptionFromStripe } from "@/lib/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -21,28 +20,18 @@ export async function POST(request: Request) {
   const subscriptionId = subscriptionIdFromEvent(event);
   if (!subscriptionId) return Response.json({ received: true, ignored: event.type });
 
-  const sub = summarizeSubscription(await stripeRequest("GET", `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`));
-  const orgId = sub.orgId ?? (typeof event.data.object.client_reference_id === "string" ? event.data.object.client_reference_id : null);
-  const mapped = planForPrice(sub.priceId, priceMapFromEnv(process.env));
-  if (!orgId || !mapped) {
-    console.error(`stripe webhook ${event.id}: cannot map subscription ${sub.subscriptionId} (org ${orgId}, price ${sub.priceId})`);
-    // 200: retrying won't help; the price/org is not ours.
-    return Response.json({ received: true, ignored: "unmapped subscription" });
-  }
-
-  const { data, error } = await createAdminClient().rpc("apply_stripe_subscription", {
-    p_org_id: orgId,
-    p_customer_id: sub.customerId,
-    p_subscription_id: sub.subscriptionId,
-    p_status: sub.status,
-    p_plan: mapped.plan,
-    p_interval: mapped.interval,
-    p_period_end: sub.periodEnd as string,
-    p_cancel_at_end: sub.cancelAtPeriodEnd,
-  });
-  if (error) {
-    console.error(`stripe webhook ${event.id}: ${error.message}`);
+  const fallbackOrgId = typeof event.data.object.client_reference_id === "string" ? event.data.object.client_reference_id : null;
+  try {
+    const sync = await applySubscriptionFromStripe(subscriptionId, { fallbackOrgId });
+    if (sync.result !== "applied") {
+      const detail = sync.result === "unmapped" ? `org ${sync.orgId}, price ${sync.priceId}` : sync.result;
+      console.error(`stripe webhook ${event.id}: cannot map subscription ${subscriptionId} (${detail})`);
+      // 200: retrying won't help; the price/org is not ours.
+      return Response.json({ received: true, ignored: "unmapped subscription" });
+    }
+    return Response.json({ received: true, plan: sync.plan });
+  } catch (e) {
+    console.error(`stripe webhook ${event.id}: ${e instanceof Error ? e.message : e}`);
     return Response.json({ error: "could not apply" }, { status: 500 });
   }
-  return Response.json({ received: true, plan: data });
 }

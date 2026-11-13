@@ -459,6 +459,7 @@ Pro workspaces and active trials get AI. Standard does not.
 
 **Which model:**
 - **Included:** DeepSeek Flash (`deepseek-flash`) through its OpenAI-compatible API, with our `DEEPSEEK_API_KEY`. No SDK, just `fetch` (`apps/web/src/lib/ai/provider.ts`).
+- **Through OpenRouter:** set `AI_API_KEY` (an OpenRouter key), `AI_BASE_URL=https://openrouter.ai/api/v1` and `AI_MODEL=deepseek/deepseek-v4-flash`, and leave `DEEPSEEK_API_KEY` empty. Costs are still counted against the hidden monthly cap using DeepSeek Flash prices.
 - **Own key (optional):** Settings → AI. Claude (Anthropic, via `@anthropic-ai/sdk`, default `claude-opus-5-5`) or any OpenAI-compatible endpoint (https only; private addresses refused). The key is tested with a tiny call, then stored AES-GCM-encrypted in `ai_credentials` with the org id as AAD. Own-key usage has no cap.
 
 **Hidden monthly cap (included AI only):**

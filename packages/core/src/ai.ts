@@ -45,9 +45,13 @@ const PRICING: Record<string, Pricing> = {
   "deepseek-v4-pro": PRO,
 };
 
-/** Unknown models are priced like the most expensive known one, so the cap stays safe. */
+/**
+ * Unknown models are priced like the most expensive known one, so the cap stays safe.
+ * Router-style ids ("deepseek/deepseek-v4-flash", "…:free") are matched by their model name.
+ */
 export function pricingFor(model: string): Pricing {
-  return PRICING[model] ?? PRO;
+  const name = model.split("/").pop()!.split(":")[0]!;
+  return PRICING[model] ?? PRICING[name] ?? PRO;
 }
 
 /** DeepSeek peak hours: weekdays 01:00–04:00 and 06:00–10:00 UTC. */

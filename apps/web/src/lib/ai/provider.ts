@@ -205,8 +205,10 @@ async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutM
   }
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   // DeepSeek thinks by default: slower, pricier, and it can use up the output budget
-  // on short tasks. Turn it off there only (other providers reject the parameter).
-  const deepseek = config.source === "included" || /(^|\.)deepseek\.com$/i.test(base.hostname);
+  // on short tasks. Turn it off, in the way each service expects (others reject the parameter):
+  // DeepSeek's own API takes `thinking`, OpenRouter takes `reasoning`.
+  const openrouter = /(^|\.)openrouter\.ai$/i.test(base.hostname);
+  const deepseek = !openrouter && (config.source === "included" || /(^|\.)deepseek\.com$/i.test(base.hostname));
   const { status, body } = await postChat(
     config,
     url,
@@ -220,6 +222,7 @@ async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutM
       temperature: prompt.temperature,
       stream: false,
       ...(deepseek ? { thinking: { type: "disabled" } } : {}),
+      ...(openrouter ? { reasoning: { enabled: false } } : {}),
       ...(prompt.json ? { response_format: { type: "json_object" } } : {}),
     }),
     timeoutMs,

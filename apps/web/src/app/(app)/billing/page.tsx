@@ -1,8 +1,7 @@
 import { can } from "@crm/core";
 import { blockMessage, trialDaysLeft } from "@crm/core/billing";
 import { getOrgContext } from "@/lib/org";
-import { redirect } from "next/navigation";
-import { getBillingStatus, stripeConfigured, syncOrgSubscription } from "@/lib/billing";
+import { getBillingStatus, stripeConfigured } from "@/lib/billing";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PlanPicker } from "./plan-picker";
@@ -15,10 +14,6 @@ export const metadata = { title: "Billing" };
 
 export default async function BillingPage() {
   const { org, role } = await getOrgContext();
-  // Don't wait for Stripe's webhook: check the subscription now, so a plan change shows as soon as you're back.
-  const sync = await syncOrgSubscription(org.id);
-  // The plan just changed: load the page afresh (a new address, so nothing cached is reused) and the header shows it too.
-  if (sync?.result === "applied" && sync.changed) redirect(`/billing?updated=${Date.now()}`);
   const status = await getBillingStatus(org.id);
   const canManage = can(role, "org.update");
   const subscribed = !!status.has_customer && ["active", "trialing", "past_due"].includes(status.subscription_status ?? "");
@@ -67,14 +62,6 @@ export default async function BillingPage() {
         {!stripeConfigured() && (
           <Alert>
             <AlertDescription>Payments aren&apos;t switched on yet, so plans can&apos;t be changed here. (Site owner: STRIPE_SECRET_KEY is missing.)</AlertDescription>
-          </Alert>
-        )}
-        {sync?.result === "unmapped" && (
-          <Alert variant="destructive" data-testid="unmapped-subscription">
-            <AlertDescription>
-              You have a subscription with Stripe, but we couldn&apos;t match it to a plan here, so your plan hasn&apos;t been updated. Please contact us and
-              we&apos;ll sort it out. (Site owner: Stripe price {sync.priceId ?? "unknown"} isn&apos;t one of the STRIPE_PRICE_* settings.)
-            </AlertDescription>
           </Alert>
         )}
         {!canManage && (

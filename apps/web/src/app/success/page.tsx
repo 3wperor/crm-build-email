@@ -2,25 +2,18 @@ import Link from "next/link";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import { syncCheckoutSession } from "@/lib/billing";
 
 export const metadata = { title: "Payment received" };
 export const dynamic = "force-dynamic";
 
 /** After Stripe checkout. Stripe's webhook usually activates the plan within seconds; this page waits for it. */
-export default async function SuccessPage({ searchParams }: { searchParams: Promise<{ session_id?: string }> }) {
-  const { session_id: sessionId } = await searchParams;
+export default async function SuccessPage() {
   let activePlan: string | null = null;
   try {
     const supabase = await createClient();
     const { data: auth } = await supabase.auth.getClaims();
     if (auth?.claims?.sub) {
       // The workspace(s) this user belongs to; any paid one means we're done.
-      if (sessionId) {
-        // Activate from the checkout itself rather than waiting for Stripe's webhook.
-        const { data: mine } = await supabase.from("memberships").select("org_id").eq("user_id", auth.claims.sub);
-        await syncCheckoutSession(sessionId, (mine ?? []).map((m) => m.org_id));
-      }
       const { data } = await supabase.from("memberships").select("organizations!inner(plan)").eq("user_id", auth.claims.sub);
       activePlan = (data ?? []).map((m) => (m.organizations as unknown as { plan: string }).plan).find((p) => p === "standard" || p === "pro") ?? null;
     }

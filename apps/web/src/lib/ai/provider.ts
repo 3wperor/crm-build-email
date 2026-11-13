@@ -17,6 +17,7 @@ import { hasProAccess, type Plan } from "@crm/core/billing";
 import { decryptSecret, encryptSecret, keyringFromEnv } from "@crm/core/crypto";
 import { HostNotAllowedError, PinnedRequestError, postJsonPinned } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getBillingStatus } from "@/lib/billing";
 
 /**
  * One way to call AI for the whole app.
@@ -204,8 +205,10 @@ async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutM
   }
   const url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   // DeepSeek thinks by default: slower, pricier, and it can use up the output budget
-  // on short tasks. Turn it off there only (other providers reject the parameter).
-  const deepseek = config.source === "included" || /(^|\.)deepseek\.com$/i.test(base.hostname);
+  // on short tasks. Turn it off, in the way each service expects (others reject the parameter):
+  // DeepSeek's own API takes `thinking`, OpenRouter takes `reasoning`.
+  const openrouter = /(^|\.)openrouter\.ai$/i.test(base.hostname);
+  const deepseek = !openrouter && (config.source === "included" || /(^|\.)deepseek\.com$/i.test(base.hostname));
   const { status, body } = await postChat(
     config,
     url,
@@ -219,6 +222,7 @@ async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutM
       temperature: prompt.temperature,
       stream: false,
       ...(deepseek ? { thinking: { type: "disabled" } } : {}),
+      ...(openrouter ? { reasoning: { enabled: false } } : {}),
       ...(prompt.json ? { response_format: { type: "json_object" } } : {}),
     }),
     timeoutMs,
@@ -324,9 +328,26 @@ export async function runAi(orgId: string, kind: AiKind, prompt: AiPrompt, opts:
   }
 }
 
-/** For the UI: "on" = AI ready, "upgrade" = plan without AI (Standard / ended trial), "off" = not set up on the server. */
+/**
+ * For the UI: "on" = AI ready, "upgrade" = plan without AI (Standard / ended trial),
+ * "off" = the plan includes AI but it isn't usable on this site right now (no AI key
+ * on the server, or the workspace's AI settings couldn't be read).
+ *
+ * A setup problem must never be shown as "Upgrade to Pro": if the settings can't be
+ * read, the plan is taken from the same source as the header badge instead.
+ */
 export const aiModeFor = cache(async (orgId: string): Promise<"on" | "upgrade" | "off"> => {
-  const { data } = await createAdminClient().from("organizations").select("plan, trial_ends_at, ai_provider").eq("id", orgId).maybeSingle();
-  if (!data || !hasProAccess({ plan: data.plan as Plan, trial_ends_at: data.trial_ends_at })) return "upgrade";
-  return (await aiAvailableFor(data)) ? "on" : "off";
+  const { data, error } = await createAdminClient().from("organizations").select("plan, trial_ends_at, ai_provider").eq("id", orgId).maybeSingle();
+  if (data) {
+    if (!hasProAccess({ plan: data.plan as Plan, trial_ends_at: data.trial_ends_at })) return "upgrade";
+    return (await aiAvailableFor(data)) ? "on" : "off";
+  }
+  console.error(`aiModeFor: couldn't read AI settings for workspace ${orgId}: ${error ? `${error.code ?? ""} ${error.message}` : "no row returned"}`);
+  try {
+    const status = await getBillingStatus(orgId);
+    if (!hasProAccess({ plan: status.plan as Plan, trial_ends_at: status.trial_ends_at as string })) return "upgrade";
+  } catch (e) {
+    console.error("aiModeFor: couldn't read the plan either:", e instanceof Error ? e.message : e);
+  }
+  return "off";
 });

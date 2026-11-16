@@ -42,7 +42,7 @@ export function SequenceEditor(props: Props) {
   const firstSubject = props.steps[0]?.variants[0]?.subject ?? "";
   return (
     <div className="grid gap-4">
-      {props.canEdit && props.ai && props.ai !== "off" && (
+      {props.canEdit && props.ai && (
         <WriteWithAi campaignId={props.campaignId} ai={props.ai} defaults={props.aiDefaults} locked={props.structureLocked} hasContent={props.steps.some((s) => s.variants.some((v) => v.body.trim()))} />
       )}
       <details className="group text-sm">
@@ -98,7 +98,7 @@ function WriteWithAi({
   defaults,
 }: {
   campaignId: string;
-  ai: "on" | "upgrade";
+  ai: "on" | "upgrade" | "off";
   locked: boolean;
   hasContent: boolean;
   defaults?: { offer: string; audience: string };
@@ -106,6 +106,24 @@ function WriteWithAi({
   const guard = useConfirmSubmit();
   const [state, action, pending] = useActionState(writeSequenceWithAi, undefined);
   const [open, setOpen] = useState(!hasContent);
+  if (ai === "off") {
+    // On a plan with AI, but AI can't run on this site right now. Say so plainly; never suggest upgrading.
+    return (
+      <Card className="py-0" data-testid="ai-unavailable">
+        <CardContent className="flex flex-wrap items-center gap-x-2 gap-y-1 py-4 text-sm">
+          <Sparkles className="text-muted-foreground size-4" />
+          <span>
+            <span className="font-medium">Write with AI isn&apos;t available right now.</span>{" "}
+            <span className="text-muted-foreground">Your plan includes it. You can use it straight away by adding your own AI key in</span>{" "}
+            <Link href="/settings/ai" className="underline underline-offset-4">
+              Settings → AI
+            </Link>
+            <span className="text-muted-foreground">.</span>
+          </span>
+        </CardContent>
+      </Card>
+    );
+  }
   if (ai === "upgrade") {
     return (
       <Card className="bg-accent/40 py-0">

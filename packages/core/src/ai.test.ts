@@ -48,6 +48,14 @@ describe("pricing", () => {
     expect(aiCostMicros("mystery-model", { inputTokens: 1000, outputTokens: 1000 }, MON_OFF)).toBeGreaterThan(flash);
   });
 
+  it("prices router-style model ids by their model name", () => {
+    const usage = { inputTokens: 1_000_000, outputTokens: 1_000_000 };
+    expect(aiCostMicros("deepseek/deepseek-v4-flash", usage, MON_OFF)).toBe(aiCostMicros("deepseek-v4-flash", usage, MON_OFF));
+    expect(aiCostMicros("deepseek/deepseek-v4-flash:batch", usage, MON_OFF)).toBe(aiCostMicros("deepseek-v4-flash", usage, MON_OFF));
+    // Still cautious about anything it doesn't know.
+    expect(aiCostMicros("someone/unknown-model", usage, MON_OFF)).toBe(aiCostMicros("deepseek-v4-pro", usage, MON_OFF));
+  });
+
   it("reserves a worst-case estimate (peak, full output)", () => {
     const est = estimateCostMicros("deepseek-flash", 3000, 600);
     expect(est).toBe(Math.ceil(1000 * 0.3 + 600 * 1.2));

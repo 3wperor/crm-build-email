@@ -12,7 +12,6 @@ export const PLAN_FEATURES: { label: string; standard: boolean; soon?: boolean }
   { label: "HubSpot sync", standard: true },
   { label: "AI writes your campaign emails", standard: false },
   { label: "AI sorts replies and drafts answers you send in one click", standard: false },
-  { label: "Use your own Claude or OpenAI key for a stronger model", standard: false },
   { label: "Connect Claude (MCP) to run YCAReach from chat", standard: false },
 ];
 

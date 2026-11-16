@@ -242,10 +242,6 @@ const SECTIONS: Section[] = [
           </li>
         </ul>
         <p>
-          <strong>Want a stronger model?</strong> In Settings → AI, paste your own Claude (Anthropic) or OpenAI-compatible API key. We test it, store it
-          encrypted, and use it for all AI in your workspace. Your provider bills you directly.
-        </p>
-        <p>
           <strong>Control YCAReach from Claude</strong>: in Settings → Connect Claude, create an API key and connect Claude Desktop or Claude Code. Then just
           ask: &ldquo;show me replies that need an answer&rdquo;, &ldquo;write a campaign for dentists in Leeds&rdquo;. Anything that sends email waits for
           your approval.
@@ -309,7 +305,7 @@ const SECTIONS: Section[] = [
             <strong>Standard: £20/month</strong> (or £200/year): everything except the AI features.
           </li>
           <li>
-            <strong>Pro: £25/month</strong> (or £250/year): everything, plus AI that writes emails and drafts replies, your own AI key, and Claude
+            <strong>Pro: £25/month</strong> (or £250/year): everything, plus AI that writes emails and drafts replies, and Claude
             (MCP).
           </li>
         </ul>

@@ -117,8 +117,7 @@ const sections: LegalSection[] = [
     body: (
       <p>
         AI-written emails and reply drafts can be wrong or unsuitable. Read them before you send them: you&apos;re responsible for what you send. Included
-        AI is provided as part of Pro and the trial on a fair-use basis and may be temporarily unavailable. If you connect your own AI key, your
-        agreement with that provider applies, and you pay them for what you use.
+        AI is provided as part of Pro and the trial on a fair-use basis and may be temporarily unavailable.
       </p>
     ),
   },

@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   aiCostMicros,
-  claudeRequestOptions,
   cleanEmailText,
   estimateCostMicros,
   extractJson,
   findPlaceholders,
   isDeepseekPeak,
-  keyHint,
   monthlyAiCapMicros,
-  ownKeySchema,
   parseClassification,
   parseReplyDraft,
   parseSequence,
@@ -67,9 +64,9 @@ describe("pricing", () => {
 describe("monthly cap", () => {
   const future = new Date(Date.now() + 864e5).toISOString();
   const past = new Date(Date.now() - 864e5).toISOString();
-  it("gives Pro £2.50 and an active trial £0.25 (at a cautious exchange rate)", () => {
-    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past })).toBe(3_125_000);
-    expect(monthlyAiCapMicros({ plan: "trial", trial_ends_at: future })).toBe(312_500);
+  it("gives Pro $5 a month and an active trial $0.50", () => {
+    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past })).toBe(5_000_000);
+    expect(monthlyAiCapMicros({ plan: "trial", trial_ends_at: future })).toBe(500_000);
   });
   it("gives nothing to Standard, expired plans or ended trials", () => {
     expect(monthlyAiCapMicros({ plan: "standard", trial_ends_at: future })).toBe(0);
@@ -77,28 +74,14 @@ describe("monthly cap", () => {
     expect(monthlyAiCapMicros({ plan: "trial", trial_ends_at: past })).toBe(0);
   });
   it("is configurable by env, ignoring junk", () => {
-    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past }, { AI_MONTHLY_CAP_GBP: "5", AI_USD_PER_GBP: "1" })).toBe(5_000_000);
-    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past }, { AI_MONTHLY_CAP_GBP: "lots", AI_USD_PER_GBP: "-2" })).toBe(3_125_000);
+    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past }, { AI_MONTHLY_CAP_USD: "8" })).toBe(8_000_000);
+    expect(monthlyAiCapMicros({ plan: "trial", trial_ends_at: future }, { AI_TRIAL_CAP_USD: "1.25" })).toBe(1_250_000);
+    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past }, { AI_MONTHLY_CAP_USD: "lots" })).toBe(5_000_000);
+    expect(monthlyAiCapMicros({ plan: "pro", trial_ends_at: past }, { AI_MONTHLY_CAP_USD: "-2" })).toBe(5_000_000);
   });
-  it("roughly 1,000+ typical actions fit in the Pro cap", () => {
+  it("thousands of typical actions fit in the Pro cap", () => {
     const perDraft = aiCostMicros("deepseek-flash", { inputTokens: 1500, outputTokens: 300 }, MON_PEAK);
-    expect(Math.floor(3_125_000 / perDraft)).toBeGreaterThan(1000);
-  });
-});
-
-describe("own key settings", () => {
-  it("accepts a Claude key with no model (defaults later)", () => {
-    expect(ownKeySchema.safeParse({ provider: "anthropic", apiKey: "sk-ant-1234567890" }).success).toBe(true);
-  });
-  it("requires model and https address for OpenAI-compatible", () => {
-    expect(ownKeySchema.safeParse({ provider: "openai_compatible", apiKey: "sk-1234567890" }).success).toBe(false);
-    expect(ownKeySchema.safeParse({ provider: "openai_compatible", apiKey: "sk-1234567890", model: "gpt-5-mini", baseUrl: "http://api.openai.com/v1" }).success).toBe(false);
-    expect(ownKeySchema.safeParse({ provider: "openai_compatible", apiKey: "sk-1234567890", model: "gpt-5-mini", baseUrl: "https://u:p@api.openai.com/v1" }).success).toBe(false);
-    expect(ownKeySchema.safeParse({ provider: "openai_compatible", apiKey: "sk-1234567890", model: "gpt-5-mini", baseUrl: "https://api.openai.com/v1" }).success).toBe(true);
-  });
-  it("shows only a short hint of the key", () => {
-    expect(keyHint("sk-ant-api03-abcdefghijklmnop-wxyz")).toBe("sk-…wxyz");
-    expect(keyHint("short")).toBe("…");
+    expect(Math.floor(5_000_000 / perDraft)).toBeGreaterThan(5000);
   });
 });
 
@@ -184,23 +167,5 @@ describe("classification", () => {
   it("parses a label and reason", () => {
     expect(parseClassification('{"classification":"positive","reason":"Asked for a call."}')).toEqual({ classification: "positive", reason: "Asked for a call." });
     expect(parseClassification('{"classification":"maybe"}')).toBeNull();
-  });
-});
-
-describe("Claude request settings", () => {
-  it("gives current models room to think, low effort and the refusal fallback", () => {
-    expect(claudeRequestOptions("claude-opus-5-5")).toEqual({ maxTokens: 16000, effort: "low", fallbacks: true });
-    expect(claudeRequestOptions("claude-sonnet-5-5")).toEqual({ maxTokens: 16000, effort: "low", fallbacks: true });
-    expect(claudeRequestOptions("claude-haiku-5-5")).toEqual({ maxTokens: 16000, effort: "low", fallbacks: false });
-    expect(claudeRequestOptions("claude-fable-5-2").fallbacks).toBe(true);
-  });
-  it("leaves effort off where the model rejects it", () => {
-    expect(claudeRequestOptions("claude-haiku-4-5").effort).toBeNull();
-    expect(claudeRequestOptions("claude-sonnet-4-5").effort).toBeNull();
-    expect(claudeRequestOptions("claude-opus-4-5").effort).toBe("low");
-    expect(claudeRequestOptions("claude-sonnet-4-6").effort).toBe("low");
-  });
-  it("keeps old models within their output limit", () => {
-    expect(claudeRequestOptions("claude-3-5-haiku-latest")).toEqual({ maxTokens: 4096, effort: null, fallbacks: false });
   });
 });

@@ -4,13 +4,12 @@ import { hasProAccess } from "@crm/core/billing";
 import { getOrgContext } from "@/lib/org";
 import { createClient } from "@/lib/supabase/server";
 import { getBillingStatus } from "@/lib/billing";
-import { includedAiConfigured, ownAiKeyHint } from "@/lib/ai/provider";
+import { includedAiConfigured } from "@/lib/ai/provider";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { switchToIncludedAi } from "./actions";
-import { AiTogglesForm, OwnKeyForm } from "./ai-forms";
+import { AiTogglesForm } from "./ai-forms";
 import { AiSetupCheck } from "./setup-check";
 import { isSiteAdmin } from "@/lib/site-admin";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,12 +24,10 @@ export default async function AiSettingsPage() {
   const supabase = await createClient();
   const [billing, { data: settings }] = await Promise.all([
     getBillingStatus(org.id),
-    supabase.from("organizations").select("ai_classification_enabled, ai_drafts_enabled, ai_provider, ai_model, ai_base_url").eq("id", org.id).single(),
+    supabase.from("organizations").select("ai_classification_enabled, ai_drafts_enabled").eq("id", org.id).single(),
   ]);
   const pro = hasProAccess(billing);
   const canEdit = can(role, "org.update");
-  const ownKey = settings && settings.ai_provider !== "included" ? await ownAiKeyHint(org.id) : null;
-  const usingOwn = !!ownKey;
 
   return (
     <>
@@ -56,36 +53,14 @@ export default async function AiSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                Which AI {usingOwn ? <Badge variant="secondary">Your own key</Badge> : <Badge variant="success">Included</Badge>}
+                YCAReach AI <Badge variant={includedAiConfigured() ? "success" : "secondary"}>{includedAiConfigured() ? "Included" : "Not switched on yet"}</Badge>
               </CardTitle>
               <CardDescription>
-                {usingOwn ? (
-                  <>
-                    Using your {settings?.ai_provider === "anthropic" ? "Claude" : "OpenAI-compatible"} key <code>{ownKey}</code>
-                    {settings?.ai_model ? (
-                      <>
-                        {" "}
-                        with <code>{settings.ai_model}</code>
-                      </>
-                    ) : null}
-                    . Usage is billed by your provider.
-                  </>
-                ) : includedAiConfigured() ? (
-                  "YCAReach AI is included with your plan. Nothing to set up."
-                ) : (
-                  "Included AI isn't switched on yet. You can connect your own key below."
-                )}
+                {includedAiConfigured()
+                  ? "AI is included with your plan. Nothing to set up."
+                  : "AI isn't switched on for this site yet. Please check back soon."}
               </CardDescription>
             </CardHeader>
-            {usingOwn && canEdit && (
-              <CardContent>
-                <form action={switchToIncludedAi}>
-                  <Button variant="outline" size="sm">
-                    Remove my key and use the included AI
-                  </Button>
-                </form>
-              </CardContent>
-            )}
           </Card>
 
           <Card>
@@ -98,17 +73,6 @@ export default async function AiSettingsPage() {
                 Writing emails with AI is on every campaign&apos;s Sequence tab (&quot;Write with AI&quot;).
               </p>
             </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Use a better model with your own key</CardTitle>
-              <CardDescription>
-                Optional. Paste an API key from Anthropic (Claude) or any OpenAI-compatible provider. We test it, store it encrypted, and use it for all AI in
-                this workspace.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>{canEdit ? <OwnKeyForm current={settings?.ai_provider ?? "included"} /> : <p className="text-muted-foreground text-sm">Ask an owner or admin to connect a key.</p>}</CardContent>
           </Card>
 
           <Card>

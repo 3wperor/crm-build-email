@@ -30,7 +30,6 @@ Read it with `README.md`, which covers architecture, setup and deploy.
 - **Approved dependencies:**
   - `zod`, `vitest`, `papaparse`, `nodemailer`, `imapflow`, `mailparser`, `inngest`;
   - `disposable-email-domains-js`, which replaced the stale `disposable-email-domains`;
-  - `@anthropic-ai/sdk`, for optional reply classification;
   - `@dnd-kit/core`.
 - **Sending:**
   - Random 3–7 minute gap per inbox.

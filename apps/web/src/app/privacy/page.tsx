@@ -98,8 +98,7 @@ const sections: LegalSection[] = [
           what the task needs.
         </p>
         <p>
-          The AI included with YCAReach is provided by DeepSeek, which processes data in China. If you connect your own AI key (for example Anthropic or
-          OpenAI), that provider is used instead, under your own agreement with them. You can turn AI reply sorting and drafting off in Settings → AI. We
+          The AI in YCAReach is provided by DeepSeek, which processes data in China. You can turn AI reply sorting and drafting off in Settings → AI. We
           don&apos;t use your data to train AI models.
         </p>
       </>
@@ -131,7 +130,7 @@ const sections: LegalSection[] = [
             <strong>Your own email provider</strong> (for example Google): sends your emails and holds the replies we read, using the access you give us.
           </li>
           <li>
-            <strong>Services you choose to connect</strong>, such as HubSpot or your own AI provider, receive the data needed for that connection.
+            <strong>Services you choose to connect</strong>, such as HubSpot, receive the data needed for that connection.
           </li>
         </ul>
         <p>We may also share information if the law requires it, or to protect the rights and safety of our users and others.</p>
@@ -145,8 +144,8 @@ const sections: LegalSection[] = [
       <p>
         Some providers store or process data outside the UK, including in the United States and, for included AI features, China. Where the UK
         doesn&apos;t consider a country&apos;s protection equivalent, we rely on safeguards such as the UK International Data Transfer Agreement or
-        Addendum, and we limit what we send. China is not covered by a UK adequacy decision: if you don&apos;t want data processed there, turn AI off or
-        use your own AI key.
+        Addendum, and we limit what we send. China is not covered by a UK adequacy decision: if you don&apos;t want data processed there, turn AI off in
+        Settings → AI and don&apos;t use Write with AI.
       </p>
     ),
   },

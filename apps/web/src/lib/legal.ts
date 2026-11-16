@@ -4,7 +4,7 @@
  *   LEGAL_ENTITY_NAME    e.g. "Jane Smith trading as YCAReach" or "YCA Ltd (company no. 12345678)"
  *   LEGAL_CONTACT_EMAIL  e.g. hello@yourbrand.com (falls back to SYSTEM_EMAIL_ADDRESS)
  */
-export const LEGAL_LAST_UPDATED = "10 November 2026";
+export const LEGAL_LAST_UPDATED = "16 November 2026";
 
 export function legalEntity(): string {
   return process.env.LEGAL_ENTITY_NAME?.trim() || "YCAReach";

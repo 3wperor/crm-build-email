@@ -2,10 +2,9 @@
  * AI: pricing, the hidden monthly spend cap, prompts and output parsing.
  * Pure: no network. The web app calls the provider and records usage.
  *
- * Included AI is DeepSeek Flash (OpenAI-compatible API), paid by YCAReach and
- * capped per workspace per calendar month. Customers never see the cap; when
- * it's reached AI just says it's unavailable until next month. A workspace
- * that adds its own key (Claude or any OpenAI-compatible provider) has no cap.
+ * All AI runs on DeepSeek V4 Flash (OpenAI-compatible API), paid by YCAReach
+ * and capped per workspace per calendar month. Customers never see the cap;
+ * when it's reached AI just says it's unavailable until next month.
  */
 import { z } from "zod";
 import { BUILTIN_TAGS } from "./templates";
@@ -14,11 +13,7 @@ import { REPLY_CLASSES, type ReplyClass } from "./replies";
 export const AI_KINDS = ["write_sequence", "draft_reply", "classify_reply", "rewrite", "test"] as const;
 export type AiKind = (typeof AI_KINDS)[number];
 
-export const AI_PROVIDERS = ["included", "anthropic", "openai_compatible"] as const;
-export type AiProvider = (typeof AI_PROVIDERS)[number];
-
 export const INCLUDED_AI_DEFAULTS = { baseUrl: "https://api.deepseek.com", model: "deepseek-flash" } as const;
-export const OWN_KEY_DEFAULT_MODELS = { anthropic: "claude-opus-5-5", openai_compatible: "" } as const;
 
 /** Shown whenever AI can't run (cap reached, provider down, no access). Deliberately vague. */
 export const AI_UNAVAILABLE_MESSAGE = "AI is unavailable right now. You can still write this yourself.";
@@ -88,59 +83,26 @@ export function estimateCostMicros(model: string, inputChars: number, maxOutputT
 // Monthly cap
 // ---------------------------------------------------------------------------
 
-export type CapEnv = { AI_MONTHLY_CAP_GBP?: string; AI_TRIAL_CAP_GBP?: string; AI_USD_PER_GBP?: string; [key: string]: string | undefined };
+export type CapEnv = { AI_MONTHLY_CAP_USD?: string; AI_TRIAL_CAP_USD?: string; [key: string]: string | undefined };
 
 const num = (v: string | undefined, fallback: number) => {
   const n = v === undefined || v === "" ? NaN : Number(v);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 };
 
+export const DEFAULT_MONTHLY_CAP_USD = 5;
+export const DEFAULT_TRIAL_CAP_USD = 0.5;
+
 /**
- * Hidden monthly cap for included AI, in USD micros.
- * Pro: £2.50 a month. Active trial: £0.25 (stops free sign-ups from burning
- * credit). Anything else: 0. The exchange rate errs low so the cap holds.
+ * Hidden monthly cap for AI, in USD micros (DeepSeek bills in dollars).
+ * Pro: $5 per workspace per calendar month. Active trial: $0.50, so free
+ * sign-ups can't burn credit. Anything else: 0.
  */
 export function monthlyAiCapMicros(org: { plan: string; trial_ends_at: string }, env: CapEnv = {}, now = new Date()): number {
-  const usdPerGbp = num(env.AI_USD_PER_GBP, 1.25);
-  let gbp = 0;
-  if (org.plan === "pro") gbp = num(env.AI_MONTHLY_CAP_GBP, 2.5);
-  else if (org.plan === "trial" && now < new Date(org.trial_ends_at)) gbp = num(env.AI_TRIAL_CAP_GBP, 0.25);
-  return Math.floor(gbp * usdPerGbp * 1_000_000);
-}
-
-// ---------------------------------------------------------------------------
-// Own-key settings
-// ---------------------------------------------------------------------------
-
-export const ownKeySchema = z
-  .object({
-    provider: z.enum(["anthropic", "openai_compatible"]),
-    apiKey: z.string().trim().min(10, "Paste the whole API key.").max(500),
-    model: z.string().trim().max(100).optional().default(""),
-    baseUrl: z.string().trim().max(300).optional().default(""),
-  })
-  .superRefine((v, ctx) => {
-    if (v.provider === "openai_compatible") {
-      if (!v.model) ctx.addIssue({ code: "custom", path: ["model"], message: "Enter the model name, e.g. gpt-5-mini." });
-      if (!v.baseUrl) ctx.addIssue({ code: "custom", path: ["baseUrl"], message: "Enter the API address, e.g. https://api.openai.com/v1." });
-    }
-    if (v.baseUrl) {
-      let url: URL | null = null;
-      try {
-        url = new URL(v.baseUrl);
-      } catch {
-        /* handled below */
-      }
-      if (!url || url.protocol !== "https:" || url.username || url.password) {
-        ctx.addIssue({ code: "custom", path: ["baseUrl"], message: "The API address must start with https://." });
-      }
-    }
-  });
-
-/** "sk-…abcd" style hint; never more than the last 4 characters. */
-export function keyHint(key: string): string {
-  const k = key.trim();
-  return k.length <= 8 ? "…" : `${k.slice(0, 3)}…${k.slice(-4)}`;
+  let usd = 0;
+  if (org.plan === "pro") usd = num(env.AI_MONTHLY_CAP_USD, DEFAULT_MONTHLY_CAP_USD);
+  else if (org.plan === "trial" && now < new Date(org.trial_ends_at)) usd = num(env.AI_TRIAL_CAP_USD, DEFAULT_TRIAL_CAP_USD);
+  return Math.floor(usd * 1_000_000);
 }
 
 // ---------------------------------------------------------------------------
@@ -321,29 +283,4 @@ const classifyOutSchema = z.object({ classification: z.enum(REPLY_CLASSES), reas
 export function parseClassification(text: string): { classification: ReplyClass; reason: string } | null {
   const parsed = classifyOutSchema.safeParse(extractJson(text));
   return parsed.success ? { classification: parsed.data.classification, reason: parsed.data.reason.slice(0, 300) } : null;
-}
-
-// ---------------------------------------------------------------------------
-// Claude (own key): per-model request settings
-// ---------------------------------------------------------------------------
-
-/**
- * Newer Claude models always think before answering, so a small `max_tokens`
- * can be used up by thinking and leave no reply. We give room (billing is per
- * token actually used), keep thinking short with effort "low" where the model
- * supports effort, and opt into Anthropic's server-side refusal fallback on the
- * models that offer it.
- */
-export type ClaudeRequestOptions = { maxTokens: number; effort: "low" | null; fallbacks: boolean };
-
-const EFFORT_MODELS = /^claude-(fable|mythos)-|^claude-opus-(5|4-[5-9])|^claude-sonnet-(5|4-[6-9])|^claude-haiku-5/;
-const FALLBACK_MODELS = new Set(["claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
-
-export function claudeRequestOptions(model: string): ClaudeRequestOptions {
-  const m = model.trim().toLowerCase();
-  return {
-    maxTokens: /^claude-(3|instant|2)/.test(m) ? 4096 : 16000,
-    effort: EFFORT_MODELS.test(m) ? "low" : null,
-    fallbacks: FALLBACK_MODELS.has(m),
-  };
 }

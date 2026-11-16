@@ -114,11 +114,7 @@ function WriteWithAi({
           <Sparkles className="text-muted-foreground size-4" />
           <span>
             <span className="font-medium">Write with AI isn&apos;t available right now.</span>{" "}
-            <span className="text-muted-foreground">Your plan includes it. You can use it straight away by adding your own AI key in</span>{" "}
-            <Link href="/settings/ai" className="underline underline-offset-4">
-              Settings → AI
-            </Link>
-            <span className="text-muted-foreground">.</span>
+            <span className="text-muted-foreground">Your plan includes it; please try again a little later. You can still write the emails yourself below.</span>
           </span>
         </CardContent>
       </Card>

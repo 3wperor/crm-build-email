@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { saveAiToggles, saveOwnAiKey } from "./actions";
+import { saveAiToggles } from "./actions";
 import { ActionToast } from "@/components/ui/toast";
 import { Switch } from "@/components/ui/switch";
 
@@ -37,48 +37,6 @@ export function AiTogglesForm({ classify, drafts, disabled }: { classify: boolea
           {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
         </div>
       )}
-    </form>
-  );
-}
-
-export function OwnKeyForm({ current }: { current: string }) {
-  const [state, action, pending] = useActionState(saveOwnAiKey, undefined);
-  const [provider, setProvider] = useState(current === "openai_compatible" ? "openai_compatible" : "anthropic");
-  return (
-    <form action={action} className="grid max-w-xl gap-3">
-      <div className="flex gap-4 text-sm">
-        <label className="flex items-center gap-2">
-          <input type="radio" name="provider" value="anthropic" checked={provider === "anthropic"} onChange={() => setProvider("anthropic")} /> Claude (Anthropic)
-        </label>
-        <label className="flex items-center gap-2">
-          <input type="radio" name="provider" value="openai_compatible" checked={provider === "openai_compatible"} onChange={() => setProvider("openai_compatible")} />{" "}
-          OpenAI-compatible
-        </label>
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="api_key">API key</Label>
-        <Input id="api_key" name="api_key" type="password" autoComplete="off" required placeholder={provider === "anthropic" ? "sk-ant-…" : "sk-…"} />
-        {provider === "anthropic" && (
-          <p className="text-muted-foreground text-xs">
-            Get one at console.anthropic.com → API keys. You pay Anthropic directly for what you use.
-          </p>
-        )}
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="model">Model{provider === "anthropic" ? " (optional)" : ""}</Label>
-        <Input id="model" name="model" maxLength={100} placeholder={provider === "anthropic" ? "claude-opus-5-5 (default)" : "e.g. gpt-5-mini"} required={provider !== "anthropic"} />
-      </div>
-      {provider === "openai_compatible" && (
-        <div className="grid gap-1.5">
-          <Label htmlFor="base_url">API address</Label>
-          <Input id="base_url" name="base_url" type="url" required maxLength={300} placeholder="https://api.openai.com/v1" />
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button loading={pending} disabled={pending}>Test and connect</Button>
-        <ActionToast state={state} message={state?.message} />
-        {state?.error && <span className="text-destructive text-sm">{state.error}</span>}
-      </div>
     </form>
   );
 }

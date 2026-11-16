@@ -421,7 +421,7 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 - The rule lives in one place, `private.send_block_reason`. It is enforced in `reserve_send_slot` and `reserve_warmup_slot` (atomically, at the moment of sending), by the planners, by test emails, and by "Start campaign".
 
 **What Pro adds:**
-- AI: writing sequences, sorting replies, drafting answers, the workspace's own AI key (see **AI**).
+- AI: writing sequences, sorting replies, drafting answers (see **AI**).
 - The AI agent (MCP).
 
 **Stripe, with no SDK:**
@@ -458,27 +458,23 @@ YCAReach stays the source of truth. `CrmAdapter` (in `packages/core/src/crm.ts`)
 Pro workspaces and active trials get AI. Standard does not.
 
 **Which model:**
-- **Included:** DeepSeek Flash (`deepseek-flash`) through its OpenAI-compatible API, with our `DEEPSEEK_API_KEY`. No SDK, just `fetch` (`apps/web/src/lib/ai/provider.ts`).
+- **DeepSeek V4 Flash only** (`deepseek-flash`, DeepSeek's current name for the V4 Flash model; the older `deepseek-v4-flash` name is still accepted) through its OpenAI-compatible API, with our `DEEPSEEK_API_KEY`. No SDK, just `fetch` (`apps/web/src/lib/ai/provider.ts`). There is no option for customers to add their own AI key (removed in migration 0021, which also deletes any stored keys).
 - **Through OpenRouter:** set `AI_API_KEY` (an OpenRouter key), `AI_BASE_URL=https://openrouter.ai/api/v1` and `AI_MODEL=deepseek/deepseek-v4-flash`, and leave `DEEPSEEK_API_KEY` empty. Costs are still counted against the hidden monthly cap using DeepSeek Flash prices.
-- **Own key (optional):** Settings → AI. Claude (Anthropic, via `@anthropic-ai/sdk`, default `claude-opus-5-5`) or any OpenAI-compatible endpoint (https only; private addresses refused). The key is tested with a tiny call, then stored AES-GCM-encrypted in `ai_credentials` with the org id as AAD. Own-key usage has no cap.
 
-**Hidden monthly cap (included AI only):**
-- £2.50 per workspace per calendar month on Pro, £0.25 on a trial (`AI_MONTHLY_CAP_GBP`, `AI_TRIAL_CAP_GBP`, converted at the cautious `AI_USD_PER_GBP`, default 1.25).
+**Hidden monthly cap:**
+- $5 per workspace per calendar month on Pro, $0.50 on an active trial (`AI_MONTHLY_CAP_USD`, `AI_TRIAL_CAP_USD`). DeepSeek bills in dollars, so the cap is in dollars too.
 - Before each call, `reserve_ai_budget` (service role only) reserves a worst-case cost (peak prices, full output) under a per-org advisory lock, so parallel calls can't overshoot. `finish_ai_usage` then records the real tokens and cost. A timeout keeps the reserved amount.
-- `ai_usage` has no client grants: customers never see spend. At the cap AI just says "AI is unavailable right now" until the 1st. A typical action costs a fraction of a penny, so £2.50 covers well over 1,000.
+- `ai_usage` has no client grants: customers never see spend. At the cap AI just says "AI is unavailable right now" until the 1st. A typical action costs a fraction of a cent, so $5 covers several thousand.
 - To see spend: `select org_id, sum(cost_usd_micros)/1e6 as usd from ai_usage where created_at >= date_trunc('month', now()) group by 1;`
 
 **Diagnosing AI:** set `SITE_ADMIN_EMAILS` to your login email. Settings → AI then shows **Check AI setup** (site admins only). It checks:
 - whether migration 0017 is installed
-- the included key on the server
+- the DeepSeek key on the server
 - a live call, showing the provider's real error (e.g. DeepSeek "402 Insufficient Balance")
 - the workspace's plan
-- its own key, if it has one
 - this month's spend against the hidden allowance
 
 Customers keep seeing only the neutral message.
-
-**Claude (own key):** current models always think first, so requests use `max_tokens` 16000 (billed per token used), `output_config.effort: "low"` where the model supports effort, and Anthropic's server-side refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) on the models that offer it (`claudeRequestOptions`).
 
 **Features:**
 - **Write with AI** (campaign → Sequence): a short brief → the first email plus follow-ups, as JSON, validated (`parseSequence`): only built-in merge tags survive, follow-ups get an empty subject so they thread.

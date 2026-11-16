@@ -4,7 +4,7 @@ import { monthlyAiCapMicros } from "@crm/core/ai";
 import { hasProAccess, type Plan } from "@crm/core/billing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchema } from "@/lib/errors";
-import { AI_MIGRATION_MISSING, callAi, includedConfig, loadOwnKey, ownKeyConfig, type AiConfig } from "./provider";
+import { AI_MIGRATION_MISSING, callAi, includedConfig, type AiConfig } from "./provider";
 
 export type AiCheck = { label: string; status: "ok" | "warn" | "fail"; detail: string };
 
@@ -32,7 +32,7 @@ export async function runAiDiagnostics(orgId: string): Promise<AiCheck[]> {
   // 1. Database: the tables, columns and functions added by migration 0017.
   const [usage, org, fn] = await Promise.all([
     admin.from("ai_usage").select("id", { count: "exact", head: true }).limit(1),
-    admin.from("organizations").select("plan, trial_ends_at, ai_provider, ai_model, ai_base_url").eq("id", orgId).maybeSingle(),
+    admin.from("organizations").select("plan, trial_ends_at").eq("id", orgId).maybeSingle(),
     // Updates nothing (random id): only proves the function exists.
     admin.rpc("finish_ai_usage", { p_id: randomUUID(), p_status: "done", p_input_tokens: 0, p_output_tokens: 0, p_cost_micros: 0 }),
   ]);
@@ -52,9 +52,9 @@ export async function runAiDiagnostics(orgId: string): Promise<AiCheck[]> {
   const keyName = process.env.DEEPSEEK_API_KEY ? "DEEPSEEK_API_KEY" : process.env.AI_API_KEY ? "AI_API_KEY" : null;
   checks.push(
     included
-      ? { label: "Included AI key on the server", status: "ok", detail: `${keyName} is set. Model "${included.model}" at ${included.baseUrl}.` }
+      ? { label: "DeepSeek key on the server", status: "ok", detail: `${keyName} is set. Model "${included.model}" at ${included.baseUrl}.` }
       : {
-          label: "Included AI key on the server",
+          label: "DeepSeek key on the server",
           status: "fail",
           detail:
             "No DEEPSEEK_API_KEY (or AI_API_KEY) on this deployment. Add it in Vercel → Settings → Environment Variables (tick Production), then redeploy.",
@@ -66,8 +66,8 @@ export async function runAiDiagnostics(orgId: string): Promise<AiCheck[]> {
     const r = await ping(included);
     checks.push(
       r.ok
-        ? { label: "Included AI answers", status: "ok", detail: `Answered in ${(r.ms / 1000).toFixed(1)}s.` }
-        : { label: "Included AI answers", status: "fail", detail: `${r.error} Check the key, and that the account has credit (DeepSeek is pay-before-use).` },
+        ? { label: "DeepSeek answers", status: "ok", detail: `Answered in ${(r.ms / 1000).toFixed(1)}s.` }
+        : { label: "DeepSeek answers", status: "fail", detail: `${r.error} Check the key, and that the account has credit (DeepSeek is pay-before-use).` },
     );
   }
 
@@ -81,24 +81,6 @@ export async function runAiDiagnostics(orgId: string): Promise<AiCheck[]> {
       detail: pro ? `Plan "${row.plan}": AI is included.` : `Plan "${row.plan}" has no AI (only Pro and active trials do).`,
     });
 
-    if (row.ai_provider === "anthropic" || row.ai_provider === "openai_compatible") {
-      const key = await loadOwnKey(orgId);
-      if (!key) {
-        checks.push({
-          label: "Workspace's own key",
-          status: "warn",
-          detail: "Set to use its own key, but none is saved (or it can't be decrypted), so the included AI is used instead.",
-        });
-      } else {
-        const r = await ping(ownKeyConfig(row.ai_provider, key, row.ai_model, row.ai_base_url));
-        checks.push(
-          r.ok
-            ? { label: "Workspace's own key", status: "ok", detail: `The ${row.ai_provider === "anthropic" ? "Claude" : "OpenAI-compatible"} key answers (${row.ai_model ?? "default model"}).` }
-            : { label: "Workspace's own key", status: "fail", detail: r.error },
-        );
-      }
-    }
-
     if (!dbProblem) {
       const now = new Date();
       const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
@@ -108,11 +90,11 @@ export async function runAiDiagnostics(orgId: string): Promise<AiCheck[]> {
       const failed = (rows ?? []).filter((r) => r.status === "failed").length;
       const usedUp = cap > 0 && spent >= cap;
       checks.push({
-        label: "Included AI this month",
+        label: "AI spend this month",
         status: usedUp ? "fail" : "ok",
         detail:
           `$${(spent / 1e6).toFixed(4)} of the hidden $${(cap / 1e6).toFixed(2)} allowance used across ${rows?.length ?? 0} calls` +
-          `${failed ? ` (${failed} failed)` : ""}.${usedUp ? " The allowance is used up, so included AI stays off until the 1st." : ""}`,
+          `${failed ? ` (${failed} failed)` : ""}.${usedUp ? " The allowance is used up, so AI stays off until the 1st." : ""}`,
       });
     }
   }

@@ -31,6 +31,8 @@ import { StatusBadge } from "@/components/status-badge";
 import { formatNumber } from "@/lib/format";
 
 export const metadata = { title: "Campaign" };
+// AI actions on this page can take up to ~50s; Vercel stops a request at its time limit.
+export const maxDuration = 60;
 
 const TABS = ["sequence", "results", "leads", "settings", "activity"] as const;
 type Tab = (typeof TABS)[number];

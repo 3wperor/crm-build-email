@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   aiCostMicros,
+  claudeRequestOptions,
   cleanEmailText,
   estimateCostMicros,
   extractJson,
@@ -183,5 +184,23 @@ describe("classification", () => {
   it("parses a label and reason", () => {
     expect(parseClassification('{"classification":"positive","reason":"Asked for a call."}')).toEqual({ classification: "positive", reason: "Asked for a call." });
     expect(parseClassification('{"classification":"maybe"}')).toBeNull();
+  });
+});
+
+describe("Claude request settings", () => {
+  it("gives current models room to think, low effort and the refusal fallback", () => {
+    expect(claudeRequestOptions("claude-opus-5-5")).toEqual({ maxTokens: 16000, effort: "low", fallbacks: true });
+    expect(claudeRequestOptions("claude-sonnet-5-5")).toEqual({ maxTokens: 16000, effort: "low", fallbacks: true });
+    expect(claudeRequestOptions("claude-haiku-5-5")).toEqual({ maxTokens: 16000, effort: "low", fallbacks: false });
+    expect(claudeRequestOptions("claude-fable-5-2").fallbacks).toBe(true);
+  });
+  it("leaves effort off where the model rejects it", () => {
+    expect(claudeRequestOptions("claude-haiku-4-5").effort).toBeNull();
+    expect(claudeRequestOptions("claude-sonnet-4-5").effort).toBeNull();
+    expect(claudeRequestOptions("claude-opus-4-5").effort).toBe("low");
+    expect(claudeRequestOptions("claude-sonnet-4-6").effort).toBe("low");
+  });
+  it("keeps old models within their output limit", () => {
+    expect(claudeRequestOptions("claude-3-5-haiku-latest")).toEqual({ maxTokens: 4096, effort: null, fallbacks: false });
   });
 });

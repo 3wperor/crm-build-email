@@ -19,6 +19,8 @@ const needsAnswer = (r: { classification: string | null; handled_at: string | nu
   !r.handled_at && (NEEDS_REPLY_CLASSES as readonly string[]).includes(r.classification ?? "");
 
 export const metadata = { title: "Replies" };
+// AI actions on this page can take up to ~50s; Vercel stops a request at its time limit.
+export const maxDuration = 60;
 
 const PAGE_SIZE = 50;
 

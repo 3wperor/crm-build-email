@@ -468,6 +468,18 @@ Pro workspaces and active trials get AI. Standard does not.
 - `ai_usage` has no client grants: customers never see spend. At the cap AI just says "AI is unavailable right now" until the 1st. A typical action costs a fraction of a penny, so £2.50 covers well over 1,000.
 - To see spend: `select org_id, sum(cost_usd_micros)/1e6 as usd from ai_usage where created_at >= date_trunc('month', now()) group by 1;`
 
+**Diagnosing AI:** set `SITE_ADMIN_EMAILS` to your login email. Settings → AI then shows **Check AI setup** (site admins only). It checks:
+- whether migration 0017 is installed
+- the included key on the server
+- a live call, showing the provider's real error (e.g. DeepSeek "402 Insufficient Balance")
+- the workspace's plan
+- its own key, if it has one
+- this month's spend against the hidden allowance
+
+Customers keep seeing only the neutral message.
+
+**Claude (own key):** current models always think first, so requests use `max_tokens` 16000 (billed per token used), `output_config.effort: "low"` where the model supports effort, and Anthropic's server-side refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) on the models that offer it (`claudeRequestOptions`).
+
 **Features:**
 - **Write with AI** (campaign → Sequence): a short brief → the first email plus follow-ups, as JSON, validated (`parseSequence`): only built-in merge tags survive, follow-ups get an empty subject so they thread.
 - **Reply drafts:** a positive or neutral reply gets `draft_status = 'pending'` during sync and an `ai/reply-draft.requested` event. The `reply-draft` function writes the draft from the original email, earlier messages and the reply (treated as untrusted data). The reply page shows it: **Send**, edit, **Write my own**, or **Redo with AI** with a note. Placeholders like `[calendar link]` trigger a warning before sending.

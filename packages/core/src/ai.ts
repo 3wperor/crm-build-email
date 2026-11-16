@@ -322,3 +322,28 @@ export function parseClassification(text: string): { classification: ReplyClass;
   const parsed = classifyOutSchema.safeParse(extractJson(text));
   return parsed.success ? { classification: parsed.data.classification, reason: parsed.data.reason.slice(0, 300) } : null;
 }
+
+// ---------------------------------------------------------------------------
+// Claude (own key): per-model request settings
+// ---------------------------------------------------------------------------
+
+/**
+ * Newer Claude models always think before answering, so a small `max_tokens`
+ * can be used up by thinking and leave no reply. We give room (billing is per
+ * token actually used), keep thinking short with effort "low" where the model
+ * supports effort, and opt into Anthropic's server-side refusal fallback on the
+ * models that offer it.
+ */
+export type ClaudeRequestOptions = { maxTokens: number; effort: "low" | null; fallbacks: boolean };
+
+const EFFORT_MODELS = /^claude-(fable|mythos)-|^claude-opus-(5|4-[5-9])|^claude-sonnet-(5|4-[6-9])|^claude-haiku-5/;
+const FALLBACK_MODELS = new Set(["claude-fable-5-2", "claude-fable-5-1", "claude-opus-5-5", "claude-opus-5", "claude-sonnet-5-5"]);
+
+export function claudeRequestOptions(model: string): ClaudeRequestOptions {
+  const m = model.trim().toLowerCase();
+  return {
+    maxTokens: /^claude-(3|instant|2)/.test(m) ? 4096 : 16000,
+    effort: EFFORT_MODELS.test(m) ? "low" : null,
+    fallbacks: FALLBACK_MODELS.has(m),
+  };
+}

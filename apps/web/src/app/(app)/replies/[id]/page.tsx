@@ -13,6 +13,8 @@ import { Breadcrumbs } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 
 export const metadata = { title: "Reply" };
+// AI actions on this page can take up to ~50s; Vercel stops a request at its time limit.
+export const maxDuration = 60;
 
 export default async function ReplyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

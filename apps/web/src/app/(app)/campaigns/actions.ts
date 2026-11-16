@@ -396,7 +396,7 @@ export async function writeSequenceWithAi(_prev: WriteWithAiState, formData: For
     .eq("campaign_id", campaignId)
     .limit(1)
     .maybeSingle();
-  const res = await runAi(ctx.org.id, "write_sequence", sequencePrompt(brief.data, { name: inbox?.sending_accounts?.display_name ?? null }), { timeoutMs: 90_000 });
+  const res = await runAi(ctx.org.id, "write_sequence", sequencePrompt(brief.data, { name: inbox?.sending_accounts?.display_name ?? null }), { timeoutMs: 50_000 });
   if (!res.ok) return { error: res.error };
   const emails = parseSequence(res.text, brief.data.steps);
   if (!emails) return { error: "The AI's answer didn't come out right. Please try again." };

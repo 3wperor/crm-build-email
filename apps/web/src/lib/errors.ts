@@ -43,3 +43,10 @@ export function friendlyError(error: AnyError, fallback: string = GENERIC): stri
   if (!known) console.error("[action error]", code || "(no code)", error.message, error.details ?? "");
   return known ?? fallback;
 }
+
+/** PostgREST / Postgres codes meaning a table, column or function doesn't exist: a migration wasn't run. */
+const MISSING_SCHEMA = new Set(["PGRST202", "PGRST204", "PGRST205", "42P01", "42703", "42883"]);
+
+export function isMissingSchema(error: AnyError): boolean {
+  return !!error && MISSING_SCHEMA.has(error.code ?? "");
+}

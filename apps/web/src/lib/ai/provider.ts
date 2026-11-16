@@ -6,6 +6,7 @@ import {
   INCLUDED_AI_DEFAULTS,
   OWN_KEY_DEFAULT_MODELS,
   aiCostMicros,
+  claudeRequestOptions,
   estimateCostMicros,
   monthlyAiCapMicros,
   type AiKind,
@@ -18,6 +19,7 @@ import { decryptSecret, encryptSecret, keyringFromEnv } from "@crm/core/crypto";
 import { HostNotAllowedError, PinnedRequestError, postJsonPinned } from "@crm/mail";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBillingStatus } from "@/lib/billing";
+import { isMissingSchema } from "@/lib/errors";
 
 /**
  * One way to call AI for the whole app.
@@ -52,7 +54,7 @@ export function includedAiConfigured(): boolean {
   return !!(process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY);
 }
 
-function includedConfig(): AiConfig | null {
+export function includedConfig(): AiConfig | null {
   const apiKey = process.env.DEEPSEEK_API_KEY || process.env.AI_API_KEY;
   if (!apiKey) return null;
   return {
@@ -69,12 +71,26 @@ function includedConfig(): AiConfig | null {
 // Own key storage (AES-GCM, AAD = org id)
 // ---------------------------------------------------------------------------
 
-export async function storeOwnAiKey(orgId: string, apiKey: string, hint: string) {
-  const { ciphertext, keyVersion } = encryptSecret(apiKey, orgId, keyring());
+/** The message shown when the AI tables/functions (migration 0017) aren't in the database. */
+export const AI_MIGRATION_MISSING =
+  "The AI database update isn't installed yet. In Supabase, open SQL Editor and run supabase/migrations/20260928000017_ai.sql, then try again.";
+
+export async function storeOwnAiKey(orgId: string, apiKey: string, hint: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  let encrypted: { ciphertext: string; keyVersion: number };
+  try {
+    encrypted = encryptSecret(apiKey, orgId, keyring());
+  } catch (e) {
+    console.error("storeOwnAiKey: encryption failed:", e instanceof Error ? e.message : e);
+    return { ok: false, error: "The key couldn't be encrypted: CREDENTIALS_ENCRYPTION_KEY isn't set correctly on the server." };
+  }
   const { error } = await createAdminClient()
     .from("ai_credentials")
-    .upsert({ org_id: orgId, ciphertext, key_version: keyVersion, key_hint: hint, updated_at: new Date().toISOString() });
-  if (error) throw new Error(`Failed to store the key: ${error.message}`);
+    .upsert({ org_id: orgId, ciphertext: encrypted.ciphertext, key_version: encrypted.keyVersion, key_hint: hint, updated_at: new Date().toISOString() });
+  if (error) {
+    console.error("storeOwnAiKey failed:", error.code, error.message);
+    return { ok: false, error: isMissingSchema(error) ? AI_MIGRATION_MISSING : "The key couldn't be saved. Please try again." };
+  }
+  return { ok: true };
 }
 
 export async function deleteOwnAiKey(orgId: string) {
@@ -86,7 +102,7 @@ export async function ownAiKeyHint(orgId: string): Promise<string | null> {
   return data ? (data.key_hint ?? "saved") : null;
 }
 
-async function loadOwnKey(orgId: string): Promise<string | null> {
+export async function loadOwnKey(orgId: string): Promise<string | null> {
   const { data } = await createAdminClient().from("ai_credentials").select("ciphertext").eq("org_id", orgId).maybeSingle();
   if (!data) return null;
   try {
@@ -242,15 +258,29 @@ async function callOpenAiCompatible(config: AiConfig, prompt: AiPrompt, timeoutM
   return { text, usage };
 }
 
+/** The useful part of an Anthropic error body, e.g. "Your credit balance is too low…". */
+function anthropicDetail(e: InstanceType<typeof Anthropic.APIError>): string {
+  const body = e.error as { error?: { message?: unknown } } | undefined;
+  const message = typeof body?.error?.message === "string" ? body.error.message : "";
+  return message ? `: ${message.slice(0, 200)}` : "";
+}
+
 async function callAnthropic(config: AiConfig, prompt: AiPrompt, timeoutMs: number): Promise<CallOutput> {
-  const client = new Anthropic({ apiKey: config.apiKey, maxRetries: 1 });
+  // No automatic retry: a retried call could outlast the page's time limit.
+  const client = new Anthropic({ apiKey: config.apiKey, maxRetries: 0 });
+  // Current Claude models always think first; a small max_tokens can be spent
+  // entirely on thinking. Give room (billed per token used) and keep effort low.
+  const opts = claudeRequestOptions(config.model);
   try {
-    const response = await client.messages.create(
+    const response = await client.beta.messages.create(
       {
         model: config.model,
-        max_tokens: prompt.maxTokens,
+        max_tokens: opts.maxTokens,
         system: prompt.system,
         messages: [{ role: "user", content: prompt.user }],
+        ...(opts.effort ? { output_config: { effort: opts.effort } } : {}),
+        // On a safety decline, Anthropic re-runs the request on a fallback model it picks.
+        ...(opts.fallbacks ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const } : {}),
       },
       { timeout: timeoutMs },
     );
@@ -261,14 +291,21 @@ async function callAnthropic(config: AiConfig, prompt: AiPrompt, timeoutMs: numb
     };
     if (response.stop_reason === "refusal") throw Object.assign(new AiCallError("Claude declined to write this."), { usage });
     const text = response.content.map((b) => (b.type === "text" ? b.text : "")).join("");
-    if (!text.trim()) throw Object.assign(new AiCallError("Claude returned an empty answer."), { usage });
+    if (!text.trim()) {
+      const why = response.stop_reason === "max_tokens" ? " (it ran out of room)" : "";
+      throw Object.assign(new AiCallError(`Claude returned an empty answer${why}.`), { usage });
+    }
     return { text, usage };
   } catch (e) {
     if (e instanceof AiCallError) throw e;
-    if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new AiCallError("Claude rejected the API key.");
-    if (e instanceof Anthropic.NotFoundError) throw new AiCallError(`Claude doesn't recognise the model "${config.model}".`);
+    if (e instanceof Anthropic.AuthenticationError) throw new AiCallError("Claude rejected the API key. Check you copied all of it.");
+    if (e instanceof Anthropic.PermissionDeniedError) throw new AiCallError(`That key isn't allowed to use Claude${anthropicDetail(e)}`);
+    if (e instanceof Anthropic.NotFoundError) throw new AiCallError(`Claude doesn't recognise the model "${config.model}". Leave the model empty to use the default.`);
+    if (e instanceof Anthropic.RateLimitError) throw new AiCallError("Claude is rate-limiting this key. Try again in a minute.");
+    if (e instanceof Anthropic.BadRequestError) throw new AiCallError(`Claude couldn't accept the request${anthropicDetail(e)}`);
     if (e instanceof Anthropic.APIConnectionTimeoutError) throw new AiCallError("Claude took too long to answer.", true);
-    if (e instanceof Anthropic.APIError) throw new AiCallError(`Claude returned an error (${e.status ?? "network"}).`);
+    if (e instanceof Anthropic.APIError) throw new AiCallError(`Claude returned an error (${e.status ?? "network"})${anthropicDetail(e)}`);
+    console.error("Unexpected error calling Claude:", e);
     throw new AiCallError("Couldn't reach Claude.");
   }
 }
@@ -299,7 +336,9 @@ export async function runAi(orgId: string, kind: AiKind, prompt: AiPrompt, opts:
     p_cap_micros: access.capMicros,
   });
   if (reserveError) {
-    console.error("reserve_ai_budget failed", reserveError.message);
+    console.error(
+      `reserve_ai_budget failed (${reserveError.code ?? "no code"}): ${reserveError.message}${isMissingSchema(reserveError) ? " — run migration 20260928000017_ai.sql" : ""}`,
+    );
     return { ok: false, reason: "unavailable", error: AI_UNAVAILABLE_MESSAGE };
   }
   if (!usageId) return { ok: false, reason: "unavailable", error: AI_UNAVAILABLE_MESSAGE }; // monthly cap reached
@@ -314,7 +353,7 @@ export async function runAi(orgId: string, kind: AiKind, prompt: AiPrompt, opts:
     });
 
   try {
-    const out = await callAi(config, prompt, opts.timeoutMs ?? 60_000);
+    const out = await callAi(config, prompt, opts.timeoutMs ?? 45_000);
     await finish("done", out.usage);
     return { ok: true, text: out.text };
   } catch (e) {

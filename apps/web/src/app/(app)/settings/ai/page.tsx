@@ -11,13 +11,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { switchToIncludedAi } from "./actions";
 import { AiTogglesForm, OwnKeyForm } from "./ai-forms";
+import { AiSetupCheck } from "./setup-check";
+import { isSiteAdmin } from "@/lib/site-admin";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Sparkles } from "lucide-react";
 
 export const metadata = { title: "AI" };
+// AI actions on this page can take up to ~50s; Vercel stops a request at its time limit.
+export const maxDuration = 60;
 
 export default async function AiSettingsPage() {
-  const { org, role } = await getOrgContext();
+  const { org, role, user } = await getOrgContext();
   const supabase = await createClient();
   const [billing, { data: settings }] = await Promise.all([
     getBillingStatus(org.id),
@@ -31,6 +35,11 @@ export default async function AiSettingsPage() {
   return (
     <>
       <PageHeader title="AI" description="AI writes your campaign emails, sorts replies and drafts answers for you to send." />
+      {isSiteAdmin(user.email) && (
+        <div className="mb-6">
+          <AiSetupCheck />
+        </div>
+      )}
       {!pro ? (
         <EmptyState
           icon={Sparkles}
